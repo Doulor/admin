@@ -6,9 +6,9 @@
 
 ## 核心服务
 
-保留 portal/admin 的服务端 requireAuth 及按组织审计；权限只认极客班账号的站内角色与称号（#262 第四期，见下文「权限只认极客班账号」），GitHub 组织资格只在 GitHub 新用户第一次登录注册时看。GitHub token 用 AES-256-GCM 加密，密钥解码必须为 32 字节；sid 是服务器会话，不在浏览器状态中产生管理权限。OAuth state 签名并检查十分钟有效期，回跳来源使用允许列表。Cookie 的 HttpOnly/Secure/SameSite 和共享 Domain 均需按真实部署验证，不称为完整 CSRF 或子域隔离。
+保留 portal/admin 的服务端 requireAuth 及按组织审计；权限只认极客班账号的站内角色与称号（#262 第四期，见下文「权限只认极客班账号」），登录与业务授权均不再查询 GitHub 组织角色；有效成员摘要与普通登录身份分开判定。GitHub token 用 AES-256-GCM 加密，密钥解码必须为 32 字节；sid 是服务器会话，不在浏览器状态中产生管理权限。OAuth state 签名并检查十分钟有效期，回跳来源使用允许列表。Cookie 的 HttpOnly/Secure/SameSite 和共享 Domain 均需按真实部署验证，不称为完整 CSRF 或子域隔离。
 
-**会话行的保留时间**：`sid` 有效期 7 天（`app/server/src/lib/auth.ts` 的 `SESSION_TTL_MS`）。过期会话由服务主动删除，不依赖本人再来访问：进程启动时清一次，之后每小时按 `expires_at` 批量 `DELETE`（`SESSION_CLEANUP_INTERVAL_MS`，计时器 unref，`app.close()` 时停掉）；一趟清理出错只记日志（带 SQLite 错误码），不抛出、不影响请求（#128）。所以服务运行期间，`sessions` 里的一行最多在过期后再留一个清理间隔（1 小时）；停机期间到期的行在下次启动时删掉。清理和登出都只删本站的会话行，**不**撤销 GitHub 端已经给出的授权（用户不登录也不会自动失去授权过的那几项；在 GitHub 上撤销要另做。配了 GitHub App 时 GitHub 登录只申请 `read:user user:email read:org`，没配时还要 `admin:org`、`repo`）。
+**会话行的保留时间**：`sid` 有效期 7 天（`app/server/src/lib/auth.ts` 的 `SESSION_TTL_MS`）；`expires_at <= now` 即失效，请求鉴权与主动清理使用同一边界，不保留到期毫秒的额外访问窗口。过期会话由服务主动删除，不依赖本人再来访问：进程启动时清一次，之后每小时按 `expires_at` 批量 `DELETE`（`SESSION_CLEANUP_INTERVAL_MS`，计时器 unref，`app.close()` 时停掉）；一趟清理出错只记日志（带 SQLite 错误码），不抛出、不影响请求（#128）。所以服务运行期间，`sessions` 里的一行最多在过期后再留一个清理间隔（1 小时）；停机期间到期的行在下次启动时删掉。清理和登出都只删本站的会话行，**不**撤销 GitHub 端已经给出的授权（用户不登录也不会自动失去授权过的那几项；在 GitHub 上撤销要另做。配了 GitHub App 时 GitHub 登录只申请 `read:user user:email read:org`，没配时还要 `admin:org`、`repo`）。
 
 **删掉的会话在库文件里也不留字节**：SQLite 默认只把删掉的行标成空闲，字节还在页里，在线备份会原样带走。`app/server/src/lib/db.ts` 给每个连接打开 `secure_delete`，删行、改短字段时把腾出来的空间写成 0；每趟清理删完之后做一次 `wal_checkpoint(TRUNCATE)`（`truncateWal`），把 WAL 写回库文件再截断：`data.db` 里的旧页被检查点覆盖，`-wal` 截成 0 字节。登出、读到过期、GitHub 拒绝令牌（#164）删掉的会话也在下一趟清理后不留字节。有别的连接正在读时这一趟截不成，不等待（不让事件循环卡在默认 5 秒的锁等待上），日志记 `wal truncate deferred`，下一趟再截。SQLite 在线 backup API 做的备份读的是最新的页，不带删掉的会话。`tests/server/session-cleanup.test.ts` 按字节核对 `data.db`、`-wal` 和在线备份里找不到被删会话的密文。
 
@@ -29,15 +29,15 @@
 
 ## 设备授权（RFC 8628，给 `geek login` 预留）
 
-命令行的登录不走浏览器会话，按 RFC 8628 的 device authorization grant 换一个只能读账号资料的令牌（#262，源码 `app/server/src/lib/device-store.ts`、`app/server/src/routes/identity/device.ts`，接口见 [API](API.md)）：
+命令行的登录不走浏览器会话，按 RFC 8628 的 device authorization grant 换取受 scope 与既有权限节点双重约束的令牌（#262，源码 `app/server/src/lib/device-store.ts`、`app/server/src/routes/identity/device.ts`，接口见 [API](API.md)）：
 
-- **授权对象是极客班账号**：确认页要极客班 SSO 会话（`requireAuth`），写进 `device_grants.account_id` 的是会话的 `account_id`（`users.id`），不是 GitHub id；账号不是 `active` 时确认后的轮询回 `access_denied`，已有令牌在 `/auth/device/userinfo` 立即失效，不用等过期。
+- **授权对象是极客班账号**：确认页要极客班 SSO 会话，允许操作还要 `account.cli.login`，写进 `device_grants.account_id` 的是会话的 `account_id`（`users.id`），不是 GitHub id；账号不是 `active` 时确认后的轮询回 `access_denied`，已有令牌在 `/auth/device/userinfo` 立即失效，不用等过期。
 - **凭据不入库、只发一次**：`device_code`（32 字节随机数）与 `access_token`（`gk_` 前缀加 32 字节随机数）只把 sha256 存进 `device_grants`，明文只出现在发码与换令牌的响应里；换过令牌的行改成 `consumed` 且记下令牌哈希，同一个 `device_code` 再轮询只会得到 `invalid_grant`。令牌 30 天到期，到期或账号停用后 `device_grants` 里的哈希不再能换成身份。
 - **时限与节奏**：`user_code` 8 位、字符集去掉元音与易混字符（`BCDFGHJKLMNPQRSTVWXZ`），10 分钟有效；默认轮询间隔 5 秒，提前轮询回 `slow_down` 并把这一行的间隔加 5 秒写回，凭据泄漏时留给暴力尝试的窗口更小。
 - **限流按接口分开**：发码 10 次/分钟、轮询 60 次/分钟、确认页读取 30 次/分钟（`user_code` 空间有限，查询也要挡枚举）、确认 20 次/分钟，都按 IP 计，超额 429。`user_code` 输入的字符集与长度先做校验，不合法按不存在处理。
 - **确认页防钓鱼**：`/device` 显示客户端名（目前只有「极客班命令行」）、请求的 `scope`（逐项说成人话）、终端里那串代码与剩余时间，并在允许/拒绝上方明说「只有你刚在自己的电脑上运行了 `geek login`、终端里就是这串代码时才允许，别人发给你的代码不要确认」。代码不是 `pending` 或已经过期时不给按钮，只说明原因（过期、已被拒绝、已用过）。
 - **跨站写入**：`POST /api/identity/device/approve` 是普通写请求，先经 `middleware/http-policy.ts` 的 Origin / Fetch Metadata 校验（外域 403 `invalid_origin`），会话 Cookie 是 `SameSite=Lax`，第三方站点不能带着会话替你确认。
-- **接口面最小**：设备令牌只被 `GET /auth/device/userinfo` 接受，`sub` 与 `account_id` 都是极客班账号，`login`、`avatar_url` 是绑定的 GitHub 资料；其它接口仍只认会话 Cookie，令牌换不到任何控制台、论坛或 GitHub 能力。`verification_uri` 由 `PUBLIC_ORIGIN` 拼出（`<PUBLIC_ORIGIN>/device`），不写死域名，预发布与正式各自指向自己。
+- **接口面最小**：`/auth/device/userinfo` 的 `sub/account_id/login/scope` 保持兼容，新增 `username/display_name/bio`，`avatar_url` 改读统一公开 DTO（上传头像可为 `/api/identity/avatar/<hash>.webp` 相对路径，否则回退绑定头像）；另有年级与邮箱/资料闸标记，不回 prefs、邮箱、`real_name`。设备令牌还可调用既有四类 scope 业务与 `GET /api/console/me`，默认拒绝其它控制台/账号/OIDC 接口，scope 不替代权限节点且永远不能通过 step-up，完整白名单见 [API](API.md)「geek 命令行令牌」。`verification_uri` 由 `PUBLIC_ORIGIN` 拼出，各环境指向自己。
 - **审计不留凭据**：允许与拒绝各写一条 `identity.device.approve` / `identity.device.deny`（`actor` 是操作者登录名、另记 `actor_account_id`），`details` 只有 `client_id` 与 `scope`，不记 `device_code`、令牌与 `user_code`；审计 `org` 列为空，不经任何接口返回。
 
 ## 邮箱、Google 登录与邀请码注册（#262）
@@ -61,6 +61,7 @@
 所有者 2026-10-23 定：「有关 GitHub 的权限是要放权的」「后续我们可能不仅仅只连 GitHub 了 因为我们现在还要做自己的仓库」。源码在 `lib/permissions.ts`（求值引擎）、`lib/access.ts`（身份摘要）与 `lib/identity-store.ts`（建号时定身份）。
 
 - **身份只看权限表**：每个账号在 `perm_members` 里属于一个身份组（注册用户、极客班成员、往届成员；没登录的访客按访客组求值）、至多一个部门、若干称号，能做什么由这些组的条目按「拒绝优先」求出（详见下文「极客班控制台：权限节点模型」）。不论用 GitHub、邮箱还是 Google 登录都一样，不调用 GitHub、不看本人在 GitHub 组织里的角色；请求路径上没有任何地方再按 GitHub 角色同步身份，控制台里改过的身份不会被改回去。
+- **有效成员摘要**（GitHub #271）：`membershipOf/isMember/getAccountClaims/listAccountsForSync` 共用 active + 当前有效直接 member/alumni 资格（`expires_at` 为 NULL 或严格大于 now），不看回滚专用角色列；owner-only 不获得 OIDC 资格，普通 alumni 不获得额外写节点。有效直接 owner 只在成员资格成立时把对外 `site_role` 提升为 admin。论坛 `kind=member` 另指已登录身份，registered 仍能按其真实节点读取，不能混淆成游客或自动授予写权限。
 - **谁能改**：改身份、部门、称号要 `users.manage` 加 step-up；站长称号只有站长能授予或撤销，最后一位站长不能被降级、删除，站长组的 `*` 条目不能删（409 `last_owner`）。
 - **停用**：停用要 `users.disable`；停用的账号读会话时按未登录处理，登录回调不建会话。
 
@@ -76,9 +77,11 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **主体标识**：`sub` 按下游 sector（回调主机）生成 32 字节随机值存 `oauth_subjects`，不同下游拿到的不同，内部 `account_id` 不下发；换签名密钥不变。声明只有 `openid`、`profile`、`email`，邮箱只给验证过的。
 - **密钥**：签名私钥 `OIDC_JWKS` 与 GitLab 管理员令牌 `GITLAB_API_TOKEN` 是环境级密钥，只在目标机 `.env.<环境>` 与 CI 的环境 secrets；JWKS 端点只发公钥。客户端只能在服务器容器里用 `dist/cli/oidc.js` 登记，`client_secret` 只输出一次，库里存 AES-256-GCM 密文。签发者的 cookie 用 `SESSION_SECRET` 派生的密钥签名。
 - **限流**：协议端点按 IP 每分钟计数，下游服务器调用（发现文档、JWKS、换令牌、撤销、userinfo）合计 600 次，浏览器跳转（授权端点）另计 120 次，GitLab 一个 IP 上的调用不挤占校园网共用出口的浏览器；交互入口与详情 30 次，同意与拒绝 20 次，控制台的立即同步 30 次。交互入口与同意页接口的回复不缓存（`no-store`）。
-- **GitLab 同步**：`GITLAB_SYNC=on` 时按极客班账号在 GitLab 上建号（随机密码、`skip_confirmation`）、放进组（成员 Developer，站长组 `title.site.owner` 里的人 Owner，按权限表判定，不看旧的 `org_role`）、停用与不再是成员的封禁；按 OIDC 身份（`extern_uid` = 这个账号在 `gitlab` 客户端 sector 的 `sub`，sector 取客户端的回调主机，不取 `GITLAB_URL`）认人，不按邮箱或用户名合并；还没同步过就离开、但用极客班登录过 GitLab 的，按身份找到 GitLab 自动建的号并封禁。不删除用户和仓库，不碰不是同步建的用户（如 root）。管理员令牌只在服务端用，调 GitLab 不跟随跳转，失败只记错误码（如 `gitlab_create_409`、`gitlab_unreachable`），不记 GitLab 的响应体。
+- **GitLab 同步**：`GITLAB_SYNC=on` 时按极客班账号在 GitLab 上建号（随机密码、`skip_confirmation`）、放进组（有效 member/alumni Developer，有当前有效直接 `title.site.owner` 的 active 成员 Owner，按权限表判定，不看旧的 `org_role`）、停用与不再是成员的封禁；按 OIDC 身份（`extern_uid` = 这个账号在 `gitlab` 客户端 sector 的 `sub`，sector 取客户端的回调主机，不取 `GITLAB_URL`）认人，不按邮箱或用户名合并；还没同步过就离开、但用极客班登录过 GitLab 的，按身份找到 GitLab 自动建的号并封禁。不删除用户和仓库，不碰不是同步建的用户（如 root）。管理员令牌只在服务端用，调 GitLab 不跟随跳转，失败只记错误码（如 `gitlab_create_409`、`gitlab_unreachable`），不记 GitLab 的响应体。
 
 **残余风险**：GitLab 侧已登录的会话不随极客班退出或停用立即结束，靠同步封禁收口：`GITLAB_SYNC=on` 时最长差一个同步周期（10 分钟）；不是 `on` 时没有人封禁，所以 GitLab 的统一登录要在同步开成 `on` 之后再打开。`GITLAB_API_TOKEN` 是 GitLab 管理员级 `api` 令牌，外泄等于交出整台 GitLab，只放目标机与 CI secrets，按 GitLab 的令牌有效期轮换。`oidc-provider` 依赖的 `jose` 6.2.13 发布时间很近，升级要跟着看安全公告。GitLab 的 SSH 不对外开放，成员用个人访问令牌走 HTTPS 推拉，这个令牌由本人在 GitLab 上管理，不受极客班停用的即时影响（账号被封禁后令牌随之不能用）。
+
+**GitLab 防误封与贡献采集**（GitHub #271）：每次对账以本地有效资格为权威，但写远端之前必须用既有 sub 精确核验受管身份；管理员、服务账号、保留账号、无有效映射对象不变更。HTTP 失败、超时、429/5xx、畸形或未读完的分页不视为撤权证据；有效映射且明确停用的账号仍封禁，远端状态漂移下一轮收敛。等待时资格变化在账号锁内重读并重算，已发请求靠补偿与下轮恢复，不承诺分布式原子性。贡献作者/审核人也实时核验绑定；审核人在所有 HTTP 等待完成后仍须 active 且有审核节点。自动撤分只接受完整标签事件中明确的最新 remove，错误/缺数据只报错保分；不把已确认的正常撤销永久跳过。同步锁不跨环境，双环境同时 on 的权威冲突必须由外部配置解决，不按邮箱合并、不重生成 sub 或签名 key。
 
 ## 极客班控制台：权限节点模型（#274）
 
@@ -87,7 +90,8 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **数据形状**：`perm_groups`（`kind` 是 `level` / `department` / `title` / `custom`；`system=1` 的系统组不能删除）、`perm_group_parents`（组继承边，支持菱形继承）、`perm_entries`（`subject_type` 是 `account` 或 `group`；一条条目对一个节点给 `value`（允许/拒绝）、可选 `scope`（目前只实现 `department` 一个维度）、可选 `meta_value`（限额类节点的数值）、可选过期时间）、`perm_members`（账号属于哪些组，level/department 类每账号最多一个，写入前用 `lib/permissions.ts` 的 `setExclusiveGroupMembership()` 先删旧的再插入新的，可选过期时间）。
 - **判定规则**（`explain`/`evaluate`，和 ibuki-next 的权限引擎逐行一致）：节点匹配——完全相同、`*` 通配全部、`xxx.*` 匹配 `xxx.` 前缀；scope 匹配——条目没给 scope 就对任何请求成立，给了某个维度（如 `department`）而请求没给这个维度就不成立；账号直接条目和它所在组（含递归继承）的条目一起参与判定，**命中里只要有一条 deny 就是 deny，否则有 allow 才是 allow，都没有命中是 unset（按拒绝处理）**——deny 不分条目挂在账号还是哪一层组，也不比「更具体」，只要命中就赢。
 - **等级与部门是组，不是角色字段**：`level.visitor → level.registered → level.member`（注册时或注册后用邀请码升级）与旁支 `level.alumni`（已毕业，读权限同成员，写权限由所有者在控制台单独配）构成继承链，越往上权限越多；登录但没有邀请码的注册用户能读但不能发帖回帖（没有 `forum.topic.create` 等节点，只有 `level.member` 才有）。五个部门（AI、算法、硬件、网安、管理）各是一个 `department` 组，外加占位组 `dept.none`（没有部门）；每个部门下有 `title.<dept>.staff` / `.deputy` / `.head` 三级 `title` 组，父组是该部门。`title.management.head`（管理部部长）直接拿一份不限部门的能力清单，不是按部门 scope 给。
-- **站长（`title.site.owner`）**：种子里唯一持有不限定 scope 的 `*` 条目的组，等价于全部权限，不能被日常操作收回或删到没有成员。接口层强制三条保护：①任免 `title.site.owner`（把它加进或摘出某账号的 `titles`，或直接对该组做增删成员）、编辑该组自己的继承与条目，只有操作者本人**当前**是站长才能做，否则 403 `forbidden`；②这个组的成员降到 0、或这个组最后一条 `node:"*"` 的条目被删掉且没有同时补一条等价的，回 409 `last_owner`；③把某个账号降级或停用导致它从站长变成非站长时，同样先检查摘掉后是否还剩至少一位站长。这三条在 `console/users.ts`（PATCH 改身份）与 `console/permission-groups.ts`（改组的继承/条目、增删成员）两处都挡住，判定用 `lib/permissions.ts` 的 `isSiteOwner()`/`siteOwnerCount()`。
+- **站长（`title.site.owner`）**：只认 active 账号当前有效的直接资格（NULL 或 `expires_at > now`），不因继承成为站长；`isSiteOwner/siteOwnerCount` 排除 disabled、merged 和到期资格。`console/users.ts` 与 `permission-groups.ts` 都要求操作者当前有效 owner 才能任免/停用 owner、恢复带有效 owner 资格的停用账号、或借 `titles` 全量保留把临时 owner 延为永久。删除/停用最后有效 owner、把其唯一资格覆盖为当前或过去到期，都回 409 `last_owner`。改 owner 组继承或条目同样要求有效 owner；替换该组自身根条目时，必须保留当前有效、无 scope 的 `node:"*", value:true`，且不能有同组有效无 scope 的 deny `*`（包括 `value:null` 的 meta wildcard）；有限 scope 或已到期的 allow 不是等价替代。正常的未来临时资格和根条目仍允许，不自动续期。
+- **时间敏感缓存**：除 `perm_state.revision` 外还以 `[evaluatedAt, minExpiry)` 限制复用，最近未来成员资格或已解析 allow/deny/meta 条目到期（含继承和访客条目）时重读；到期等值与回拨到求值时间之前也失效。写入依然必须 bump revision，避免暖缓存让已经过期的权限继续可用。
 - **部门范围的节点**：非管理部门的部长拿到的是**按本部门 scope 限定**的 `users.view`、`apply.view`、`apply.review`、`activity.read`、`dept.manage`（种子里没有任何账号直接持有这几个节点不限定 scope 的版本，除了站长的 `*`）。这类「列表要不要按部门过滤」的接口不能只用 `requirePermission` 当门禁（那只认不限定 scope 的全局 allow，部长一律 403）：改用 `requireScopedPermission(node)`，由 `lib/console-scope.ts` 的 `departmentScopedAccess()` 判定——有不限定 scope 的 allow 就是 `full`（不过滤）；没有但有按部门限定的 allow 就是 `scoped`（范围写进 `req.departmentScope`，路由自己在 SQL 里按部门过滤，如 `console/users.ts` 的用户列表与计数）；都没有是 `none`（403）。**部门级的 deny 会从部门级的 allow 集合里减掉**（有 deny 即 deny），即使一个部门同时有允许和单独针对这个部门的拒绝条目。`apply.view`/`apply.review` 虽然按这个口径放行，但 `applications` 表本身没有部门列（投递提交时不分部门），命中范围的部长看到的是全部投递，和站长一样——不是遗漏，是没有可过滤的维度。`dept.manage` 目前只在种子与节点目录里存在，还没有任何路由的执行点强制它，不算真正生效的权限，只是预留。
 - **写操作要求刚登录过**：`console/permission-groups.ts`、`console/users.ts` 的写接口，以及 `console/applications.ts` 的招新总开关（#284，节点 `apply.settings`，种子里只有站长），在 `requirePermission`/`requireScopedPermission` 之后再挂 `requireStepUp`（`middleware/require-step-up.ts`），会话必须是最近 10 分钟内创建的，否则 403 `step_up_required`，和账号页绑定邮箱/设密码同一个窗口长度（各自独立定义常量，数值保持一致）。
 - **`console.access`**：是否显示控制台入口由这一个节点决定（`/auth/me` 的 `console_link` 直接查 `permissions.check(accountId, "console.access")`），不看任何旧的能力白名单。
@@ -96,11 +100,13 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **公开的组织架构**：`GET /api/public/departments` 匿名可读，只给部门与称号的显示信息（名字、图标、色调、说明、层级），不含权限、不含任何人。
 - **论坛能力在服务端执行**（#57，#274）：登录但没有对应节点的账号在论坛能读不能写（没有 `forum.topic.create`/`forum.reply.create`/`forum.react` 等节点时，`routes/forum-api/viewer.ts` 的 `requireWriter()` 挡住，不再看旧的 `access.member`/组织角色）；置顶（`forum.moderate.pin`）、关闭（`forum.moderate.close`）、编辑或删除他人帖子（`forum.moderate.edit`/`.delete`）按话题所在分类 scope 判定，`lib/console-scope.ts` 的部门级 deny 规则同样适用。动他人帖子、置顶、关闭写审计（`storage.audit`，细节同旧机制但只记开关与编号，不记正文）。
 
+**统一公开资料**（GitHub #271）：`public-profile.ts` 只映射用户名、昵称、简介和头像；canonical 昵称为空或没有上传头像时，回退值由 `identity-store.publicFallbacks()` 按账号批量只读当前登录名与绑定头像，不再读 `forum_users` 的历史缓存，不按邮箱合并，也不返回 provider uid、状态、邮箱或实名。论坛、设备 userinfo 与 OIDC 账号目录共用此公开来源，不把 prefs、邮箱或真实姓名混入 DTO。论坛对历史作者批量只读已有 `account_profiles`，缺行保留旧资料，不隐式建档；canonical 与旧论坛字段已有冲突时 canonical 优先，旧数据/图片不作批量覆盖。旧论坛昵称/简介/头像写口仅在有 canonical 档案时同事务兼容写入，清除头像同步清引用；所在地、网站和通知设置仍归论坛。发布前仍需只读核对既有冲突，不把代码投影说成数据迁移或全库资料已一致。
+
 **个人信息**：投递（姓名、班级、邮箱、特长）对所有持有 `apply.view` 的人完整可见；列表与详情不下发来源 IP 和 User-Agent。只有查看详情和导出会被记录，CSV 离开系统后无法追踪。
 
 **真实姓名**（#280）：存在 `account_profiles.real_name`，只回给本人（`/auth/me`、`/api/identity/me`）和有 `users.manage` 的管理员（控制台用户列表与抽屉，也只有这时能按姓名搜）；只有 `users.view` 或部长范围的人看得到年级、看不到姓名。论坛、天梯、比赛官网、对外授权的声明和 GitLab 同步都不读这一列，`tests/server/real-info.test.ts` 列出允许读写 `real_name` 的服务端文件，多一个就失败。操作记录不写姓名：本人填写记 `account.real_info`，`meta` 只有填了哪几项和年级；管理员修改记 `users.update`，前后快照只有 `has_real_name`、`enrollment_year` 和 `real_name_changed`。
 
-**残余风险**：站内只要还有至少一位站长，`title.site.owner` 组就打不到 0，但如果这唯一一位站长的账号被意外停用或丢失登录方式，控制台里没有第二个人能把权限还给他（代码层面的保护是「不让最后一位站长消失」，不是「保证总能恢复访问」），这种情况下需要运维直接改数据库。部门部长能看到的「用户/投递/操作记录」计数和列表按部门收窄，但部门部长管理权限组（`perm.manage`）本身是一个独立、不限部门的节点，拿到它的人能改任何组的继承与条目（站长组除外）；权限包要按这个来审。`dept.manage` 还没有执行点，种子里发了但目前只是摆设。应用层 scope 目前只实现了 `department` 一个维度，别的维度（如按分类的论坛版务）各自在各自的路由里判定，不经 `console-scope.ts` 统一处理。一键系统备份（#282，`system.backup`）的归档里带着全部账号与密码哈希，种子里不发给部门部长、不在 `title.management.head` 的清单里，只有站长的根通配 `*` 默认拿到；谁拿到这个节点就能下载整站数据，权限包审查要单独留意有没有被顺手发给了别的组。归档已经把短时安全数据（会话、设备授权、OIDC 临时授权与令牌、邮箱验证码、各种限流计数）清空，也不含任何真实密钥，见 [BACKUP](../ops/BACKUP.md)。
+**残余风险**：操作时最后有效站长受到保护，但未来临时资格或根条目可以自然到期，届时即时撤权，没有“至少一位永久站长”或自动恢复政策；若全部资格到期，或唯一站长丢失登录方式，控制台里没有第二个人能把权限还给他（代码层面的保护是「不让最后一位站长消失」，不是「保证总能恢复访问」），这种情况下需要运维直接改数据库。部门部长能看到的「用户/投递/操作记录」计数和列表按部门收窄，但部门部长管理权限组（`perm.manage`）本身是一个独立、不限部门的节点，拿到它的人能改任何组的继承与条目（站长组除外）；权限包要按这个来审。`dept.manage` 还没有执行点，种子里发了但目前只是摆设。应用层 scope 目前只实现了 `department` 一个维度，别的维度（如按分类的论坛版务）各自在各自的路由里判定，不经 `console-scope.ts` 统一处理。一键系统备份（#282，`system.backup`）的归档里带着全部账号与密码哈希，种子里不发给部门部长、不在 `title.management.head` 的清单里，只有站长的根通配 `*` 默认拿到；谁拿到这个节点就能下载整站数据，权限包审查要单独留意有没有被顺手发给了别的组。归档已经把短时安全数据（会话、设备授权、OIDC 临时授权与令牌、邮箱验证码、各种限流计数）清空，也不含任何真实密钥，见 [BACKUP](../ops/BACKUP.md)。
 
 **发信里的个人信息**（#148，[mail](../services/server/mail.md)）：招新的信里写着投递人的姓名、班级、邮箱、投递时间、报名编号，「已收到」那封还有特长原文。这些信在 `mail_outbox` 里等着发的时候（`pending`、`sending`，最长到第 6 次失败，约 8 个半小时）带着收件地址、HTML 和纯文本；发出、放弃或不发之后这三列改成 NULL，只留收件地址的 sha256、主题和结果，不发的信（没有配置发信商、发信白名单模式下不在名单里）写入时就不存。控制台看到的每封信的结果（`MailSummary`）不含地址和正文。`last_error` 和日志只记发信商名、HTTP 状态、对方的错误码（只留字母、数字和 `. _ -`）和信的编号，不记密钥、收件地址、正文和对方回答的原文；投递的「已收到」写不进队列时只记投递编号和错误码。审核备注不进信里，审计 `application.review` 只记这次有没有写信。发信商的密钥（`MAIL_ALIYUN_ACCESS_KEY_*`、`MAIL_RESEND_API_KEY`）和预发布白名单 `MAIL_ALLOWLIST`（里面是真人的邮箱）是环境级 secrets，仓库里留空（[ENVIRONMENTS](../ops/ENVIRONMENTS.md)）；配置写错时启动失败，错误信息不带配置的值。信里的链接只能指向正式与预发布站点，回信地址与发件地址只收一个普通的邮箱地址，主题里没有换行，不会被拼出额外的邮件头。信交给阿里云或 Resend 之后，信的内容与收件地址按对方的保存规则留存，不在本服务的控制范围内。
 

@@ -7,13 +7,13 @@
 // 只接受这一个非空值：CDN 地址同时写在宿主 nginx 的 CSP（deploy/nginx/*.conf）和上传前缀里，
 // 三处必须一致，tests/tooling/static-cdn.test.ts 核对。换 CDN 域名要一起改这三处。
 //
-// 源站路径与 CDN 对象一一对应：源站 /X ↔ 对象 yzgc/static/site/X。预发布与正式共用这个前缀：
+// 源站路径与 CDN 对象一一对应：源站 /X ↔ geek-public 桶的 static/site/X。预发布与正式共用这个前缀：
 // 文件名里带内容哈希，内容相同键就相同，谁先上传都一样。
 
-export const STATIC_CDN_ORIGIN = "https://cdn.crosery.com";
-export const STATIC_CDN_BUCKET = "crosery";
-export const STATIC_CDN_PREFIX = "yzgc/static/site/";
-export const STATIC_CDN_BASE = `${STATIC_CDN_ORIGIN}/${STATIC_CDN_PREFIX}`;
+export const STATIC_CDN_ORIGIN = "https://cdn.yangtzeu.work";
+export const STATIC_CDN_BUCKET = "geek-public";
+export const STATIC_CDN_PREFIX = "static/site/";
+export const STATIC_CDN_BASE = `${STATIC_CDN_ORIGIN}/${STATIC_CDN_BUCKET}/${STATIC_CDN_PREFIX}`;
 
 /**
  * 读构建环境里的 STATIC_CDN_BASE。空或未设置返回空串（同源）；
@@ -25,7 +25,7 @@ export function staticCdnBase(env = process.env) {
   const value = (env.STATIC_CDN_BASE ?? "").trim();
   if (!value) return "";
   if (value !== STATIC_CDN_BASE) {
-    throw new Error(`STATIC_CDN_BASE 只能为空或 ${STATIC_CDN_BASE}，收到 ${JSON.stringify(value)}`);
+    throw new Error(`STATIC_CDN_BASE 只能为空或 ${STATIC_CDN_BASE}`);
   }
   return value;
 }

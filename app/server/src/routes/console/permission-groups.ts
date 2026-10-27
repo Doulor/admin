@@ -67,8 +67,8 @@ function isValidMetaValue(value: string): boolean {
  *   不够——删成员资格的同时这条通配条目还在，下一个被加进这个组的人照样是站长；反过来删光这条通配条目，
  *   这个组里挂着的所有账号都不再是真正意义上的站长。两边都要护住，不能只护成员表。
  */
-function forbidUnlessSiteOwner(db: import("better-sqlite3").Database, req: { session?: { account_id: string } }, reply: FastifyReply): boolean {
-  if (isSiteOwner(db, req.session!.account_id)) return false;
+function forbidUnlessSiteOwner(db: import("better-sqlite3").Database, req: { session?: { account_id: string } }, reply: FastifyReply, now: number): boolean {
+  if (isSiteOwner(db, req.session!.account_id, now)) return false;
   reply.code(403).send({ error: "forbidden", node: SITE_OWNER_GROUP_ID, message: "只有站长才能任免站长、改站长组的条目或继承" });
   return true;
 }
@@ -140,8 +140,9 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     if (!group) return reply.code(404).send({ error: "not_found", message: "没有这个权限组" });
     const before = fullView().find(item => item.id === id);
     const { name, description, weight, parents, icon, tone, sort, entries } = req.body;
+    const now = app.services.clock();
     // #274 残留修复 B：改站长组自己的继承边或条目，要求操作者现在就是站长。
-    if (id === SITE_OWNER_GROUP_ID && (parents !== undefined || entries !== undefined) && forbidUnlessSiteOwner(db, req, reply)) return;
+    if (id === SITE_OWNER_GROUP_ID && (parents !== undefined || entries !== undefined) && forbidUnlessSiteOwner(db, req, reply, now)) return;
     if (parents !== undefined) {
       for (const parentId of parents) {
         if (!db.prepare("SELECT 1 FROM perm_groups WHERE id = ?").get(parentId)) return reply.code(400).send({ error: "invalid_parent", message: `继承的组不存在：${parentId}` });
@@ -160,11 +161,13 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     if (id === SITE_OWNER_GROUP_ID && entries !== undefined) {
       // 算上这次要删的、要加的之后，这个组是不是至少还留着一条 node:"*" 的允许条目——只删后不加等效的，
       // 或者删一条、换一条更弱的（比如把 value 改成 false），都要拦住。
-      const currentWildcards = (db.prepare("SELECT id FROM perm_entries WHERE subject_type = 'group' AND subject_id = ? AND node = '*' AND value = 1").all(id) as { id: number }[]).map(row => row.id);
       const removedIds = new Set(entries.remove ?? []);
-      const remaining = currentWildcards.filter(entryId => !removedIds.has(entryId)).length;
-      const added = (entries.add ?? []).some(addition => addition.node === "*" && addition.value === true);
-      if (remaining === 0 && !added) return reply.code(409).send({ error: "last_owner", message: "站长组至少要留一条「全部权限」的条目" });
+      const wildcards = [...before!.entries.filter(entry => !removedIds.has(entry.id)), ...(entries.add ?? [])]
+        .filter(entry => entry.node === "*" && Object.keys(entry.scope ?? {}).length === 0 && (entry.expires_at ?? Infinity) > now);
+      // deny 优先；value 为空的 meta "*" 在引擎中也按 false 求值，不能借它绕过保护。
+      if (!wildcards.some(entry => entry.value === true) || wildcards.some(entry => entry.value !== true)) {
+        return reply.code(409).send({ error: "last_owner", message: "站长组至少要留一条「全部权限」的条目" });
+      }
     }
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -176,7 +179,7 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     if (sort !== undefined) { fields.push("sort = ?"); values.push(sort); }
     db.transaction(() => {
       if (fields.length) {
-        fields.push("updated_at = ?"); values.push(Date.now());
+        fields.push("updated_at = ?"); values.push(now);
         db.prepare(`UPDATE perm_groups SET ${fields.join(", ")} WHERE id = ?`).run(...values, id);
       }
       if (parents !== undefined) {
@@ -191,7 +194,6 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
       if (entries?.add?.length) {
         const insertEntry = db.prepare(`INSERT INTO perm_entries(subject_type, subject_id, node, value, meta_value, scope, expires_at, granted_by, created_at)
           VALUES ('group', ?, ?, ?, ?, ?, ?, ?, ?)`);
-        const now = Date.now();
         for (const addition of entries.add) {
           insertEntry.run(id, addition.node, addition.value === undefined ? null : addition.value ? 1 : 0, addition.meta_value ?? null,
             JSON.stringify(addition.scope ?? {}), addition.expires_at ?? null, req.session!.login, now);
@@ -247,8 +249,12 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
         return reply.code(404).send({ error: "account_not_found", message: "没有这个账号" });
       }
       // #274 残留修复 B：把别人加进站长组，要求操作者现在就是站长。
-      if (id === SITE_OWNER_GROUP_ID && forbidUnlessSiteOwner(db, req, reply)) return;
-      const now = Date.now();
+      const now = app.services.clock();
+      if (id === SITE_OWNER_GROUP_ID && forbidUnlessSiteOwner(db, req, reply, now)) return;
+      if (id === SITE_OWNER_GROUP_ID && req.body.expires_at !== undefined && req.body.expires_at <= now
+        && isSiteOwner(db, req.body.account_id, now) && siteOwnerCount(db, now) <= 1) {
+        return reply.code(409).send({ error: "last_owner", message: "至少要留一位站长" });
+      }
       if (group.kind === "level" || group.kind === "department") {
         // level、department 组每账号最多一个：lib/permissions.ts 的 setExclusiveGroupMembership() 统一实现
         // 「先删旧的再插入新的」，不在这里再写一份一样的 SQL（#274 残留修复 P）。
@@ -267,8 +273,9 @@ export default async function consolePermissionGroupsRoutes(app: FastifyInstance
     "/api/console/permission-groups/:id/members/:account_id", manageWrite, async (req, reply) => {
       if (req.params.id === SITE_OWNER_GROUP_ID) {
         // #274 残留修复 B/E：摘掉站长组成员，要求操作者现在就是站长；摘的这位要是最后一位站长也拦住。
-        if (forbidUnlessSiteOwner(db, req, reply)) return;
-        if (isSiteOwner(db, req.params.account_id) && siteOwnerCount(db) <= 1) {
+        const now = app.services.clock();
+        if (forbidUnlessSiteOwner(db, req, reply, now)) return;
+        if (isSiteOwner(db, req.params.account_id, now) && siteOwnerCount(db, now) <= 1) {
           return reply.code(409).send({ error: "last_owner", message: "至少要留一位站长" });
         }
       }

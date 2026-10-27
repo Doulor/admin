@@ -1,0 +1,447 @@
+{
+  "version": 1,
+  "issue": 270,
+  "kind": "business",
+  "summary": "自建 GitLab 接极客班统一登录（#270，所有者 2026-10-23：「gitlab那边的登录可以走极客班的sso统一登录，因为毕竟数据都要一起统计」「所有有极客班登录身份的都有对应的gitlab账号」）：核心服务内嵌 OpenID Connect 签发者（/oidc/*，oidc-provider 9.12.2，ADR-0005 决策 8 与交付第 3 项），控制台新增同意页 /authorize；按极客班账号在 GitLab 上建号、进组、封禁（GITLAB_SYNC，正式 off；正式站上线前 GitLab 接预发布，预发布 on，所有者 2026-10-23 13:36 选定），控制台加 GitLab 账号状态与立即同步两个接口；官网桌面加「代码仓库」应用，接过 3 键与便签第 3 行。",
+  "applications": [
+    "server",
+    "web",
+    "console"
+  ],
+  "domains": [
+    "identity",
+    "gitlab",
+    "forum",
+    "audit",
+    "platform",
+    "public_content",
+    "competitions",
+    "recruitment",
+    "mail",
+    "feedback",
+    "invitations",
+    "organization",
+    "github"
+  ],
+  "flows": [
+    "flow:identity.oidc.protocol",
+    "flow:identity.oidc.token",
+    "flow:identity.oidc.interaction",
+    "flow:identity.oidc.details",
+    "flow:identity.oidc.confirm",
+    "flow:identity.oidc.abort",
+    "flow:gitlab.accounts.list",
+    "flow:gitlab.accounts.sync",
+    "flow:competition.public.list",
+    "flow:documentation.list",
+    "flow:application.submit",
+    "flow:feedback.public.list",
+    "flow:invitation.public.inspect",
+    "flow:organization.public",
+    "flow:github.organizations.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "GitHub 账号被封后改用自建 GitLab（git.yangtzeu.work）。GitLab 的登录走极客班统一登录：第一次从 GitLab 登录要本人在 /authorize 同意，之后同一账号同一应用不再问；是不是成员按极客班账号的站内成员资格（停用或改成不是成员的被拒）。每个极客班成员在 GitLab 上有一个用户，按 OIDC 身份认人；舰员 Developer、提督 Owner 进 geek 组；离开的封禁、回来的解封，从不删用户和仓库。资料在建号时从论坛资料（没有时 GitHub 公开资料）补一次。官网桌面多一个「代码仓库」应用，GitHub 组织应用留着。控制台「成员与权限」能看到每个人的 GitLab 账号和同步状态，同步失败可以立即重试。",
+      "evidence": [
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/lib/oidc-provider.ts",
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/console/src/pages/Authorize.vue",
+        "app/web/sites/portal/lib/osApps.ts",
+        "docs/services/server/oidc.md",
+        "docs/decisions/0005-sso-extend-core-server.md"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "新增 6 个 /oidc 操作：GET|POST /oidc/* 由 oidc-provider 处理（路由 hijack，路径去掉 /oidc 前缀，这一层去掉 Fastify 的内容解析器，按 PUBLIC_ORIGIN 改写 X-Forwarded-Proto/Host），交互入口与同意页的 details、confirm、abort 三个 JSON 接口；没配 OIDC_JWKS 时路由照样注册，onRequest 一律 404。lib/oidc-provider.ts 配置签发者（只授权码 + PKCE S256，不发 refresh token，声明 openid/profile/email，pairwise sub，登录提示以本站 sid 为准）；lib/oidc-store.ts 是 oauth_clients、oauth_subjects、oauth_grants、oidc_payloads 的唯一读写方（oidc-provider 的 Adapter，每小时清过期行）；lib/account-directory.ts 把账号信息与论坛资料拼成对外的账号；lib/gitlab-sync.ts 调 GitLab 管理接口建号、改组权限、封禁解封，失败记 last_error 下次再试，on 时启动对账、之后每 10 分钟；cli/oidc.ts 生成签名密钥、登记客户端。控制台新增 GET /api/console/gitlab/accounts 与 POST /api/console/gitlab/accounts/:account_id/sync（请求与响应合同在 console/contracts.ts）。identity-store 只加两个只读查询，forum-store 只加 profileForAccount；app.ts 的 ADMIN_SPA_PATHS 加 /authorize，/oidc 归 API 类的 404，请求日志不记 /oidc/* 的查询串。",
+      "evidence": [
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/routes/oidc/contracts.ts",
+        "app/server/src/lib/oidc-provider.ts",
+        "app/server/src/lib/oidc-store.ts",
+        "app/server/src/lib/account-directory.ts",
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/routes/console/gitlab.ts",
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/cli/oidc.ts",
+        "app/server/src/app.ts",
+        "app/server/src/services.ts",
+        "app/server/src/config.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "协议端点：授权端点只认登记过的客户端与完全一致的回调地址，PKCE 必须 S256，换令牌要客户端密钥；userinfo 每次按账号当前状态判断，停用或不再是成员 401。交互入口没有 sid 去 /signin，不是成员的带 access_denied 回下游；同意页三个接口要 sid，且只认发起这次登录的账号（别人 409 interaction_mismatch），confirm/abort 经核心写请求的 Origin 门禁。限流：/oidc/* 按 IP 每分钟计数，下游服务器调用（发现文档、JWKS、换令牌、撤销、userinfo）合计 600，授权端点另计 120，交互入口与 details 30，confirm/abort 20。控制台的 GitLab 账号列表要 roles.manage 或 roles.department.manage（同成员页），立即同步只给 roles.manage。客户端只能在服务器容器里用 CLI 登记，没有 HTTP 接口。",
+      "evidence": [
+        "app/server/src/routes/oidc/index.ts",
+        "app/server/src/lib/oidc-provider.ts",
+        "app/server/src/routes/console/gitlab.ts",
+        "tests/server/oidc.test.ts",
+        "tests/server/gitlab-sync.test.ts"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "db.ts 新建 5 张表：oauth_clients（客户端，secret 用 ENCRYPTION_KEY 做 AES-256-GCM 加密存）、oauth_subjects（(sector_id,user_id)→sub，两向唯一，sub 32 字节随机）、oauth_grants（(user_id,client_id)→grant_id）、oidc_payloads（oidc-provider 的会话、交互、授权码、令牌、授权，按 expires_at 清理，consumed_at 毫秒）、gitlab_accounts（账号对应的 GitLab 用户 id、用户名、状态、组权限、最后一次错误）。都是 CREATE TABLE IF NOT EXISTS，不改已有表、不回填。对外只发 pairwise sub，不发内部 account_id；邮箱只给验证过的 canonical_email。归属：前四张归 identity，gitlab_accounts 归新的 gitlab 业务域。",
+      "evidence": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/lib/oidc-store.ts",
+        "app/server/src/lib/gitlab-sync.ts",
+        "docs/services/server/data-model.md",
+        "docs/architecture/catalog/ownership.json",
+        "tests/server/legacy-database.test.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "新增生产依赖 oidc-provider 9.12.2（所有者在本任务批准；带入 jose 6.2.13、koa 等），开发依赖 @types/oidc-provider 9.12.1；不用 @fastify/middie。外部服务：GITLAB_SYNC=on 时调用自建 GitLab 的管理接口（/api/v4/users、groups/:group/members、block/unblock，头像上传），用 GitLab 管理员令牌；建号时匿名读一次 GitHub 公开资料与头像（读不到不影响同步）。审计新增 oidc.consent、oidc.deny、gitlab.sync。forum 域只读论坛资料（显示名、简介、所在地、网站、头像哈希）。",
+      "evidence": [
+        "app/server/package.json",
+        "pnpm-lock.yaml",
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/lib/account-directory.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "新文档 docs/services/server/oidc.md（签发者、登录与同意、客户端与密钥、数据、GitLab 同步、GitLab 一侧的 omniauth 配置）；server README、data-model、endpoint-contracts 补新接口与表；API、SECURITY（含英文概览）补接口族、端点与安全边界；ADR-0005 的实施状态写第 3 项由 #270 实施；web README、portal 补 nginx 的 /oidc/ 与 /authorize、桌面「代码仓库」；console README 补同意页、mock 与 dev 代理；ENVIRONMENTS、CICD、DEPLOY 补 GITLAB_* 与 OIDC_JWKS、GITLAB_API_TOKEN。",
+      "evidence": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/SECURITY.md",
+        "docs/services/console/README.md",
+        "docs/services/web/portal.md",
+        "docs/ops/ENVIRONMENTS.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "tests/server/oidc.test.ts 用 Fastify inject 走完整浏览器往返（带 path 的 cookie 罐）：发现文档与 JWKS、没登录去 /signin、首次同意与记住同意（换浏览器也不问）、pairwise sub、授权码重放撤销授权与令牌、未知客户端与错回调不跳转、PKCE 缺失与错误、拒绝、同意接口的 401/409/403/404、换账号、sid 结束后重新登录、不是成员与 userinfo 401、停用客户端、过期交互、没配密钥 404、限流（服务器调用与浏览器跳转分开算）、同意页详情不缓存、回调地址校验。tests/server/gitlab-sync.test.ts 用假的 GitLab 管理接口核对建号、邮箱回退、用户名加后缀、封禁解封、按身份沿用、没同步过就离开的按身份找到并封禁、立即同步与定时对账不同时做同一个账号、sector 取 gitlab 客户端、没登记客户端不建号、不合法的网站不传、停下时结束这一轮、论坛资料优先、失败与重试、dry-run 与 off、控制台两个接口、配置校验。tests/console/authorize.test.ts 核对同意页纯逻辑与样板。tests/console/gitlab.test.ts 核对成员页 GitLab 列（状态、错误、预演文字，立即同步只在打开且客户端登记了、有错或还有事要做时出现，样板与服务端合同同形）。web、nginx、环境契约的既有回归随改动更新。未验证：真实 GitLab 的 omniauth 往返与同步（要预发布部署、生成密钥、登记客户端之后才能做），手机与 Safari 上的同意页，成员页 GitLab 列只在样板数据和隔离本地后端（dry-run）下看过，没对预发布的真实数据和 on 时的真实 GitLab 看过。",
+      "evidence": [
+        "tests/server/oidc.test.ts",
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/authorize.test.ts",
+        "tests/tooling/web-nginx.test.ts",
+        "tests/tooling/deployment-environment.test.ts",
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/console/gitlab.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "server 镜像多一个生产依赖；web 镜像的 nginx 把 /oidc/ 转给 server、/authorize 回落到控制台入口。两套 compose 给 server 加 OIDC_JWKS、GITLAB_SYNC、GITLAB_URL、GITLAB_GROUP、GITLAB_API_TOKEN；环境模板正式 GITLAB_SYNC=off、预发布 on（GitLab 正式站上线前接预发布的签发者，预发布的数据库从此不能清空重建；正式站上线后把 GitLab 的 sub 迁到正式库再改接），两个密钥留空；deployment-environment.mjs 校验取值、OIDC_JWKS 为空时提示对外授权关闭、GITLAB_SYNC=on 而没有令牌时拒绝渲染；两条部署工作流与 deploy-manual.mjs 按同名传这两个密钥。上线后要在目标机生成签名密钥、登记 GitLab 客户端、配 GitLab 的 omniauth；预发布的 GITLAB_API_TOKEN 用专门的 GitLab 管理员机器人账号的令牌；正式开 GITLAB_SYNC=on 要所有者批准、先备份数据库。",
+      "evidence": [
+        "app/web/Dockerfile",
+        "deploy/compose/production.yml",
+        "deploy/compose/preview.yml",
+        "deploy/env/.env.production",
+        "deploy/env/.env.preview",
+        "scripts/deployment-environment.mjs",
+        "scripts/deploy-manual.mjs",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/routes/oidc/",
+        "app/server/src/lib/oidc-provider.ts",
+        "app/server/src/lib/oidc-store.ts",
+        "app/server/src/lib/account-directory.ts",
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/cli/oidc.ts"
+      ],
+      "domains": [
+        "identity",
+        "forum",
+        "audit"
+      ],
+      "nodes": [
+        "domain:identity",
+        "table:oauth_clients",
+        "table:oauth_subjects",
+        "table:oauth_grants",
+        "table:oidc_payloads",
+        "route:GET /oidc/*",
+        "route:POST /oidc/*",
+        "route:GET /oidc/interaction/:uid",
+        "route:GET /oidc/interaction/:uid/details",
+        "route:POST /oidc/interaction/:uid/confirm",
+        "route:POST /oidc/interaction/:uid/abort",
+        "flow:identity.oidc.protocol",
+        "flow:identity.oidc.token",
+        "flow:identity.oidc.interaction",
+        "flow:identity.oidc.details",
+        "flow:identity.oidc.confirm",
+        "flow:identity.oidc.abort"
+      ],
+      "reason": "对外授权：签发者配置、Adapter 与客户端存储、交互与同意页接口、对外账号（账号信息加论坛资料）、密钥与客户端的命令行；identity-store 只加两个只读查询（getAccountClaims、listAccountsForSync）。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/gitlab-sync.ts",
+        "app/server/src/routes/console/gitlab.ts",
+        "app/server/src/routes/console/contracts.ts",
+        "app/server/src/routes/console/index.ts",
+        "app/server/src/lib/forum-store.ts"
+      ],
+      "domains": [
+        "gitlab",
+        "identity",
+        "forum",
+        "audit",
+        "competitions",
+        "feedback",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:gitlab",
+        "table:gitlab_accounts",
+        "route:GET /api/console/gitlab/accounts",
+        "route:POST /api/console/gitlab/accounts/:account_id/sync",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync",
+        "flow:application.submit",
+        "flow:feedback.public.list",
+        "flow:organization.public",
+        "flow:competition.public.list"
+      ],
+      "reason": "GitLab 账号同步与控制台的状态、立即同步接口；console/index.ts 只注册新路由，contracts.ts 只加这两个接口的合同；forum-store 只加按账号读论坛资料的 profileForAccount。console/index.ts 与 contracts.ts 是控制台各接口共用的注册入口与合同表，目录归到多个业务域；本次只加 GitLab 两个接口，其它接口不变。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/db.ts",
+        "app/server/src/services.ts",
+        "app/server/src/config.ts",
+        "app/server/src/app.ts",
+        "app/server/src/index.ts",
+        "app/server/src/middleware/http-policy.ts",
+        "app/server/package.json",
+        "pnpm-lock.yaml"
+      ],
+      "domains": [
+        "platform",
+        "identity",
+        "gitlab",
+        "audit",
+        "competitions",
+        "feedback",
+        "forum",
+        "invitations",
+        "mail",
+        "organization",
+        "recruitment",
+        "github",
+        "public_content"
+      ],
+      "nodes": [
+        "application:server",
+        "table:oauth_clients",
+        "table:gitlab_accounts",
+        "flow:identity.oidc.protocol",
+        "flow:gitlab.accounts.sync",
+        "flow:application.submit",
+        "flow:feedback.public.list",
+        "flow:invitation.public.inspect",
+        "flow:organization.public",
+        "flow:competition.public.list",
+        "flow:identity.oidc.details",
+        "flow:documentation.list",
+        "flow:github.organizations.list"
+      ],
+      "reason": "建表、服务装配（oidc 为 null 时关闭）、OIDC_JWKS 与 GITLAB_* 的配置校验、注册 /oidc 路由与 /authorize 入口、定时同步只在 index.ts 打开；新增依赖 oidc-provider；http-policy.ts 让 /oidc/ 下经 Fastify 回复的（交互入口与同意页接口）带 Cache-Control: no-store。db.ts 是各业务域共用的建库文件，本次只新增 5 张表，不改已有表；http-policy.ts 是所有路由共用的响应头与错误处理，本次只多一个不缓存的前缀，/auth 与 /api 不变；关联的其它业务域流程只为回归核对。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Authorize.vue",
+        "app/console/src/lib/authorize.ts",
+        "app/console/src/router.ts",
+        "app/console/src/mock/index.ts",
+        "app/console/vite.config.ts",
+        "app/console/src/pages/People.vue",
+        "app/console/src/lib/gitlab.ts",
+        "app/console/src/lib/types.ts",
+        "app/console/src/mock/console.ts"
+      ],
+      "domains": [
+        "identity",
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:console",
+        "flow:identity.oidc.details",
+        "flow:identity.oidc.confirm",
+        "flow:identity.oidc.abort",
+        "flow:github.organizations.list",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "同意页：读 details，允许或拒绝后整页回到应用；样板数据给一份 GitLab 请求，写请求照旧 501；开发态把 /oidc 代理到本地 server。router.ts 与 mock/index.ts 是控制台各页面共用的路由表和样板，目录按控制台模块归到多个业务域；本次只加 /authorize 一条路由和同意页的一份样板，其余页面的路由与样板不变，关联的其它业务域流程只为回归核对。成员与权限的名单在 GitLab 同步不是 off 时多一列「GitLab」（GET /api/console/gitlab/accounts）：用户名链到 GitLab 个人页、组权限或已封禁、还要做的事（dry-run 写「预演」）、最后一次错误；能管理称号的人对有错或还有事要做的账号点「立即同步」（POST …/sync）。关着、预演、客户端没登记时名单上方各一句说明；加上这一列时其它列收窄，1440 宽不用横向滚动。lib/types.ts 只加 GitLab 的类型，mock/console.ts 只加 GitLab 状态样板（?__gitlab= 切换预演、没登记、关着）。"
+    },
+    {
+      "paths": [
+        "app/web/Dockerfile",
+        "app/web/vite.config.ts",
+        "app/web/shared/config/app.config.json",
+        "app/web/shared/config/index.ts",
+        "app/web/sites/portal/lib/links.ts",
+        "app/web/sites/portal/lib/osApps.ts",
+        "app/web/sites/portal/components/os/Widgets.tsx",
+        "app/web/sites/portal/components/os/YugcOs.tsx"
+      ],
+      "domains": [
+        "identity",
+        "public_content",
+        "platform",
+        "competitions",
+        "feedback",
+        "invitations",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "application:web",
+        "flow:identity.oidc.protocol",
+        "flow:identity.oidc.interaction",
+        "flow:competition.public.list",
+        "flow:documentation.list",
+        "flow:application.submit",
+        "flow:feedback.public.list",
+        "flow:invitation.public.inspect",
+        "flow:organization.public"
+      ],
+      "reason": "nginx 把 /oidc/ 转给 server、/authorize 回落控制台入口（开发态同样转给 5186 与 3000）；官网桌面的「代码仓库」应用、站点配置 urls.gitlab 与便签第 3 行；YugcOs 只改头注释。osApps、links、Widgets、YugcOs 是官网桌面共用的应用清单与外壳，目录按官网模块归到八个业务域；本次只加「代码仓库」一个外链应用、把 3 键与便签第 3 行交给它，其它应用的去处不变，关联的其它业务域流程只为回归核对。"
+    },
+    {
+      "paths": [
+        "deploy/compose/production.yml",
+        "deploy/compose/preview.yml",
+        "deploy/env/.env.production",
+        "deploy/env/.env.preview",
+        "scripts/deployment-environment.mjs",
+        "scripts/deploy-manual.mjs",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml"
+      ],
+      "domains": [
+        "platform",
+        "identity",
+        "gitlab"
+      ],
+      "nodes": [
+        "application:server"
+      ],
+      "reason": "两个环境的 GITLAB_* 取值与两个密钥的传递、校验、渲染；部署工作流与维护者机器部署按同名传密钥。 预发布的 GITLAB_SYNC 从 dry-run 改成 on（所有者 2026-10-23 13:36 选定 GitLab 先接预发布）。"
+    },
+    {
+      "paths": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/README.md",
+        "docs/services/server/data-model.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/decisions/0005-sso-extend-core-server.md",
+        "docs/services/web/README.md",
+        "docs/services/web/portal.md",
+        "docs/services/console/README.md",
+        "docs/ops/ENVIRONMENTS.md",
+        "docs/ops/CICD.md",
+        "docs/ops/DEPLOY.md",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "identity",
+        "gitlab",
+        "platform"
+      ],
+      "nodes": [
+        "document:docs/services/server/oidc.md",
+        "domain:gitlab",
+        "flow:identity.oidc.protocol",
+        "flow:gitlab.accounts.sync"
+      ],
+      "reason": "人工文档随模块改；目录归属登记新路由、新表与新业务域，生成物随之重建。"
+    },
+    {
+      "paths": [
+        "tests/server/oidc.test.ts",
+        "tests/server/gitlab-sync.test.ts",
+        "tests/console/authorize.test.ts",
+        "tests/server/core.test.ts",
+        "tests/server/legacy-database.test.ts",
+        "tests/tooling/web-nginx.test.ts",
+        "tests/tooling/deployment-environment.test.ts",
+        "tests/web/portal-os.test.ts",
+        "tests/web/portal-os-entries.test.tsx",
+        "tests/web/portal-promo.test.ts",
+        "tests/console/gitlab.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "gitlab",
+        "public_content",
+        "platform"
+      ],
+      "nodes": [
+        "flow:identity.oidc.protocol",
+        "flow:identity.oidc.confirm",
+        "flow:gitlab.accounts.sync",
+        "flow:gitlab.accounts.list"
+      ],
+      "reason": "新回归覆盖签发者、同意页与 GitLab 同步；既有回归随 ADMIN_SPA_PATHS、表清单、nginx 入口、环境字段与桌面应用顺序更新。tests/console/gitlab.test.ts 核对成员页 GitLab 列的文字、立即同步的条件和样板与服务端合同同形。"
+    }
+  ],
+  "documents": [
+    "docs/services/server/oidc.md",
+    "docs/services/server/README.md",
+    "docs/services/server/data-model.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md",
+    "docs/architecture/SECURITY.en.md",
+    "docs/decisions/0005-sso-extend-core-server.md",
+    "docs/services/web/README.md",
+    "docs/services/web/portal.md",
+    "docs/services/console/README.md",
+    "docs/ops/ENVIRONMENTS.md",
+    "docs/ops/CICD.md",
+    "docs/ops/DEPLOY.md"
+  ],
+  "tests": [
+    "tests/server/oidc.test.ts",
+    "tests/server/gitlab-sync.test.ts",
+    "tests/console/authorize.test.ts",
+    "tests/server/core.test.ts",
+    "tests/server/legacy-database.test.ts",
+    "tests/tooling/web-nginx.test.ts",
+    "tests/tooling/deployment-environment.test.ts",
+    "tests/web/portal-os.test.ts",
+    "tests/web/portal-os-entries.test.tsx",
+    "tests/web/portal-promo.test.ts"
+  ],
+  "compatibility": "全是新增：/oidc/*、/authorize 与两个控制台接口是新路径，不和官网、论坛、控制台既有路由冲突；没配 OIDC_JWKS 时 /oidc/* 一律 404，行为和以前一样。GITLAB_SYNC 默认 off，正式环境照旧不调用 GitLab。官网桌面的 3 键从「GitHub 组织」换成「代码仓库」，GitHub 组织应用留在桌面和启动器里。已有接口的形状不变。",
+  "migration": "新镜像启动时在建库阶段 CREATE TABLE IF NOT EXISTS 建 oauth_clients、oauth_subjects、oauth_grants、oidc_payloads、gitlab_accounts 和它们的索引，可重复执行，不改已有表、不回填。上线后的手工步骤（只在目标机的 server 容器里）：keygen 生成签名密钥写进 .env.preview / .env.production 的 OIDC_JWKS 并重新部署，client add --client-id gitlab 登记 GitLab（client id 必须是 gitlab，同步按它的回调主机算 sub；client_secret 只输出一次，写进 GitLab 机器上 root 0600 的文件），再把 GITLAB_SYNC 改成 on、填好 GITLAB_API_TOKEN，看到第一轮对账成功后才配 GitLab 的 omniauth（同步没开时成员离开不会被封禁）；正式改 GITLAB_SYNC=on 前先备份数据库。",
+  "rollback": "在 stage 上 git revert -m 1 撤销合并提交并重新构建 server 与 web 镜像；库不用动：旧代码不认识这 5 张表，留着不影响。回滚后 GitLab 的极客班统一登录失效（/oidc/* 404），GitLab 上已经建好的用户与仓库留着，root 用密码照常登录；同步停下，不会封禁或解封任何人。下游拿到 sub 之后，回滚只能向前修复（ADR-0005），不要删 oauth_subjects，否则再上线时 GitLab 认不出原来的人。"
+}

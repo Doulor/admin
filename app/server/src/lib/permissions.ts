@@ -203,7 +203,7 @@ export function metaValueFromEntries(entries: ResolvedEntry[], node: string): st
 }
 
 // ---------------------------------------------------------------------------
-// perm_state.revision：每次写入 +1，进程内缓存以 (account_id, revision) 为键（SPEC §3.5 第 5 条）。
+// perm_state.revision：每次写入 +1；缓存还受成员资格/条目有效期与求值时间区间约束。
 // ---------------------------------------------------------------------------
 
 export function getPermRevision(db: Database.Database): number {
@@ -253,14 +253,18 @@ const LEVEL_PREFIX = "level.";
 export function levelGroupId(suffix: string): string { return `${LEVEL_PREFIX}${suffix}`; }
 export function levelSuffix(groupId: string): string { return groupId.startsWith(LEVEL_PREFIX) ? groupId.slice(LEVEL_PREFIX.length) : groupId; }
 
-/** 这个账号现在是不是站长（`title.site.owner` 的直接成员）。 */
-export function isSiteOwner(db: Database.Database, accountId: string): boolean {
-  return !!db.prepare("SELECT 1 FROM perm_members WHERE group_id = ? AND account_id = ?").get(SITE_OWNER_GROUP_ID, accountId);
+/** 站长只认 active 账号上当前有效的直接资格，不因其它组继承 owner 而成为站长。 */
+export function isSiteOwner(db: Database.Database, accountId: string, now: number = Date.now()): boolean {
+  return !!db.prepare(`SELECT 1 FROM perm_members m JOIN users u ON u.id = m.account_id
+    WHERE m.group_id = ? AND m.account_id = ? AND u.status = 'active'
+      AND (m.expires_at IS NULL OR m.expires_at > ?)`).get(SITE_OWNER_GROUP_ID, accountId, now);
 }
 
 /** 现在一共有几位站长（用于「至少留一位」的判断）。 */
-export function siteOwnerCount(db: Database.Database): number {
-  return (db.prepare("SELECT COUNT(*) AS n FROM perm_members WHERE group_id = ?").get(SITE_OWNER_GROUP_ID) as { n: number }).n;
+export function siteOwnerCount(db: Database.Database, now: number = Date.now()): number {
+  return (db.prepare(`SELECT COUNT(*) AS n FROM perm_members m JOIN users u ON u.id = m.account_id
+    WHERE m.group_id = ? AND u.status = 'active' AND (m.expires_at IS NULL OR m.expires_at > ?)`)
+    .get(SITE_OWNER_GROUP_ID, now) as { n: number }).n;
 }
 
 export type ExplainHit = {
@@ -312,22 +316,28 @@ export function accountGroupsView(db: Database.Database, accountId: string | nul
 export type PermissionEngine = ReturnType<typeof createPermissionEngine>;
 
 /**
- * DB 支撑的求值引擎，带 (account_id, revision) 进程内缓存。`clock` 可注入，测试用。
- * 写操作（新增/删除组、成员、条目）一律要在写完之后调用 `bump()`，否则缓存不会失效。
+ * DB 支撑的求值引擎。写操作一律在写完之后调用 `bump()`；时间越过有效期时自动重读。
+ * `clock` 可注入，时钟回退到缓存求值时间之前时也重读，恢复此前被过滤的 deny/成员资格。
  */
 const VISITOR_CACHE_KEY = "\x00visitor";
 
 export function createPermissionEngine(db: Database.Database, clock: () => number = Date.now) {
-  const cache = new Map<string, { revision: number; entries: ResolvedEntry[] }>();
+  const cache = new Map<string, { revision: number; evaluatedAt: number; expiresAt: number; entries: ResolvedEntry[] }>();
 
   /** `accountId` 为 null 时是没登录的访客（CONTRACT-274 §1），按 `level.visitor` 组自己的条目求值。 */
   function entriesFor(accountId: string | null): ResolvedEntry[] {
     const revision = getPermRevision(db);
+    const now = clock();
     const key = accountId ?? VISITOR_CACHE_KEY;
     const hit = cache.get(key);
-    if (hit && hit.revision === revision) return hit.entries;
-    const entries = accountId === null ? visitorEntries(db, clock()) : entriesForAccount(db, accountId, clock());
-    cache.set(key, { revision, entries });
+    if (hit && hit.revision === revision && now >= hit.evaluatedAt && now < hit.expiresAt) return hit.entries;
+    const entries = accountId === null ? visitorEntries(db, now) : entriesForAccount(db, accountId, now);
+    // 根组成员资格可能先于继承来的条目到期；allow、deny 与 meta 都会改变结果，不能只跟踪 allow。
+    const membershipExpiry = accountId === null ? null : (db.prepare(
+      "SELECT MIN(expires_at) AS expiry FROM perm_members WHERE account_id = ? AND expires_at > ?",
+    ).get(accountId, now) as { expiry: number | null }).expiry;
+    const expiresAt = entries.reduce((expiry, entry) => Math.min(expiry, entry.expiresAt ?? Infinity), membershipExpiry ?? Infinity);
+    cache.set(key, { revision, evaluatedAt: now, expiresAt, entries });
     return entries;
   }
 

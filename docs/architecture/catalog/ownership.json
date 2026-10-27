@@ -801,14 +801,17 @@
       "reads": [
         "device_grants",
         "users",
-        "identities"
+        "identities",
+        "account_profiles"
       ],
-      "writes": [],
+      "writes": [
+        "account_profiles"
+      ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：Bearer 令牌（geek login 换到的 gk_…），不读 cookie。",
-        "响应与错误：200 {sub=account_id,account_id,login,avatar_url,scope}；令牌缺失、不存在、过期或账号不是 active 时 401 invalid_token，并带 WWW-Authenticate: Bearer error=\"invalid_token\"。",
-        "数据与副作用：只读；按令牌的 sha256 查行，不记录令牌明文。"
+        "响应与错误：200 保留 sub/account_id/login/scope，新增 canonical username/display_name/bio/avatar_url（可为相对路径）；不回 real_name/prefs/邮箱。令牌缺失、过期或账号非 active 时 401 invalid_token。",
+        "数据与副作用：按令牌的 sha256 查行；读取 account_profiles 公开字段，缺档时 profiles.get() 会 INSERT OR IGNORE 建默认档案；不记录令牌明文。"
       ],
       "evidence": [
         {
@@ -822,10 +825,15 @@
         {
           "path": "app/server/src/lib/device-store.ts",
           "needle": "export function createDeviceStore("
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
         }
       ],
       "tests": [
-        "tests/server/device-flow.test.ts"
+        "tests/server/device-flow.test.ts",
+        "tests/server/public-profile-consumers.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -2233,7 +2241,8 @@
       "tests": [
         "tests/server/console.test.ts",
         "tests/server/signin-methods.test.ts",
-        "tests/console/account.test.ts"
+        "tests/console/account.test.ts",
+        "tests/server/permission-expiry.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -3050,6 +3059,10 @@
         {
           "path": "app/server/src/lib/mail/envelope.ts",
           "needle": "export function renderEnvelope(message: EnvelopeMessage, options: EnvelopeOptions): RenderedMail {"
+        },
+        {
+          "path": "app/server/src/lib/mail/envelope-pieces.ts",
+          "needle": "export const ENVELOPE_PIECES = {"
         }
       ],
       "tests": [
@@ -4031,7 +4044,10 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_users",
@@ -4044,7 +4060,7 @@
         "权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。",
         "响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次（路由自带的 FORUM_REQUEST_LIMITS），游客还另外按 SPEC §3.8 的 meta.limit.read.per_minute 限到每分钟60次（成员按等级更松，见 lib/limits.ts），哪个先触发就回哪个 bucket；超额429；显式HEAD回405且不计算state。",
         "数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。",
-        "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
+        "身份与资料：登录身份按 account_id 保留既有论坛 id，registered 登录不等于 OIDC 成员资格；历史作者公开资料直接读取 canonical 投影，无 canonical 保留旧值，不创建历史档案。角色/称号仅本人请求刷新，权限节点另行判定。"
       ],
       "evidence": [
         {
@@ -4122,10 +4138,19 @@
         {
           "path": "app/server/src/lib/forum-content.ts",
           "needle": "export function loadForumContent(dir: string): ForumContent {"
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
+        },
+        {
+          "path": "app/forum/shared/site-state.ts",
+          "needle": "export function siteForumState"
         }
       ],
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/public-profile-consumers.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4201,6 +4226,10 @@
         {
           "path": "app/server/src/lib/forum-content.ts",
           "needle": "export function loadForumContent(dir: string): ForumContent {"
+        },
+        {
+          "path": "app/forum/shared/forum-markdown.ts",
+          "needle": "export function forumLlmsTxt"
         }
       ],
       "tests": [
@@ -4233,7 +4262,10 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_users",
@@ -4264,6 +4296,14 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
+        },
+        {
+          "path": "app/forum/app/pages/search.vue",
+          "needle": "server.search"
         }
       ],
       "tests": [
@@ -4299,7 +4339,10 @@
         "role_assignments",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_topics",
@@ -4367,7 +4410,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_topics",
@@ -4430,7 +4476,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_topics",
@@ -4537,7 +4586,10 @@
         "sessions",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_posts",
@@ -4642,7 +4694,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_posts",
@@ -4703,7 +4758,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_posts",
@@ -4766,7 +4824,10 @@
         "sessions",
         "role_assignments",
         "departments",
-        "titles"
+        "titles",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_likes",
@@ -4830,7 +4891,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_bookmarks",
@@ -4893,7 +4957,10 @@
         "role_assignments",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_follows",
@@ -4960,7 +5027,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_notifications",
@@ -5021,7 +5091,10 @@
         "departments",
         "titles",
         "forum_users",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_notifications",
@@ -5082,18 +5155,22 @@
         "activity_events",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_users",
         "sessions",
-        "activity_events"
+        "activity_events",
+        "account_profiles"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。",
-        "数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。",
+        "数据与副作用：昵称NFKC与冒名检查后保存；已有 canonical 档案时昵称/简介与 forum_users 同事务写入，缺档历史作者不建档；location/website/notifyPrefs 只写论坛字段。公开投影批量读取当前账号 login/avatar 作为空 canonical 字段的 fallback，不按邮箱合并。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
@@ -5116,6 +5193,14 @@
         {
           "path": "app/forum/app/pages/u/[username]/preferences.vue",
           "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
+        },
+        {
+          "path": "app/forum/app/composables/useSiteAccount.ts",
+          "needle": "function refresh"
         }
       ],
       "tests": [
@@ -5147,20 +5232,26 @@
         "role_assignments",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities",
+        "account_avatars"
       ],
       "writes": [
         "forum_avatars",
         "forum_users",
         "forum_rate_events",
         "sessions",
-        "activity_events"
+        "activity_events",
+        "account_profiles",
+        "account_avatars"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。",
-        "数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。",
+        "数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；写 forum_avatars/forum_users，已有 canonical 档案时同事务写 account_avatars/account_profiles，各自清理无人引用旧图。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
@@ -5213,19 +5304,25 @@
         "role_assignments",
         "departments",
         "titles",
-        "forum_likes"
+        "forum_likes",
+        "account_profiles",
+        "users",
+        "identities",
+        "account_avatars"
       ],
       "writes": [
         "forum_users",
         "forum_avatars",
         "sessions",
-        "activity_events"
+        "activity_events",
+        "account_profiles",
+        "account_avatars"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。",
-        "数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。",
+        "数据与副作用：事务清除 forum_users 与已有 account_profiles 的 avatar_hash，各自删除无人引用的 forum_avatars/account_avatars；缺 canonical 不建档，公开 fallback 保留当前绑定头像。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
       ],
       "evidence": [
@@ -5697,7 +5794,9 @@
         "perm_members",
         "perm_entries",
         "perm_groups",
-        "limit_events"
+        "limit_events",
+        "account_profiles",
+        "identities"
       ],
       "writes": [
         "forum_users",
@@ -5756,7 +5855,10 @@
         "sessions",
         "perm_members",
         "perm_entries",
-        "perm_groups"
+        "perm_groups",
+        "account_profiles",
+        "users",
+        "identities"
       ],
       "writes": [
         "forum_topics",
@@ -9918,6 +10020,7 @@
         "「有用」标签：资源标签事件里最后一次是加上、加的人对得上账号、有 competition.score.review、不是作者本人，并且「重要程度::」「核心度::」两个标签也各正好一个、同样由这样的人最后加上，才按两档查表自动加分（surface system，防刷按合并 / 创建时间所在那一周）；两档标签不全时留在待确认、note 写原因，候选上记下标签给的两档，加分后改标签不重算；标签被拿掉时只撤销经标签自动加的分，控制台确认的不动。",
         "200 {last_run:{at, fetched, created, skipped, accepted, revoked, error}}；写 competition.candidate.collect 操作记录，没完成时 outcome 为 error。",
         "#278 两档评定：不再按改动行数算建议分，不读 MR 的 diff。",
+        "作者/审核人经既有 sub 实时核验远端绑定；HTTP 不确定中止并报错。所有等待后审核人仍须 active 且有审核节点。列表和标签事件完整分页，只有最新明确 remove 才自动撤分，错误/缺失标签/分页中断保留已确认积分。归属核验计入每轮 300 次请求预算。",
         "#276：MR/Issue/标签事件/closed_by全分页；十页截断/循环/300预算或HTTP失败整轮不写、不误撤分。HTTP在事务外；应用时重读当前比赛/项目/报名/候选；审计失败整轮回滚。"
       ],
       "evidence": [
@@ -9962,8 +10065,16 @@
           "needle": "export function levelsFromLabels(labels: string[]): { importance: Importance | null; core: Core | null } {"
         },
         {
+          "path": "app/server/src/services.ts",
+          "needle": "canReview: accountId => identity.getAccountClaims(accountId)?.status === \"active\""
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function accountForGitlabUser(gitlabUserId: number)"
+        },
+        {
           "path": "app/server/src/lib/competition-candidates.ts",
-          "needle": "const snapshot: { kind: \"pr\" | \"issue\";"
+          "needle": "const snapshot: SnapshotEntry[] = [];"
         }
       ],
       "tests": [
@@ -9977,6 +10088,7 @@
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
+        "docs/architecture/SECURITY.md",
         "docs/services/server/competition-rehearsal.md"
       ]
     },
@@ -10552,7 +10664,8 @@
         }
       ],
       "tests": [
-        "tests/server/oidc.test.ts"
+        "tests/server/oidc.test.ts",
+        "tests/server/oidc-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",
@@ -10667,7 +10780,8 @@
         }
       ],
       "tests": [
-        "tests/server/oidc.test.ts"
+        "tests/server/oidc.test.ts",
+        "tests/server/oidc-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",
@@ -10866,10 +10980,7 @@
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "GET /api/console/gitlab/accounts",
-      "capabilities": [
-        "roles.manage",
-        "roles.department.manage"
-      ],
+      "capabilities": [],
       "reads": [
         "gitlab_accounts",
         "users",
@@ -10885,7 +10996,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：有效全站 sid，roles.manage 或 roles.department.manage；不调用 GitLab。",
+        "权限与资源：有效全站 sid，gitlab.view；不调用 GitLab。",
         "响应与错误：200 {mode,gitlab_url,group,client_registered,accounts:[{account_id,login,username,gitlab_user_id,state,access_level,last_error,last_error_at,synced_at,pending}]}；pending 是现在还要做的事（同步关着时为空），client_registered 说明 gitlab 客户端登记了没有；没权限 403 missing_capability。",
         "数据与副作用：只读。控制台「成员与权限」在 mode 不是 off 时多一列「GitLab」，按 account_id 对上名单。"
       ],
@@ -10946,9 +11057,7 @@
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/console/gitlab/accounts/:account_id/resync",
-      "capabilities": [
-        "roles.manage"
-      ],
+      "capabilities": [],
       "reads": [
         "gitlab_accounts",
         "users",
@@ -10969,9 +11078,11 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：有效全站 sid、同源 Origin、roles.manage；每个 IP 每分钟 30 次；用服务端的 GITLAB_API_TOKEN 调 GitLab 管理接口，不用操作人的凭据。",
+        "权限与资源：有效 sid、同源 Origin、gitlab.sync 与 step-up；每个 IP 每分钟 30 次；管理员令牌只在服务端。",
         "响应与错误：200 {mode,account_id,login,actions,applied,error}；GITLAB_SYNC=off 时 409 gitlab_sync_off；账号不存在 404 account_not_found；GitLab 出错不回 5xx，写进 error 与 last_error。",
-        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写操作记录 gitlab.sync，操作人是会话账号。"
+        "数据与副作用：按 OIDC 身份（provider=openid_connect，extern_uid=gitlab 客户端 sector 的 sub）找或建 GitLab 用户、调组权限、封禁或解封、传头像（论坛头像或 256 像素的 GitHub 头像，200 KiB 以内，来源记进 avatar_source，#271）、同步邮箱（主邮箱、账号页绑的其它邮箱和 GitHub noreply 邮箱以已确认的加到 GitLab 用户名下，在极客班删掉的从 GitLab 删掉，记进 emails_source，#272），从不删除 GitLab 用户；dry-run 只返回 actions 不写；写操作记录 gitlab.sync，操作人是会话账号。",
+        "有效直接 member/alumni 且 active 才有资格；既有 sector/sub 与远端 OIDC 绑定精确核验，管理员、bot、服务账号及无有效映射对象不写。未知 HTTP、超时、429/5xx、畸形或截断分页不作封禁依据；明确失去资格的受管账号仍封禁，远端漂移重新撤权。",
+        "每次远端写前重读资格，等待时变化在同一账号锁内最多重算两次；定时与立即同步串行，不协调跨环境双权威。"
       ],
       "evidence": [
         {
@@ -11005,11 +11116,21 @@
         {
           "path": "app/console/src/lib/types.ts",
           "needle": "export type GitlabSyncOutcome"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "async function managedUser(account: DirectoryAccount, userId: number)"
+        },
+        {
+          "path": "app/server/src/lib/gitlab-sync.ts",
+          "needle": "function assertCurrent(account: DirectoryAccount): void"
         }
       ],
       "tests": [
         "tests/server/gitlab-sync.test.ts",
-        "tests/console/gitlab.test.ts"
+        "tests/console/gitlab.test.ts",
+        "tests/server/identity-eligibility.test.ts",
+        "tests/server/oidc-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/oidc.md",
@@ -11356,6 +11477,10 @@
         {
           "path": "app/server/src/lib/account-profiles.ts",
           "needle": "export function createAccountProfiles("
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
         }
       ],
       "tests": [
@@ -11403,6 +11528,10 @@
         {
           "path": "app/web/sites/portal/lib/startNote.ts",
           "needle": "return api(\"/api/identity/profile\", { method: \"PATCH\", body: JSON.stringify({ prefs: { start_note_seen_at: at } }) }).then("
+        },
+        {
+          "path": "app/server/src/lib/public-profile.ts",
+          "needle": "export function publicProfile"
         }
       ],
       "tests": [
@@ -11863,7 +11992,8 @@
         }
       ],
       "tests": [
-        "tests/server/console-permissions.test.ts"
+        "tests/server/console-permissions.test.ts",
+        "tests/server/console-owner-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -11988,7 +12118,8 @@
         }
       ],
       "tests": [
-        "tests/server/console-permissions.test.ts"
+        "tests/server/console-permissions.test.ts",
+        "tests/server/console-owner-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -12025,7 +12156,8 @@
         }
       ],
       "tests": [
-        "tests/server/console-permissions.test.ts"
+        "tests/server/console-permissions.test.ts",
+        "tests/server/console-owner-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -12214,7 +12346,8 @@
       "tests": [
         "tests/server/console-users.test.ts",
         "tests/server/real-info.test.ts",
-        "tests/console/users.test.ts"
+        "tests/console/users.test.ts",
+        "tests/server/console-owner-eligibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -12628,6 +12761,10 @@
     ],
     "app/web/sites/portal/lib/competitionHub.ts": [
       "competitions"
+    ],
+    "app/server/src/lib/public-profile.ts": [
+      "identity",
+      "forum"
     ]
   }
 }

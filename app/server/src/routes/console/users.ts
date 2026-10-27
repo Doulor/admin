@@ -174,18 +174,26 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
       const account = db.prepare("SELECT id, status FROM users WHERE id = ? AND status <> 'merged'").get(id) as { id: string; status: string } | undefined;
       if (!account) return reply.code(404).send({ error: "not_found", message: "没有这个账号" });
 
-      const currentlyOwner = isSiteOwner(db, id);
-      const ownerCount = siteOwnerCount(db);
+      const now = app.services.clock();
+      const currentlyOwner = isSiteOwner(db, id, now);
+      const restoringOwner = status === "active" && account.status !== "active" && !!db.prepare(
+        "SELECT 1 FROM perm_members WHERE account_id = ? AND group_id = ? AND (expires_at IS NULL OR expires_at > ?)",
+      ).get(id, SITE_OWNER_GROUP_ID, now);
+      const ownerCount = siteOwnerCount(db, now);
       const losingOwnership = currentlyOwner && (status === "disabled" || (titles !== undefined && !titles.includes(SITE_OWNER_GROUP_ID)));
+      if ((losingOwnership || restoringOwner) && !isSiteOwner(db, req.session!.account_id, now)) {
+        return reply.code(403).send({ error: "forbidden", node: SITE_OWNER_GROUP_ID, message: "只有站长才能任免站长" });
+      }
       if (losingOwnership && ownerCount <= 1) {
         return reply.code(409).send({ error: "last_owner", message: "至少要留一位站长" });
       }
       // #274 残留修复 B：只有站长自己才能任免站长——不然持有 users.manage 的人（比如管理部部长）能把自己
       // 或别人升成站长，或者把别的站长降掉，拿到全站最高权限不需要任何一位现任站长点头。
       if (titles !== undefined) {
-        const addingOwner = titles.includes(SITE_OWNER_GROUP_ID) && !currentlyOwner;
+        // titles 全量重写为永久资格；「保留」一个临时 owner 也会延长其权限，必须由现任站长批准。
+        const addingOwner = titles.includes(SITE_OWNER_GROUP_ID);
         const removingOwner = !titles.includes(SITE_OWNER_GROUP_ID) && currentlyOwner;
-        if ((addingOwner || removingOwner) && !isSiteOwner(db, req.session!.account_id)) {
+        if ((addingOwner || removingOwner) && !isSiteOwner(db, req.session!.account_id, now)) {
           return reply.code(403).send({ error: "forbidden", node: SITE_OWNER_GROUP_ID, message: "只有站长才能任免站长" });
         }
       }
@@ -216,7 +224,6 @@ export default async function consoleUsersRoutes(app: FastifyInstance) {
         };
       };
       const before = snapshot();
-      const now = Date.now();
       db.transaction(() => {
         if (status !== undefined) db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
         if (realName !== undefined || grade !== undefined) {

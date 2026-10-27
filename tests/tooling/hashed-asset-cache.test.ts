@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
@@ -168,6 +169,8 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
   const forumFiles = ['BsIrHTXA.js', 'entry.CWRjoBJd.css', 'inter.Dx3Kp_9a.woff2', 'logo.aFxUkDTw.webp'];
   // 真实的 geek 二进制里内嵌生产域名（config.rs 的 PRODUCTION_ORIGIN）：夹具带上这个字面量，才能证明版本化产物不经过 sub_filter。
   const BINARY = 'x\u0000https://yangtzeu.work\u0000x';
+  const BINARY_SHA = createHash('sha256').update(BINARY).digest('hex');
+  const BINARY_ASSET = `geek-aarch64-apple-darwin-${BINARY_SHA}`;
 
   beforeAll(async () => {
     root = mkdtempSync(join(tmpdir(), 'geek-asset-cache-'));
@@ -182,11 +185,15 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     put(join(webHtml, 'logo.png'));
     for (const [prefix, files] of Object.entries(webFiles)) for (const file of files) put(join(webHtml, prefix, file));
     // geek 命令行分发（#277）：版本化的二进制长缓存，顶层的安装脚本/latest.json 不缓存。
-    put(join(webHtml, 'cli', '0.1.0', 'geek-aarch64-apple-darwin'), BINARY);
+    put(join(webHtml, 'cli', '0.1.0', BINARY_ASSET), BINARY);
     // 安装脚本用 cli-dist.mjs 真实生成的文本：nginx 改写默认源站时匹配的就是这份文本里的域名（#289）。
     put(join(webHtml, 'cli', 'install.sh'), installSh());
     put(join(webHtml, 'cli', 'install.ps1'), installPs1());
-    put(join(webHtml, 'cli', 'latest.json'), '{"version":"0.1.0","note":"https://yangtzeu.work"}\n');
+    put(join(webHtml, 'cli', 'latest.json'), `${JSON.stringify({
+      version: '0.1.0',
+      assets: { 'aarch64-apple-darwin': { file: BINARY_ASSET, sha256: BINARY_SHA } },
+      note: 'https://yangtzeu.work',
+    })}\n`);
     const forumHtml = join(root, 'forum-html');
     // 带一段内联脚本：论坛 CSP 由 csp-header.mjs 按它算哈希，和镜像构建时一样。
     put(join(forumHtml, 'index.html'), '<!DOCTYPE html><html><body><script>window.__NUXT__={}</script></body></html>\n');
@@ -278,7 +285,7 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
   });
 
   it('web: geek 命令行的版本化产物长缓存一年，install.sh 每次都要回源（#277）', async () => {
-    const binary = await head('/cli/0.1.0/geek-aarch64-apple-darwin');
+    const binary = await head(`/cli/0.1.0/${BINARY_ASSET}`);
     expect([binary.status, binary.headers['cache-control']]).toEqual([200, YEAR]);
     const installer = await head('/cli/install.sh');
     expect([installer.status, installer.headers['cache-control']]).toEqual([200, 'no-cache']);
@@ -319,7 +326,7 @@ describe.skipIf(!nginxBinary)('hashed output folders through host → web → fo
     expect(JSON.parse((await get('/cli/latest.json', 'prev.yangtzeu.work')).body).version).toBe('0.1.0');
     // 版本化产物走另一个 location，不经过改写。
     for (const host of ['prev.yangtzeu.work', 'yangtzeu.work']) {
-      const binary = await get('/cli/0.1.0/geek-aarch64-apple-darwin', host);
+      const binary = await get(`/cli/0.1.0/${BINARY_ASSET}`, host);
       expect([host, binary.status, binary.body]).toEqual([host, 200, BINARY]);
     }
   });

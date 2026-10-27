@@ -286,7 +286,7 @@ describe('the Bilibili way of writing a sticker, [包名_名字] (#276)', () => 
 
 describe('stickers served from the controlled CDN (#286)', () => {
   const hash = 'c'.repeat(64)
-  const CDN = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`
+  const CDN = `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${hash}.webp`
   const SAME = `/api/forum/stickers/${hash}.webp`
   const WAVE = { shortcode: 'yugc-wave', label: '挥手', url: CDN }
   const stickers = stickerIndex([{ name: '极客娘', stickers: [WAVE] }])
@@ -300,9 +300,9 @@ describe('stickers served from the controlled CDN (#286)', () => {
   it('never turns a list entry on another domain, another CDN folder or with a path trick into a picture', () => {
     for (const url of [
       `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`,
-      `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`,
-      `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../${hash}.webp`,
-      `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${hash}.webp`,
+      `https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/${hash}.webp`,
+      `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/../${hash}.webp`,
+      `http://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${hash}.webp`,
       'javascript:alert(1)',
     ])
       expect(rendered(':odd:', stickerIndex([{ stickers: [{ shortcode: 'odd', label: '外', url }] }]))).not.toContain('<img')
@@ -324,8 +324,8 @@ describe('stickers served from the controlled CDN (#286)', () => {
   })
 
   it('leaves a picture of another hash, another domain or another CDN folder a picture', () => {
-    const other = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${'d'.repeat(64)}.webp`
-    const guide = `https://cdn.crosery.com/yzgc/static/site/forum/guides/${hash}.webp`
+    const other = `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${'d'.repeat(64)}.webp`
+    const guide = `https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/${hash}.webp`
     const evil = `https://evil.example/yzgc/static/site/forum/stickers/${hash}.webp`
     expect(imagesToStickers(`![a](${other}) ![b](${guide}) ![c](${evil})`, stickers)).toBe(`![a](${other}) ![b](${guide}) ![c](${evil})`)
   })
