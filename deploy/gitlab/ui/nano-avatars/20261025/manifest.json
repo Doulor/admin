@@ -1,0 +1,174 @@
+{
+  "version": "20261025",
+  "generator": "crosery-ct -> crapi",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "high",
+  "references": [
+    "nano-ip/persona/nano-character-sheet.png",
+    "nano-ip/remake-clean-20260928/reference/chibi-style-anchor.png"
+  ],
+  "assignment": "SHA-256 normalized email or username; first hex digit modulo 8; stable across refreshes",
+  "uploaded_avatar_precedence": "unchanged",
+  "avatars": [
+    {
+      "id": "avatar-01",
+      "style": "chibi",
+      "expression": "happy",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi/image/images/crapi-20261025-154343-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "ba380447ef6045ac62bf85e0b1c7db6adf8e31f52f257f2a54eb51a9f944fb15",
+      "file": "avatar-01.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 56551,
+      "sha256": "8aff73c1920d726d6ad0faaca55289ce23e020ce08766458b19351ce33f20332",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-02",
+      "style": "chibi",
+      "expression": "curious",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-02/image/images/crapi-20261025-154823-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "2ea10ff22f8507d5a8d70ac7c7501680026e79fe92234a939f7a46c005ecba61",
+      "file": "avatar-02.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 55624,
+      "sha256": "e225b98f39ea41e922c274e247e910fd5fb8d8179580cd75687383aa18fd38a6",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-03",
+      "style": "chibi",
+      "expression": "wink",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-03/image/images/crapi-20261025-155005-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "f19b137da5f2280369c1c6d9e293dda0263299fb5aee8b09cdc0862796c446dc",
+      "file": "avatar-03.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 56391,
+      "sha256": "3d3a3372404e8684993d25ec275d674b7b203bd985a9d1147d2313e41616657c",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-04",
+      "style": "chibi",
+      "expression": "cozy",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-04/image/images/crapi-20261025-155214-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "15c1e3360480cb0eb585dfc710147d611b33639976e487e5876223cdeccb7271",
+      "file": "avatar-04.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 55942,
+      "sha256": "fdb175b768200559ba18e968a73b6e442ba3b453b0c2e8b71a20cd31e5d5036d",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-05",
+      "style": "portrait",
+      "expression": "gentle",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/image/images/crapi-20261025-153915-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "640092ebc972f445944251ae2c6d0d392e1f5aa7c46f1f5149e203fe2880a24c",
+      "file": "avatar-05.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 60339,
+      "sha256": "31fc3afca8969d15622bed6236f09b8776da1fd2179635d86d30d01908decba1",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-06",
+      "style": "portrait",
+      "expression": "bright",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-02/image/images/crapi-20261025-154601-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "04e772e8653e7e51cbf986680be007ce2ee647de6e28099119fcf72dc9d19678",
+      "file": "avatar-06.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 67217,
+      "sha256": "46a8ebb3218a7cb877d078bf108ae1cd83a4cb9af73a3063d0856464c33fcc63",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-07",
+      "style": "portrait",
+      "expression": "calm",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-03/image/images/crapi-20261025-155400-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "e4916613b385f5a9cf1439819591329709cfebb58cca152a09b1f36da9384338",
+      "file": "avatar-07.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 64467,
+      "sha256": "6dc329a2c57118cfb7d98918c872bbcbb2f1ef415e7f89d16b5f40350ea19006",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    },
+    {
+      "id": "avatar-08",
+      "style": "portrait",
+      "expression": "cheerful",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-04/image/images/crapi-20261025-155717-1.png",
+      "native_size": [
+        1254,
+        1254
+      ],
+      "source_sha256": "e8d1119b6675a0e38d41d7043f7b14dc765474744d78d428927a7a293b279d5c",
+      "file": "avatar-08.png",
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 62834,
+      "sha256": "a57f4cfc5998139dbc14f38e3ca25ede42b071ad489cf5aba07ab1b10de02e2b",
+      "visual_review": "approved: NANO identity, distinct cute expression, transparent exterior, circular crop and 32px checked",
+      "processing": "alpha <= 8 cleared; 90% scale bottom aligned; 512px indexed PNG"
+    }
+  ]
+}

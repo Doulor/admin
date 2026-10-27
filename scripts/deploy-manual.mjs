@@ -5,8 +5,9 @@
 // 2026-09-27 起 production 有审批人，正式部署照常走工作流，见 docs/ops/CICD.md）。本脚本在维护者机器上执行与 CI deploy job 相同的步骤，而且一切部署物料都取自发布 tag
 // 指向的提交，不取当前工作区：
 //   git archive <提交> 取出 deploy/、scripts/、package.json → 用这份里的 release-policy 规划、环境契约 --check
+//   → 用这份里的 ssh-config 核对显式 SSH 目标并生成专用配置（跳板也使用相同密钥与严格 known_hosts）
 //   → （正式）核对批准记录、rc tag、预发布部署记录与 prev 的 release.json → 下载这个 tag 的 CI 运行构建的
-//   镜像归档并核对 sha256 → 用这份里的 render 渲染运行时 env → 分发这份里的 compose 与 deploy-stack.sh
+//   镜像归档并核对 sha256 → 用这份里的 render 渲染运行时 env → 分发这份里的 compose、deploy-stack.sh 与 rollback-stack.sh
 //   → deploy-stack.sh → 写 GitHub 部署记录。
 // 只部署 CI 构建过的产物，不在本机或目标机构建；不创建或移动任何 tag。谁可以运行见 AGENTS.md §3。
 //
@@ -31,8 +32,6 @@ const ENVIRONMENTS = ['preview', 'production'];
 export const RELEASE_TAG_RE = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-rc\.([1-9]\d*))?$/;
 /** 会拼进远端命令的值（目录、镜像 tag、归档名）只允许这些字符，远端再用单引号包起来。 */
 const REMOTE_SAFE = /^[A-Za-z0-9._/-]+$/;
-/** SSH 目标：不以 - 开头（否则 ssh 会当成选项），端口只能是数字。 */
-const SSH_NAME = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
 /** 部署记录只要求 CI 的这项检查通过；默认的「全部检查」会把正在运行或失败的部署 job 也算进去而一直 409。 */
 export const REQUIRED_CONTEXT = 'verify (required check)';
 
@@ -172,33 +171,6 @@ export function expectedDigest(sumsText, fileName) {
   return null;
 }
 
-/** env 模板里的 KEY=VALUE（只取部署目标三项，用来核对 SSH 目标没拿错环境）。 */
-export function templateTarget(text) {
-  const values = new Map();
-  for (const line of text.split('\n')) {
-    const match = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(line.trim());
-    if (match) values.set(match[1], match[2].replace(/^"(.*)"$/, '$1'));
-  }
-  return { host: values.get('DEPLOY_HOST'), port: values.get('DEPLOY_PORT'), user: values.get('DEPLOY_USER') };
-}
-
-/** 进程环境里的 SSH 目标：格式合法，而且与这个提交里该环境模板的 DEPLOY_HOST/PORT/USER 一致。 */
-export function sshTarget(env, template) {
-  for (const name of SSH_ENV) if (!env[name]) throw new Error(`缺少环境变量 ${name}`);
-  if (!SSH_NAME.test(env.DEPLOY_SSH_HOST) || !SSH_NAME.test(env.DEPLOY_SSH_USER) || !/^\d{1,5}$/.test(env.DEPLOY_SSH_PORT)) {
-    throw new Error('DEPLOY_SSH_HOST / DEPLOY_SSH_USER / DEPLOY_SSH_PORT 格式不对');
-  }
-  if (env.DEPLOY_SSH_HOST !== template.host || env.DEPLOY_SSH_PORT !== template.port || env.DEPLOY_SSH_USER !== template.user) {
-    throw new Error('DEPLOY_SSH_HOST/PORT/USER 与该提交里这个环境模板的 DEPLOY_HOST/PORT/USER 不一致：可能拿错了环境');
-  }
-  const common = ['-F', 'none', '-i', env.DEPLOY_SSH_KEY_FILE, '-o', 'IdentitiesOnly=yes', '-o', `UserKnownHostsFile=${env.DEPLOY_SSH_KNOWN_HOSTS_FILE}`,
-    '-o', 'GlobalKnownHostsFile=/dev/null', '-o', 'StrictHostKeyChecking=yes', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=20'];
-  const target = `${env.DEPLOY_SSH_USER}@${env.DEPLOY_SSH_HOST}`;
-  return {
-    ssh: command => ['ssh', [...common, '-p', env.DEPLOY_SSH_PORT, target, command]],
-    scp: (files, destination) => ['scp', [...common, '-P', env.DEPLOY_SSH_PORT, ...files, `${target}:${destination}`]],
-  };
-}
 
 export const withoutSecrets = env => Object.fromEntries(Object.entries(env).filter(([name]) => !SECRET_ENV.includes(name)));
 
@@ -237,6 +209,7 @@ export async function deploy(options, deps = defaultDeps()) {
   if (env.DEPLOY_TARGET_ENVIRONMENT !== environment) {
     throw new Error(`DEPLOY_TARGET_ENVIRONMENT 必须等于 ${environment}（现在是「${env.DEPLOY_TARGET_ENVIRONMENT ?? ''}」）：确认导出的是这个环境的密钥`);
   }
+  for (const name of SSH_ENV) if (!env[name]) throw new Error(`缺少环境变量 ${name}`);
   const repo = repoFromRemote(run('git', ['remote', 'get-url', 'origin']));
   if (acceptance && acceptanceComment(acceptance).repo !== repo) throw new Error(`批准记录不在本仓库 ${repo}`);
 
@@ -251,7 +224,7 @@ export async function deploy(options, deps = defaultDeps()) {
   const setStatus = (...fields) => run('gh', ['api', '--method', 'POST', `repos/${repo}/deployments/${deploymentId}/statuses`,
     '-F', 'auto_inactive=false', ...fields.flatMap(field => ['-f', field])]);
   try {
-    // 物料一律取自 tag 指向的提交：规划器、环境契约、render、compose、deploy-stack.sh 都用这一份。
+    // 物料一律取自 tag 指向的提交：规划器、环境契约、render、compose、部署与回滚脚本都用这一份。
     const src = join(work, 'src');
     deps.makeDir(src);
     run('git', ['archive', '--format=tar', '-o', join(work, 'src.tar'), commit, ...MATERIAL_PATHS]);
@@ -265,7 +238,12 @@ export async function deploy(options, deps = defaultDeps()) {
       if (!REMOTE_SAFE.test(value)) throw new Error(`规划值含不安全字符：${value}`);
     }
     run(process.execPath, [join(src, 'scripts/deployment-environment.mjs'), '--check']);
-    const remote = sshTarget(env, templateTarget(deps.readText(join(src, `deploy/env/.env.${environment}`))));
+    const sshConfigFile = join(work, 'ssh_config');
+    const sshEnv = Object.fromEntries([...SSH_ENV, 'DEPLOY_TARGET_ENVIRONMENT', 'DEPLOY_SSH_PROXY_JUMP']
+      .filter(name => env[name] !== undefined).map(name => [name, env[name]]));
+    run(process.execPath, [join(src, 'scripts/deployment-environment.mjs'), 'ssh-config', '--environment', environment,
+      '--root', src, '--out', sshConfigFile, '--key-file', env.DEPLOY_SSH_KEY_FILE, '--known-hosts-file', env.DEPLOY_SSH_KNOWN_HOSTS_FILE],
+    { env: { PATH: env.PATH ?? '', HOME: env.HOME ?? '', ...sshEnv } });
     log(`${tag} → ${environment}：提交 ${commit}，镜像 ${plan.imageRepository}/*:${plan.imageTag}，栈 ${plan.stackRoot}，物料取自该提交`);
 
     if (environment === 'production') {
@@ -330,12 +308,13 @@ export async function deploy(options, deps = defaultDeps()) {
     setStatus('state=in_progress', `description=分发镜像与 env 文件到 ${plan.stackRoot}`);
     log(`部署记录已创建：deployment ${deploymentId}`);
 
-    const step = ([command, args]) => run(command, args, { quiet: false });
-    step(remote.ssh(`mkdir -p '${plan.incomingDir}' '${plan.stackRoot}/deploy/compose' && chmod 700 '${plan.incomingDir}'`));
-    step(remote.scp([archive, `${archive}.sha256`, envFile, join(src, 'deploy/remote/deploy-stack.sh')], `${plan.incomingDir}/`));
-    step(remote.scp([join(src, 'deploy/compose/production.yml'), join(src, 'deploy/compose/preview.yml')], `${plan.stackRoot}/deploy/compose/`));
-    step(remote.ssh(archiveCheckCommand(plan.incomingDir, environment, plan.imagesArchive)));
-    step(remote.ssh(deployStackCommand(plan, environment)));
+    const ssh = command => run('ssh', ['-F', sshConfigFile, 'yzgc-target', command], { quiet: false });
+    const scp = (files, destination) => run('scp', ['-F', sshConfigFile, ...files, `yzgc-target:${destination}`], { quiet: false });
+    ssh(`mkdir -p '${plan.incomingDir}' '${plan.stackRoot}/deploy/compose' && chmod 700 '${plan.incomingDir}'`);
+    scp([archive, `${archive}.sha256`, envFile, join(src, 'deploy/remote/deploy-stack.sh'), join(src, 'deploy/remote/rollback-stack.sh')], `${plan.incomingDir}/`);
+    scp([join(src, 'deploy/compose/production.yml'), join(src, 'deploy/compose/preview.yml')], `${plan.stackRoot}/deploy/compose/`);
+    ssh(archiveCheckCommand(plan.incomingDir, environment, plan.imagesArchive));
+    ssh(deployStackCommand(plan, environment));
     setStatus('state=success', `environment_url=${plan.origin}`, `description=${tag} 部署成功（镜像 tag ${plan.imageTag}，维护者机器部署）`);
     log(`完成：${plan.origin}/release.json 应显示 ${plan.releaseVersion}`);
     return { plan, deploymentId };

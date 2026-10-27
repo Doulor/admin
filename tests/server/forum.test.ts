@@ -1245,12 +1245,13 @@ describe('seeding', () => {
     expect(content.author.id).toBe('u-geekclass');
     expect(content.guides.length).toBeGreaterThan(0);
     expect(content.guides.every(guide => guide.categoryId === 'c-guides' && /^t9\d\d$/.test(guide.id))).toBe(true);
-    // 使用说明的写法（所有者 2026-09-23、09-24、09-26 的规则）：不用表情符号、不加粗、不写邮箱和站点域名，链接只写站内路径。
+    // 站点导航仍只写站内路径；#295 的截图只允许公开桶里带哈希的图片，不豁免其他绝对链接。
     for (const item of content.guides) {
       expect(item.content, item.id).not.toMatch(/\p{Extended_Pictographic}/u);
       expect(item.content, item.id).not.toMatch(/\*\*|__/);
       expect(item.content, item.id).not.toMatch(/[\w.+-]+@[\w-]+\.[a-z]{2,}/);
-      expect(item.content, item.id).not.toMatch(/yangtzeu\.work/);
+      const withoutCdnImages = item.content.replace(/!\[([^\]\n]*)\]\(https:\/\/cdn\.yangtzeu\.work\/geek-public\/static\/site\/forum\/guides\/[a-z0-9-]+\.[A-Za-z0-9_-]{8}\.(?:webp|png)\)/g, '$1');
+      expect(withoutCdnImages, item.id).not.toMatch(/yangtzeu\.work/);
     }
   });
 

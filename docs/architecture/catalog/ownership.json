@@ -3059,6 +3059,10 @@
         {
           "path": "app/server/src/lib/mail/envelope.ts",
           "needle": "export function renderEnvelope(message: EnvelopeMessage, options: EnvelopeOptions): RenderedMail {"
+        },
+        {
+          "path": "app/server/src/lib/mail/envelope-pieces.ts",
+          "needle": "export const ENVELOPE_PIECES = {"
         }
       ],
       "tests": [

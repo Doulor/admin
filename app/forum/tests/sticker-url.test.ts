@@ -8,12 +8,12 @@ import { isStickerUrl, STICKER_CDN_PREFIX, STICKER_SAME_ORIGIN_PREFIX, STICKER_U
  */
 const HASH = 'ab12'.repeat(16)
 const SAME = `/api/forum/stickers/${HASH}.webp`
-const CDN = `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`
+const CDN = `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${HASH}.webp`
 
 describe('sticker picture addresses', () => {
   it('takes the same-origin address and the controlled CDN address of a 64-hex content hash', () => {
     expect(STICKER_SAME_ORIGIN_PREFIX).toBe('/api/forum/stickers/')
-    expect(STICKER_CDN_PREFIX).toBe('https://cdn.crosery.com/yzgc/static/site/forum/stickers/')
+    expect(STICKER_CDN_PREFIX).toBe('https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/')
     expect(isStickerUrl(SAME)).toBe(true)
     expect(isStickerUrl(CDN)).toBe(true)
     expect(isStickerUrl(`/api/forum/stickers/${'0'.repeat(64)}.webp`)).toBe(true)
@@ -21,20 +21,28 @@ describe('sticker picture addresses', () => {
   })
 
   it.each([
+    ['the retired CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['the retired cn domain', `https://cdn.crosery.cn/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['a host that starts with the new CDN host', `https://cdn.yangtzeu.work.evil.example/geek-public/static/site/forum/stickers/${HASH}.webp`],
+    ['the new CDN behind a userinfo', `https://cdn.yangtzeu.work@evil.example/geek-public/static/site/forum/stickers/${HASH}.webp`],
+    ['the new CDN on another port', `https://cdn.yangtzeu.work:8443/geek-public/static/site/forum/stickers/${HASH}.webp`],
+    ['a protocol-relative new CDN', `//cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${HASH}.webp`],
+    ['an encoded path trick on the new CDN', `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/%2e%2e/${HASH}.webp`],
+    ['a private bucket on the new CDN', `https://cdn.yangtzeu.work/geek-production-private/static/site/forum/stickers/${HASH}.webp`],
     ['another domain', `https://cdn.example.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
     ['another domain with the same path', `https://evil.example/forum/stickers/${HASH}.webp`],
     ['a host that starts with the CDN host', `https://cdn.crosery.com.evil.example/yzgc/static/site/forum/stickers/${HASH}.webp`],
     ['the CDN address behind a userinfo', `https://cdn.crosery.com@evil.example/yzgc/static/site/forum/stickers/${HASH}.webp`],
     ['the CDN address inside another URL', `https://evil.example/${CDN}`],
     ['the CDN host on another port', `https://cdn.crosery.com:8443/yzgc/static/site/forum/stickers/${HASH}.webp`],
-    ['http instead of https', `http://cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
-    ['an upper-case host', `https://CDN.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
+    ['http instead of https', `http://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/${HASH}.webp`],
+    ['an upper-case host', `https://CDN.yangtzeu.work/geek-public/static/site/forum/stickers/${HASH}.webp`],
     ['a protocol-relative address', `//cdn.crosery.com/yzgc/static/site/forum/stickers/${HASH}.webp`],
-    ['another folder of the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/guides/${HASH}.webp`],
+    ['another folder of the CDN', `https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/${HASH}.webp`],
     ['another prefix of the CDN', `https://cdn.crosery.com/yzgc/promo/forum/stickers/${HASH}.webp`],
-    ['a path trick on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers/../guides/${HASH}.webp`],
-    ['a doubled slash on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers//${HASH}.webp`],
-    ['a subfolder on the CDN', `https://cdn.crosery.com/yzgc/static/site/forum/stickers/sub/${HASH}.webp`],
+    ['a path trick on the CDN', `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/../guides/${HASH}.webp`],
+    ['a doubled slash on the CDN', `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers//${HASH}.webp`],
+    ['a subfolder on the CDN', `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/sub/${HASH}.webp`],
     ['a path trick on the same origin', `/api/forum/stickers/../uploads/${HASH}.webp`],
     ['an encoded path trick on the same origin', `/api/forum/stickers/%2e%2e/${HASH}.webp`],
     ['a path trick behind the hash', `/api/forum/stickers/${HASH}/../${HASH}.webp`],
