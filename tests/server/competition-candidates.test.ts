@@ -20,6 +20,8 @@ function fakeGitlab() {
   const labelEvents = new Map<string, LabelEvent[]>();
   const closedBy = new Map<number, Item[]>();
   const calls: string[] = [];
+  const subjects = new Map<number, string>();
+  const replies: { match: string; respond: () => Response }[] = [];
   const json = (status: number, data: unknown, headers: Record<string, string> = {}) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...headers } });
   async function fetch(input: string, init: RequestInit = {}): Promise<Response> {
@@ -30,6 +32,14 @@ function fakeGitlab() {
     expect(init.redirect).toBe('error');
     const path = url.pathname.replace(/^\/api\/v4/, '');
     calls.push(`${path}${url.search}`);
+    const reply = replies.findIndex(item => `${path}${url.search}`.startsWith(item.match));
+    if (reply >= 0) return replies.splice(reply, 1)[0].respond();
+    const user = /^\/users\/(\d+)$/.exec(path);
+    if (user && subjects.has(Number(user[1]))) {
+      const id = Number(user[1]);
+      return json(200, { id, username: Object.keys(GITLAB_IDS).find(login => GITLAB_IDS[login] === id),
+        state: 'active', is_admin: false, bot: false, identities: [{ provider: 'openid_connect', extern_uid: subjects.get(id) }] });
+    }
     const project = '/projects/geek%2Fadmin';
     if (path === `${project}/merge_requests`) {
       expect(url.searchParams.get('state')).toBe('merged');
@@ -42,7 +52,9 @@ function fakeGitlab() {
     if (match) return json(200, closedBy.get(Number(match[1])) ?? []);
     return json(404, { message: '404 Not Found' });
   }
-  return { fetch, mrs, issues, labelEvents, closedBy, calls };
+  return { fetch, mrs, issues, labelEvents, closedBy, calls, subjects,
+    replyOnce(match: string, respond: () => Response) { replies.push({ match, respond }); },
+  };
 }
 
 const contexts: ContestContext[] = [];
@@ -61,9 +73,11 @@ async function setup() {
   const saved = await app.inject({ method: 'PUT', url: `/api/console/competitions/${id}/rules`, headers: as('owner'), payload: { grade_factors: rules.grade_factors, prizes: [], gitlab_projects: ['geek/admin'] } });
   expect(saved.statusCode).toBe(200);
   const now = Date.now();
+  app.services.oidcStore.registerClient({ name: 'GitLab', clientId: 'gitlab', redirectUris: [`${GITLAB}/users/auth/openid_connect/callback`] });
   for (const [login, gitlabId] of Object.entries(GITLAB_IDS)) {
     app.services.storage.db.prepare("INSERT INTO gitlab_accounts(account_id, gitlab_user_id, username, state, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?)")
       .run(accountId(login), gitlabId, login, now, now);
+    gitlab.subjects.set(gitlabId, app.services.oidcStore.subjectFor('git.example.test', accountId(login)));
   }
   grantPermNode(app, accountId('bob'), 'competition.score.review');
   const recent = new Date(now - HOUR / 2).toISOString();
@@ -97,6 +111,45 @@ async function setup() {
 }
 
 describe('收集候选贡献', () => {
+  it('不把失配的远端作者或审核人经缓存 id 归到本地账号', async () => {
+    const { gitlab, mr, review, collect, list } = await setup();
+    gitlab.mrs.push(mr(801, 'alice', review('merge_requests:801', 'bob')));
+    gitlab.subjects.set(GITLAB_IDS.bob, 'different-reviewer');
+    expect(await collect()).toMatchObject({ accepted: 0, error: null });
+    expect((await list()).counts).toEqual({ pending: 1, accepted: 0, rejected: 0 });
+    gitlab.subjects.set(GITLAB_IDS.alice, 'different-author');
+    gitlab.mrs.push(mr(802, 'alice', []));
+    expect(await collect()).toMatchObject({ created: 0, accepted: 0, skipped: 2, error: null });
+  });
+
+  it('归属核验503或超时不撤已经确认的积分，恢复后明确移除仍撤分', async () => {
+    const { gitlab, mr, review, labelAdd, collect, list, recent } = await setup();
+    gitlab.mrs.push(mr(803, 'alice', review('merge_requests:803', 'bob')));
+    expect(await collect()).toMatchObject({ accepted: 1, error: null });
+    gitlab.mrs[0].labels = [];
+    labelAdd('merge_requests:803', 'bob', 'remove', new Date(Date.parse(recent) + 1000).toISOString(), 9);
+    gitlab.replyOnce('/users/1001', () => new Response('{}', { status: 503 }));
+    expect(await collect()).toMatchObject({ revoked: 0, error: 'gitlab_lookup_503' });
+    gitlab.replyOnce('/users/1001', () => { throw new DOMException('Synthetic timeout', 'TimeoutError'); });
+    expect(await collect()).toMatchObject({ revoked: 0, error: 'gitlab_unreachable' });
+    expect((await list()).counts.accepted).toBe(1);
+    expect(await collect()).toMatchObject({ revoked: 1, error: null });
+    expect((await list()).counts.pending).toBe(1);
+  });
+
+  it('等待其它标签身份核验时被停用的审核人不能自动计分', async () => {
+    const { app, as, id, accountId, gitlab, mr, review, collect } = await setup();
+    gitlab.mrs.push(mr(804, 'alice', review('merge_requests:804', 'bob', '重要', '业务', 'carol')));
+    gitlab.replyOnce('/users/1003', () => {
+      app.services.storage.db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId('bob'));
+      return new Response(JSON.stringify({ id: 1003, username: 'carol', state: 'active', is_admin: false, bot: false,
+        identities: [{ provider: 'openid_connect', extern_uid: gitlab.subjects.get(1003) }] }), { status: 200 });
+    });
+    grantPermNode(app, accountId('carol'), 'competition.score.review');
+    expect(await collect('owner')).toMatchObject({ accepted: 0, error: null });
+    expect((await app.inject({ url: `/api/console/competitions/${id}/candidates`, headers: as('owner') })).json().counts.accepted).toBe(0);
+  });
+
   it('只收时间窗内、已报名作者的 MR 与合格 Issue，不读 diff、不看改动行数；待确认的记下标签上的两档；重复收集不产生重复行', async () => {
     const { app, gitlab, id, mr, collect, list } = await setup();
     gitlab.mrs.push(
@@ -146,6 +199,117 @@ describe('收集候选贡献', () => {
 });
 
 describe('「有用」标签', () => {
+  it('较新标签事件不完整时不使用旧remove误撤积分，完整恢复后仍执行明确撤销', async () => {
+    const { gitlab, mr, review, labelAdd, collect, list, scoreOf, recent } = await setup();
+    gitlab.mrs.push(mr(805, 'alice', review('merge_requests:805', 'bob')));
+    expect(await collect()).toMatchObject({ accepted: 1, error: null });
+    expect(await scoreOf('alice')).toBe(45);
+    gitlab.mrs[0].labels = [];
+    labelAdd('merge_requests:805', 'bob', 'remove', new Date(Date.parse(recent) + 1000).toISOString(), 9);
+    const events = gitlab.labelEvents.get('merge_requests:805')!;
+    gitlab.replyOnce('/projects/geek%2Fadmin/merge_requests/805/resource_label_events', () => new Response(JSON.stringify([
+      ...events, { ...events[0], id: 10, action: 'unknown', created_at: new Date(Date.parse(recent) + 2000).toISOString() },
+    ]), { status: 200 }));
+    expect(await collect()).toMatchObject({ revoked: 0, error: 'gitlab_data_incomplete' });
+    expect((await list()).counts.accepted).toBe(1);
+    expect(await scoreOf('alice')).toBe(45);
+    expect(await collect()).toMatchObject({ revoked: 1, error: null });
+    expect(await scoreOf('alice')).toBe(0);
+  });
+
+  it('标签事件读取失败不等于标签已移除，不撤销已验真的积分', async () => {
+    const { gitlab, mr, review, collect, list, scoreOf } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob')));
+    expect((await collect()).accepted).toBe(1);
+    const score = await scoreOf('alice');
+    gitlab.mrs[0].labels = [];
+    gitlab.replyOnce('/projects/geek%2Fadmin/merge_requests/1/resource_label_events', () => new Response('{}', { status: 503 }));
+    const failed = await collect();
+    expect(failed.revoked).toBe(0);
+    expect(failed.error).toBe('gitlab_http_503');
+    expect((await list()).counts).toEqual({ pending: 0, accepted: 1, rejected: 0 });
+    expect(await scoreOf('alice')).toBe(score);
+  });
+
+  it.each([undefined, null, ['有用', null]])('不完整标签字段 %j 不被当成空标签撤分', async labels => {
+    const { gitlab, mr, review, collect, list, scoreOf } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob')));
+    await collect();
+    const score = await scoreOf('alice');
+    gitlab.mrs[0].labels = labels;
+    expect(await collect()).toMatchObject({ revoked: 0, error: 'gitlab_data_incomplete' });
+    expect((await list()).counts.accepted).toBe(1);
+    expect(await scoreOf('alice')).toBe(score);
+  });
+
+  it('完整读取标签事件分页，迟到的remove阻止旧页add自动加分，明确移除仍撤分', async () => {
+    const { gitlab, mr, review, labelAdd, collect, list, scoreOf } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob')));
+    const first = gitlab.labelEvents.get('merge_requests:1')!;
+    const removal = { ...first[0], id: 10, action: 'remove', created_at: new Date().toISOString() };
+    const path = '/projects/geek%2Fadmin/merge_requests/1/resource_label_events';
+    gitlab.replyOnce(path, () => new Response(JSON.stringify(first), { status: 200, headers: { 'x-next-page': '2' } }));
+    gitlab.replyOnce(path, () => new Response(JSON.stringify([removal]), { status: 200 }));
+    expect(await collect()).toMatchObject({ accepted: 0, error: null });
+    expect((await list()).counts).toEqual({ pending: 1, accepted: 0, rejected: 0 });
+    expect((await collect()).accepted).toBe(1);
+    expect(await scoreOf('alice')).toBeGreaterThan(0);
+    gitlab.mrs[0].labels = [];
+    labelAdd('merge_requests:1', 'bob', 'remove', new Date().toISOString(), 11);
+    expect(await collect()).toMatchObject({ revoked: 1, error: null });
+    expect(await scoreOf('alice')).toBe(0);
+  });
+
+  it.each([429, 500, 503])('标签事件第二页HTTP %i中断不使用第一页撤分', async status => {
+    const { gitlab, mr, review, collect, list } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob')));
+    await collect();
+    gitlab.mrs[0].labels = [];
+    const path = '/projects/geek%2Fadmin/merge_requests/1/resource_label_events';
+    gitlab.replyOnce(path, () => new Response('[]', { status: 200, headers: { 'x-next-page': '2' } }));
+    gitlab.replyOnce(path, () => new Response('{}', { status }));
+    expect(await collect()).toMatchObject({ revoked: 0, error: `gitlab_http_${status}` });
+    expect((await list()).counts.accepted).toBe(1);
+  });
+
+  it('标签事件跳过中间页时不把第一页remove作为完整撤分证据', async () => {
+    const { gitlab, mr, review, collect, list, scoreOf, recent } = await setup();
+    gitlab.mrs.push(mr(806, 'alice', review('merge_requests:806', 'bob')));
+    expect(await collect()).toMatchObject({ accepted: 1, error: null });
+    expect(await scoreOf('alice')).toBe(45);
+    gitlab.mrs[0].labels = [];
+    const first = gitlab.labelEvents.get('merge_requests:806')![0];
+    const path = '/projects/geek%2Fadmin/merge_requests/806/resource_label_events';
+    gitlab.replyOnce(path, () => new Response(JSON.stringify([{ ...first, id: 10, action: 'remove',
+      created_at: new Date(Date.parse(recent) + 1000).toISOString() }]), { status: 200, headers: { 'x-next-page': '3' } }));
+    gitlab.replyOnce(path, () => new Response('[]', { status: 200 }));
+    expect(await collect()).toMatchObject({ revoked: 0, error: 'gitlab_pagination_incomplete' });
+    expect((await list()).counts.accepted).toBe(1);
+    expect(await scoreOf('alice')).toBe(45);
+  });
+
+  it('列表分页循环失败关闭，且没有标签移除事件时不臆造撤销', async () => {
+    const { gitlab, mr, review, collect, list } = await setup();
+    const item = mr(1, 'alice', review('merge_requests:1', 'bob'));
+    gitlab.mrs.push(item);
+    gitlab.replyOnce('/projects/geek%2Fadmin/merge_requests?', () => new Response(JSON.stringify([item]), { status: 200, headers: { 'x-next-page': '1' } }));
+    expect(await collect()).toMatchObject({ created: 0, accepted: 0, revoked: 0, error: 'gitlab_pagination_incomplete' });
+    await collect();
+    gitlab.mrs[0].labels = [];
+    gitlab.labelEvents.clear();
+    expect(await collect()).toMatchObject({ revoked: 0, error: null });
+    expect((await list()).counts.accepted).toBe(1);
+  });
+
+  it('已停用审核人的标签不能在另一个同步循环中自动加分', async () => {
+    const { app, gitlab, mr, review, collect, accountId, id, as } = await setup();
+    gitlab.mrs.push(mr(1, 'alice', review('merge_requests:1', 'bob')));
+    app.services.storage.db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountId('bob'));
+    expect(await collect('owner')).toMatchObject({ accepted: 0, error: null });
+    const page = await app.inject({ url: `/api/console/competitions/${id}/candidates`, headers: as('owner') });
+    expect(page.json().counts).toEqual({ pending: 1, accepted: 0, rejected: 0 });
+  });
+
   it('「有用」和两档标签都由有审核权限的人加上才按两档自动加分；没有权限的人、作者自己加的、缺两档的不算，留在待确认并写明原因', async () => {
     const { app, gitlab, mr, labelAdd, review, collect, list, scoreOf, accountId, id } = await setup();
     gitlab.mrs.push(

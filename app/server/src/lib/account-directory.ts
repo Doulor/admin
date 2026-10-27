@@ -1,5 +1,6 @@
 import type { AccountClaims, IdentityStore } from "./identity-store.js";
 import { avatarPath } from "./account-profiles.js";
+import { publicProfile } from "./public-profile.js";
 
 /**
  * 对外看到的极客班账号（#270；#274 改成读统一资料 account_profiles，取代论坛自己的资料）：账号信息
@@ -25,10 +26,11 @@ export function createAccountDirectory(deps: {
     // account_profiles.get() 会兜底建档（ensure()），所以这里永远有资料行；avatar_url 已经是 `/api/identity/avatar/<hash>.webp`
     // 这样的路径，截出 hash 部分供 GitLab 同步按内容去重、判断头像有没有变过。
     const row = deps.profiles.get(claims.account_id);
+    const visible = publicProfile(row, { login: claims.login, avatarUrl: claims.github?.avatar_url ?? null });
     const avatarHash = row.avatar_url ? row.avatar_url.replace(/^\/api\/identity\/avatar\//, "").replace(/\.webp$/, "") : null;
     const profile: DirectoryProfile = { username: row.username, displayName: row.display_name, bio: row.bio, avatarHash };
-    const picture = avatarHash ? `${deps.publicOrigin}${avatarPath(avatarHash)}` : claims.github?.avatar_url ?? null;
-    return { ...claims, name: profile.displayName.trim() || claims.login, picture, profile };
+    const picture = avatarHash ? `${deps.publicOrigin}${avatarPath(avatarHash)}` : visible.avatar_url;
+    return { ...claims, name: visible.display_name, picture, profile };
   };
 
   function account(accountId: string): DirectoryAccount | null {

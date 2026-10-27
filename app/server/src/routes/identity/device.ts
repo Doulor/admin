@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { publicProfile } from "../../lib/public-profile.js";
 import {
   DEVICE_CLIENTS, DEVICE_CODE_TTL_MS, DEVICE_GRANT_TYPE,
   displayUserCode, normalizeScope, type DeviceClientId,
@@ -148,11 +149,12 @@ export default async function deviceRoutes(app: FastifyInstance) {
     // 年级给命令行展示身份用；真实姓名不在这里（#277 的硬约束：命令行拿不到任何账号的真实姓名，
     // 哪怕是本人——account-profiles.ts 的注释也只把这一项许给本人浏览器会话和有 users.manage 的管理员）。
     const { grade, grade_label } = app.services.profiles.realInfo(identity.accountId);
+    const profile = publicProfile(app.services.profiles.get(identity.accountId), { login: identity.login, avatarUrl: identity.avatarUrl });
     return {
       sub: identity.accountId,
       account_id: identity.accountId,
       login: identity.login,
-      avatar_url: identity.avatarUrl,
+      ...profile,
       scope: identity.scope,
       grade,
       grade_label,

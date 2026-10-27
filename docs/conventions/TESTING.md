@@ -50,6 +50,14 @@ CDN 迁移（#295）：`tests/tooling/static-cdn{,-s3,-http,-manifest}.test.ts` 
 
 `catalog-coverage.test.ts` 核对全部业务操作及补充入口都有流程关联；删除真实接口的关联后生成必须失败。`pr-contract.test.ts` 拒绝阻塞审查、隐藏或重复标题、围栏/缩进代码中的伪结论；宏观检查共享同一正文解析，并拒绝用已删除流程证明当前源码。`catalog-map.spec.ts` 在 CI 真实 Chromium 中覆盖地图搜索、表关系、窄屏和影响报告的成功、过期摘要、未知节点及清除操作。
 
+## 身份、公开资料与 GitLab 回归（GitHub #271）
+
+`session-cleanup.test.ts` 经真实身份路由与主动清理 Interface 核对七天会话的精确边界：到期前 1ms 仍可访问，到期等值回 401；同一时刻的批量清理只删到期会话，较新会话仍可访问。保留原有启动/每小时清理、停机、错误隔离、WAL 与备份字节检查。
+
+`identity-eligibility.test.ts`、`permission-expiry.test.ts`、`console-owner-eligibility.test.ts`、`oidc-eligibility.test.ts` 覆盖有效直接 member/alumni、active/owner、等值到期、继承与回拨缓存，以及两轮 sub/id 稳定。`public-profile-consumers.test.ts` 经真实 buildApp/inject 验证 canonical 资料与头像覆盖 forum/state/changes/搜索、设备令牌；另覆盖 canonical 昵称/头像为空时，同一 GitHub uid 改名换头像后无需再访问论坛，游客、登录用户、搜索和补全立即读取当前绑定，canonical 自定义值与无档案历史作者仍保持原优先级。不以 TCP 或浏览器作为这些断言的前提，不读取业务库。CLI `app/cli/tests/profile_consumers.rs` 是独立本地 TCP 模拟服务器集成测试，需要监听许可；`cargo test --bin geek` 可单独运行非网络单测，不能冒充前者。
+
+`gitlab-sync.test.ts` 的 managed identity safety 场景覆盖缓存绑定失配、同 provider 绑定歧义、完整分页失败/跳页、HTTP 401/403/404/429/500/503、超时、管理员/bot/service/root、详情不完整/缺 sub、源资格不完整不影响其他账号、同邮箱不合并、远端漂移、两循环与资格恢复竞态、block 失败重试。`competition-candidates.test.ts` 通过真实 collect 路由验证失败保分、明确 remove 正常撤分、分页第二页失败/跳页/循环、较新坏事件不被跳过后误用旧 remove、失配作者/审核人不归属，以及审核人停用和等待期间撤权不加分。`forum.test.ts` 与 `forum-v2-endpoints.test.ts` 的名字场景显式设置 canonical 用户名，不把注册时的随机用户名等同 GitHub 登录名；旧非法昵称分别验证 canonical 与缺档案历史路径，头像精确核对统一地址与旧地址同字节兼容、清除后均不可再取。所有外部 HTTP 仅合成响应，Vitest 使用 `--maxWorkers=2`；真实 GitLab/OAuth、邮件及预发布不属于隔离测试证明范围。
+
 ## 分支、环境与发布门禁回归
 
 `tests/tooling/deployment-environment.test.ts` 在临时目录合成夹具，验证 `.env.production` / `.env.preview` 的字段契约（非密值必须预填、契约外字段拒绝、密钥必须留空、`PUBLIC_ORIGIN` 逐字等于环境 origin、两环境端口与域名必须不同、`TRUST_PROXY` 等于宿主 nginx 与 web 容器 nginx 两层；发信：`MAIL_RECIPIENTS` 只能是 `all` 或 `allowlist`（两个环境模板现在都是 `all`，#169），发信密钥可以全部留空，阿里云两项只填一项拒绝，名单格式不对拒绝且报错不带名单内容，发不出信或带不了 Reply-To 的组合给提示）与 [deploy/environments.json](../../deploy/environments.json) 的一致性；它不读取真实密钥、不连接服务器。

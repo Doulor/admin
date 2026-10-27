@@ -38,7 +38,11 @@ async function setup(options: { env?: Record<string, string> } = {}) {
   const { app } = context;
   const sids = new Map<string, string>();
   const as = (login: string) => {
-    if (!sids.has(login)) sids.set(login, signIn(app, login, USERS[login], `https://avatars.example.test/${login}`, `token-${login}`));
+    if (!sids.has(login)) {
+      sids.set(login, signIn(app, login, USERS[login], `https://avatars.example.test/${login}`, `token-${login}`));
+      // 这些场景约定了明确的 @用户名；注册时自动生成的 acct_* 不是 GitHub 登录名。
+      expect(app.services.profiles.update(accountIdOf(app, login), { username: login.replace(/-/g, '_') }).ok).toBe(true);
+    }
     return { cookie: `sid=${sids.get(login)}` };
   };
   const assign = (login: string, role: 'captain' | 'head' | 'member' | 'alumni', department_id = '') =>
@@ -75,7 +79,7 @@ async function setup(options: { env?: Record<string, string> } = {}) {
   // 纯读本地记录、不再调 GitHub、也不会把刚手动设的 level.alumni 之类重新同步掉，所以这里不用再配合
   // GitHub 角色桩；直接发 title.site.owner 就够。
   grantPermGroup(app, accountIdOf(app, 'alice'), 'title.site.owner');
-  const call = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, who?: string, payload?: object) =>
+  const call = (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   const state = async (who?: string) => (await call('GET', '/api/forum/state', who)).json().state;
   // #274 item I：audit_logs 不再有人写，改读 activity_events；org/actor 对应的 GitHub 组织概念已经删掉，没有等价字段。
@@ -168,7 +172,7 @@ describe('state', () => {
     // GitHub 头像换了：下一次请求就刷新，自己改的昵称不动。往 role_assignments 里插一条称号指派
     // 不再影响论坛徽章——那张表迁移后只给控制台旧页面读，论坛称号只认 title.site.owner / level.alumni。
     s.app.services.roles.insertAssignment({ github_login: 'bob', github_user_id: 102, role: 'head', department_id: 'tech', note: null, granted_by: 'fixture' });
-    s.db.prepare("UPDATE sessions SET avatar_url = 'https://avatars.example.test/bob-new' WHERE login = 'bob'").run();
+    signIn(s.app, 'bob', 102, 'https://avatars.example.test/bob-new', 'token-bob-new');
     const bob = (await s.state('bob')).users.find((u: { id: string }) => u.id === 'm102');
     expect(bob).toMatchObject({ displayName: '小博', avatarUrl: 'https://avatars.example.test/bob-new' });
     expect(bob.title).toBeUndefined();
@@ -599,7 +603,12 @@ describe('replies', () => {
   it('notifies at most 10 people mentioned in one post, in the order they appear', async () => {
     const s = await setup();
     const handles = Array.from({ length: 12 }, (_, i) => `member${String(i + 1).padStart(2, '0')}`);
-    handles.forEach((login, i) => s.app.services.forum.ensureMember({ githubUserId: 500 + i, login, avatarUrl: null, role: 'member', title: null }));
+    handles.forEach((login, i) => {
+      signIn(s.app, login, 500 + i);
+      const accountId = accountIdOf(s.app, login);
+      expect(s.app.services.profiles.update(accountId, { username: login }).ok).toBe(true);
+      s.app.services.forum.ensureMember({ accountId, githubUserId: 500 + i, login, avatarUrl: null, role: 'member', title: null, department: null, titles: [] });
+    });
     const { postId } = await newTopic(s, 'bob', { content: handles.map(handle => `@${handle}`).join(' ') });
     const mentioned = s.db.prepare("SELECT recipient_id FROM forum_notifications WHERE type = 'mention' AND post_id = ? ORDER BY rowid").all(postId) as { recipient_id: string }[];
     expect(mentioned.map(row => row.recipient_id)).toEqual(Array.from({ length: 10 }, (_, i) => `m${500 + i}`));
@@ -834,7 +843,11 @@ describe('reactions (#276 CONTRACT §4): mine 按看的人是不是也回应过�
 });
 
 describe('write responses (#145)', () => {
-  const byId = (list: { id: string }[], id: string) => list.find(item => item.id === id);
+  const byId = <T extends { id: string } & Record<string, unknown>>(list: T[], id: string): T => {
+    const found = list.find(item => item.id === id);
+    if (!found) throw new Error(`Missing expected record: ${id}`);
+    return found;
+  };
   /** `/state` 里的帖子带摘要（#156），写回答里不带：比对时先把摘要拆掉。 */
   const withoutExcerpt = ({ excerpt: _excerpt, ...rest }: Record<string, unknown>): Record<string, unknown> => rest;
 
@@ -1037,15 +1050,22 @@ describe('profile', () => {
     expect((await s.state()).users.filter((u: { displayName: string }) => u.displayName === '小博')).toHaveLength(2);
   });
 
-  it('keeps a stored nickname that breaks the current rules when other fields change, but still checks a new one', async () => {
+  it.each(['canonical', 'legacy'] as const)('keeps a stored %s nickname that breaks the current rules when other fields change, but still checks a new one', async source => {
     const s = await setup();
     await s.state('carol');
     await s.state('bob');
+    const accountId = accountIdOf(s.app, 'bob');
+    if (source === 'legacy') s.db.prepare('DELETE FROM account_profiles WHERE account_id = ?').run(accountId);
+    // 合成规则变更前已存在的资料：有 canonical 时它才是昵称权威，缺档案时保留历史作者资料。
+    const storedNickname = (name: string) => {
+      s.db.prepare("UPDATE forum_users SET display_name = ? WHERE id = 'm102'").run(name);
+      if (source === 'canonical') s.db.prepare('UPDATE account_profiles SET display_name = ? WHERE account_id = ?').run(name, accountId);
+    };
     const patch = (body: object) => s.call('PATCH', '/api/forum/me/profile', 'bob', body);
     const bob = (response: { json(): { changes: { users: { id: string }[] } } }) => response.json().changes.users.find(u => u.id === 'm102');
     // 早先存下的昵称：带看不见的字符，或者和官方账号同名。
     for (const legacy of ['b\u200Bob', '极客班']) {
-      s.db.prepare("UPDATE forum_users SET display_name = ? WHERE id = 'm102'").run(legacy);
+      storedNickname(legacy);
       const kept = await patch({ displayName: legacy, bio: `签名 ${legacy}`, website: 'https://bob.example.test/' });
       expect(kept.statusCode, JSON.stringify(legacy)).toBe(200);
       expect(bob(kept), JSON.stringify(legacy)).toMatchObject({ displayName: legacy, bio: `签名 ${legacy}` });
@@ -1058,9 +1078,13 @@ describe('profile', () => {
     expect((await patch({ displayName: 'Carol', bio: '不该写进去' })).json().error).toBe('display_name_taken');
     expect((await s.state('bob')).users.find((u: { id: string }) => u.id === 'm102')).toMatchObject({ displayName: '极客班', bio: '签名 极客班' });
     // 存的是带首尾空格的「 bob 」：提交「bob」算没改，昵称不写回。
-    s.db.prepare("UPDATE forum_users SET display_name = ' bob ' WHERE id = 'm102'").run();
+    storedNickname(' bob ');
     expect((await patch({ displayName: 'bob', bio: '又改了签名' })).statusCode).toBe(200);
     expect(s.db.prepare("SELECT display_name, bio FROM forum_users WHERE id = 'm102'").get()).toEqual({ display_name: ' bob ', bio: '又改了签名' });
+    // 统一公开 DTO 去首尾空白，但不为只改签名重写存量昵称；没有 canonical 的历史资料保持原样。
+    expect((await s.state()).users.find((u: { id: string }) => u.id === 'm102')).toMatchObject({ displayName: source === 'canonical' ? 'bob' : ' bob ', bio: '又改了签名' });
+    if (source === 'canonical') expect(s.app.services.profiles.findMany([accountId]).get(accountId)?.display_name).toBe(' bob ');
+    if (source === 'legacy') expect(s.app.services.profiles.findMany([accountId]).size).toBe(0);
   });
 });
 
@@ -1092,13 +1116,21 @@ describe('avatars', () => {
     const response = await upload(await samplePng());
     expect(response.statusCode).toBe(200);
     const avatarUrl: string = response.json().changes.users.find((u: { id: string }) => u.id === 'm102').avatarUrl;
-    expect(avatarUrl).toMatch(/^\/api\/forum\/avatars\/[0-9a-f]{64}\.webp$/);
+    expect(avatarUrl).toMatch(/^\/api\/identity\/avatar\/[0-9a-f]{64}\.webp$/);
+    const hash = /^\/api\/identity\/avatar\/([0-9a-f]{64})\.webp$/.exec(avatarUrl)![1];
     const served = await s.app.inject(avatarUrl);
     expect(served.statusCode).toBe(200);
     expect(served.headers['content-type']).toBe('image/webp');
     expect(served.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     expect(served.headers['x-content-type-options']).toBe('nosniff');
-    expect(createHash('sha256').update(served.rawPayload).digest('hex')).toBe(avatarUrl.slice(19, 83));
+    expect(createHash('sha256').update(served.rawPayload).digest('hex')).toBe(hash);
+    const legacyUrl = `/api/forum/avatars/${hash}.webp`;
+    const legacyServed = await s.app.inject(legacyUrl);
+    expect(legacyServed.statusCode).toBe(200);
+    expect(legacyServed.rawPayload).toEqual(served.rawPayload);
+    expect(legacyServed.headers['content-type']).toBe('image/webp');
+    expect(legacyServed.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    expect(legacyServed.headers['x-content-type-options']).toBe('nosniff');
     const meta = await sharp(served.rawPayload).metadata();
     expect([meta.format, meta.width, meta.height, meta.exif]).toEqual(['webp', 256, 256, undefined]);
     // 居中裁切：左半边红、右半边蓝都还在。
@@ -1122,6 +1154,7 @@ describe('avatars', () => {
     const gone = await s.app.inject(avatarUrl);
     expect(gone.statusCode).toBe(404);
     expect(gone.headers['cache-control']).toBe('no-store');
+    expect((await s.app.inject(legacyUrl)).statusCode).toBe(404);
     expect((await s.app.inject('/api/forum/avatars/not-a-hash.webp')).statusCode).toBe(400);
   });
 
