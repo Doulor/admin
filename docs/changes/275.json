@@ -141,7 +141,6 @@
     },
     {
       "paths": [
-        "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/CATALOG.md",
         "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/data-model.md",
