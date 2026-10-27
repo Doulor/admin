@@ -226,6 +226,55 @@ describe('deploy-stack.sh keeps each environment inside its own image repository
   });
 });
 
+describe('deploy-stack.sh and rollback-stack.sh refuse an env file that belongs to the other stack', () => {
+  const rewrite = (envFile: string, pattern: RegExp, replacement: string) =>
+    writeFileSync(envFile, readFileSync(envFile, 'utf8').replace(pattern, replacement));
+
+  it('rejects a preview env file whose compose project is the production one', () => {
+    const h = host();
+    const preview = stack(h.root, 'preview', SHA);
+    rewrite(preview.envFile, /^COMPOSE_PROJECT_NAME=.*$/m, 'COMPOSE_PROJECT_NAME=yzgc-production');
+    archive(join(preview.stackRoot, 'incoming'), `yzgc-images-preview-${SHA}.tar.gz`, refs('yzgc-preview', SHA));
+    seed(h, refs('yzgc-preview', SHA));
+    const result = run(h, 'deploy-stack.sh', ['--environment', 'preview', '--incoming-dir', join(preview.stackRoot, 'incoming'), '--health-timeout', '5']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('COMPOSE_PROJECT_NAME 必须是 yzgc-preview');
+    // 校验在任何 compose up 之前失败：正式栈没有被重建（假 docker 在启动时就会建好 in-use.txt，所以看内容而不是存在性）。
+    expect(inUse(h)).toEqual([]);
+  });
+
+  it('rejects a preview env file whose stack root ends in production', () => {
+    const h = host();
+    const preview = stack(h.root, 'preview', SHA);
+    rewrite(preview.envFile, /^STACK_ROOT=.*$/m, `STACK_ROOT=${join(h.root, 'production')}`);
+    const result = run(h, 'deploy-stack.sh', ['--environment', 'preview', '--env-file', preview.envFile, '--images', join(preview.stackRoot, 'incoming')]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('STACK_ROOT 必须指向名为 preview 的栈根');
+  });
+
+  it('rejects a duplicated key instead of silently taking the last value', () => {
+    const h = host();
+    const preview = stack(h.root, 'preview', SHA);
+    writeFileSync(preview.envFile, `${readFileSync(preview.envFile, 'utf8')}COMPOSE_PROJECT_NAME=yzgc-production\n`);
+    const result = run(h, 'deploy-stack.sh', ['--environment', 'preview', '--env-file', preview.envFile, '--images', join(preview.stackRoot, 'incoming')]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('COMPOSE_PROJECT_NAME 出现了 2 次');
+  });
+
+  it('refuses to roll back with an env file that points at the other stack', () => {
+    const h = host();
+    const preview = stack(h.root, 'preview', SHA);
+    const stackEnv = join(preview.stackRoot, '.env.preview');
+    rewrite(preview.envFile, /^COMPOSE_PROJECT_NAME=.*$/m, 'COMPOSE_PROJECT_NAME=yzgc-production');
+    cpSync(preview.envFile, stackEnv);
+    seed(h, [...refs('yzgc-preview', SHA), ...refs('yzgc-preview', OLD)]);
+    const result = run(h, 'rollback-stack.sh', ['--environment', 'preview', '--to', OLD, '--env-file', stackEnv, '--health-timeout', '5']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('COMPOSE_PROJECT_NAME 必须是 yzgc-preview');
+    expect(readFileSync(stackEnv, 'utf8')).toContain(`IMAGE_TAG=${SHA}`);
+  });
+});
+
 describe('deploy-stack.sh rolls back the same way whether compose up or the health check fails', () => {
   it.each([
     ['docker compose up -d exits non-zero', { FAKE_DOCKER_UP_FAIL_TAG: SHA }, 'docker compose up -d 失败'],

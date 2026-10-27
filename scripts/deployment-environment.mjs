@@ -20,7 +20,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -650,7 +650,18 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
   });
   const header = '# 本文件由 deployment-environment render 渲染（模板 deploy/env/.env.' + environment + '）：含环境密钥，禁止入库、禁止写入日志。';
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, `${header}\n${lines.join('\n')}`, { mode: 0o600 });
+  // 0600 只对新建文件生效：out 已存在（例如上次留下的 0644）或是指向别处的符号链接时，
+  // 直接写会留下过宽权限、甚至把密钥写到链接目标。改成同目录 0600 临时文件 + 原子替换。
+  const rendered = `${header}\n${lines.join('\n')}`;
+  const temporary = `${out}.${process.pid}.tmp`;
+  if (existsSync(out) && lstatSync(out).isSymbolicLink()) throw new Error(`拒绝写入符号链接：${out}`);
+  try {
+    writeFileSync(temporary, rendered, { mode: 0o600, flag: 'wx' });
+    chmodSync(temporary, 0o600);
+    renameSync(temporary, out);
+  } finally {
+    if (existsSync(temporary)) rmSync(temporary, { force: true });
+  }
   // 给操作者的提示：只说哪些功能关着、哪些组合发不出信，不回显任何值。
   const notices = [];
   if (turnstileOff) notices.push(`${OPTIONAL_SECRET_PAIR.join('、')} 都为空：Turnstile 关闭，公开表单只靠工作量证明与限流。`);

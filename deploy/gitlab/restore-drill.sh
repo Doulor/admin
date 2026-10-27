@@ -2,6 +2,17 @@
 set -Eeuo pipefail
 umask 077
 
+# 演练只允许使用经审查的镜像摘要：compose 漂移到 tag/latest 或换摘要时，必须在解密与启动之前失败
+EXPECTED_IMAGE="gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e991ecdd6cae11ca7d7e5d36fc3"
+EXPECTED_IMAGE_PATTERN='^gitlab/gitlab-ce@sha256:[0-9a-f]{64}$'
+DRILL_CONTAINER="gitlab-drill"
+
+# 生产路径固定；允许环境变量重定向，便于用假的 docker/归档工具做回归测试
+DRILL_ROOT="${GITLAB_DRILL_ROOT:-/srv/gitlab-drill}"
+COMPOSE_FILE="${GITLAB_COMPOSE_FILE:-/srv/gitlab/docker-compose.yml}"
+ARCHIVE_TOOL="${GITLAB_ARCHIVE_TOOL:-/srv/gitlab/garage-archive.mjs}"
+
+WORK_DIR=""
 TARGET_DAY=""
 CLEANUP=0
 
@@ -72,9 +83,28 @@ else
     exit 1
 fi
 
-ARCHIVE_TOOL="/srv/gitlab/garage-archive.mjs"
 if [[ ! -f "${ARCHIVE_TOOL}" || -L "${ARCHIVE_TOOL}" ]]; then
     echo "Error: ${ARCHIVE_TOOL} is missing or unsafe" >&2
+    exit 1
+fi
+
+# 0. 预检：只接受经审查的 digest 镜像，任何解密/启动之前失败
+if [[ ! -f "${COMPOSE_FILE}" ]]; then
+    echo "Error: Compose file ${COMPOSE_FILE} does not exist" >&2
+    exit 1
+fi
+IMAGE="$(awk '/^[[:space:]]*image:/{print $2; exit}' "${COMPOSE_FILE}")"
+IMAGE="${IMAGE//[\"\']/}"
+if [[ -z "${IMAGE}" ]]; then
+    echo "Error: Could not extract image from ${COMPOSE_FILE}" >&2
+    exit 1
+fi
+if [[ ! "${IMAGE}" =~ ${EXPECTED_IMAGE_PATTERN} ]]; then
+    echo "Error: Image '${IMAGE}' from ${COMPOSE_FILE} is not a pinned digest; expected gitlab/gitlab-ce@sha256:<64 hex> (${EXPECTED_IMAGE})" >&2
+    exit 1
+fi
+if [[ "${IMAGE}" != "${EXPECTED_IMAGE}" ]]; then
+    echo "Error: Image '${IMAGE}' from ${COMPOSE_FILE} is not the reviewed image; expected ${EXPECTED_IMAGE}" >&2
     exit 1
 fi
 if [[ -n "${TARGET_DAY}" ]]; then
@@ -97,19 +127,49 @@ TARGET_DAY="${RUN_FIELDS[0]}"
 REMOTE_PREFIX="${RUN_FIELDS[1]}"
 
 STAMP="$(TZ=Asia/Shanghai date +%Y%m%dT%H%M%S)"
-WORK_DIR="/srv/gitlab-drill/${STAMP}"
+WORK_DIR="${DRILL_ROOT}/${STAMP}"
 mkdir -p "${WORK_DIR}"/{config,data/backups,logs}
 
-cleanup_decrypted() {
-    # 清理工作目录下的所有解密明文
-    if [[ -d "${WORK_DIR}" ]]; then
-        rm -rf "${WORK_DIR}/extracted_config" 2>/dev/null || true
-        rm -f "${WORK_DIR}/dl/"*.tar 2>/dev/null || true
-        rm -f "${WORK_DIR}/data/backups/"*.tar 2>/dev/null || true
+warn() {
+    echo "Warning: $*" >&2
+}
+
+remove_container() {
+    # 只删本脚本创建且仍存在的容器；清理失败只告警
+    (( CONTAINER_CREATED == 1 )) || return 0
+    if docker inspect "${DRILL_CONTAINER}" >/dev/null 2>&1; then
+        docker rm -f "${DRILL_CONTAINER}" >/dev/null 2>&1 || warn "failed to remove container ${DRILL_CONTAINER}"
+    fi
+    CONTAINER_CREATED=0
+}
+
+remove_work_dir() {
+    # 只在演练根目录之下删除，防止误删根或整个演练父目录
+    if [[ -z "${WORK_DIR}" || "${WORK_DIR}" != "${DRILL_ROOT}/"* || "${WORK_DIR}" == "${DRILL_ROOT}/" ]]; then
+        warn "refusing to remove unsafe work directory '${WORK_DIR}'"
+        return 0
+    fi
+    if [[ -e "${WORK_DIR}" ]]; then
+        rm -rf "${WORK_DIR}" || warn "failed to remove work directory ${WORK_DIR}"
     fi
 }
+
+DRILL_OK=0
+CONTAINER_CREATED=0
+on_exit() {
+    local rc=$?
+    set +e
+    trap - EXIT
+    if (( DRILL_OK == 0 )); then
+        # 失败退出：删除演练容器与整个工作目录（含 config/gitlab-secrets.json 明文密钥），远端加密归档保留
+        echo "Drill failed; removing ${DRILL_CONTAINER} and ${WORK_DIR} (encrypted archive is left untouched)" >&2
+        remove_container
+        remove_work_dir
+    fi
+    exit "${rc}"
+}
 # 收到 INT/TERM 时退出，由 EXIT trap 统一清理；只写 trap … TERM 的话清理完脚本会接着往下跑
-trap cleanup_decrypted EXIT
+trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -143,19 +203,7 @@ DECRYPTED_CONFIG="${WORK_DIR}/dl/${CONFIG_TAR_NAME}"
 gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --output "${DECRYPTED_BACKUP}" --decrypt "${BACKUP_GPG}" 3<<< "${GPG_PASS}"
 gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --output "${DECRYPTED_CONFIG}" --decrypt "${CONFIG_GPG}" 3<<< "${GPG_PASS}"
 
-# 3. 读取现有 docker-compose.yml 中的准确镜像标签（包含 sha256 摘要）
-COMPOSE_FILE="/srv/gitlab/docker-compose.yml"
-if [[ ! -f "${COMPOSE_FILE}" ]]; then
-    echo "Error: Compose file ${COMPOSE_FILE} does not exist" >&2
-    exit 1
-fi
-IMAGE="$(awk '/^[[:space:]]*image:/{print $2; exit}' "${COMPOSE_FILE}")"
-IMAGE="${IMAGE//[\"\']/}"
-if [[ -z "${IMAGE}" ]]; then
-    echo "Error: Could not extract image from ${COMPOSE_FILE}" >&2
-    exit 1
-fi
-
+# 3. 镜像硬性要求已在预检阶段按 digest 固定，这里只解压配置归档
 # 4. 解压配置归档，在容器首次启动前复制 gitlab-secrets.json
 EXTRACTED_CONFIG_DIR="${WORK_DIR}/extracted_config"
 mkdir -p "${EXTRACTED_CONFIG_DIR}"
@@ -174,13 +222,15 @@ rm -rf "${EXTRACTED_CONFIG_DIR}"
 rm -f "${DECRYPTED_CONFIG}"
 
 # 5. 启动演练容器（若已存在则直接拒绝）
-if docker inspect gitlab-drill >/dev/null 2>&1; then
-    echo "Error: Container 'gitlab-drill' already exists. Remove it before running restore drill." >&2
+if docker inspect "${DRILL_CONTAINER}" >/dev/null 2>&1; then
+    echo "Error: Container '${DRILL_CONTAINER}' already exists. Remove it before running restore drill." >&2
     exit 1
 fi
 
+# 先置位再启动：docker run 中途失败可能留下半创建的同名容器，失败清理要能按名字删掉
+CONTAINER_CREATED=1
 docker run -d \
-    --name gitlab-drill \
+    --name "${DRILL_CONTAINER}" \
     --hostname gitlab-drill \
     --network none \
     --memory 6g \
@@ -199,8 +249,8 @@ UP=0
 
 while (( $(date +%s) - START_TIME < TIMEOUT )); do
     # 不用 docker logs | grep -q：pipefail 下 grep 提前退出会让 docker logs 收到 SIGPIPE，整条管道判为失败
-    if grep -q 'gitlab Reconfigured!' <<< "$(docker logs gitlab-drill 2>&1)"; then
-        STATUS="$(docker exec gitlab-drill gitlab-ctl status 2>/dev/null || true)"
+    if grep -q 'gitlab Reconfigured!' <<< "$(docker logs "${DRILL_CONTAINER}" 2>&1)"; then
+        STATUS="$(docker exec "${DRILL_CONTAINER}" gitlab-ctl status 2>/dev/null || true)"
         if grep -qE 'run:[[:space:]]*puma:' <<< "${STATUS}" && grep -qE 'run:[[:space:]]*postgresql:' <<< "${STATUS}"; then
             UP=1
             break
@@ -218,25 +268,25 @@ fi
 cp "${DECRYPTED_BACKUP}" "${WORK_DIR}/data/backups/${BACKUP_TAR_NAME}"
 rm -f "${DECRYPTED_BACKUP}"
 
-docker exec gitlab-drill chown git:git "/var/opt/gitlab/backups/${BACKUP_TAR_NAME}"
+docker exec "${DRILL_CONTAINER}" chown git:git "/var/opt/gitlab/backups/${BACKUP_TAR_NAME}"
 
-docker exec gitlab-drill gitlab-ctl stop puma
-docker exec gitlab-drill gitlab-ctl stop sidekiq
+docker exec "${DRILL_CONTAINER}" gitlab-ctl stop puma
+docker exec "${DRILL_CONTAINER}" gitlab-ctl stop sidekiq
 
 BACKUP_ID="${BACKUP_TAR_NAME%_gitlab_backup.tar}"
-docker exec gitlab-drill gitlab-backup restore BACKUP="${BACKUP_ID}" force=yes
+docker exec "${DRILL_CONTAINER}" gitlab-backup restore BACKUP="${BACKUP_ID}" force=yes
 
 # 恢复完成后删除备份明文包
 rm -f "${WORK_DIR}/data/backups/${BACKUP_TAR_NAME}"
 
 # postgresql 重启常超过 runit 的等待时间而报 timeout（进程其实还在起），不以它判失败，下面按状态等就绪
-docker exec gitlab-drill gitlab-ctl restart || true
+docker exec "${DRILL_CONTAINER}" gitlab-ctl restart || true
 
 # 等待 puma 重启恢复就绪（最长 10 分钟）
 PUMA_UP=0
 RESTART_START="$(date +%s)"
 while (( $(date +%s) - RESTART_START < 600 )); do
-    STATUS="$(docker exec gitlab-drill gitlab-ctl status 2>/dev/null || true)"
+    STATUS="$(docker exec "${DRILL_CONTAINER}" gitlab-ctl status 2>/dev/null || true)"
     if grep -qE 'run:[[:space:]]*puma:' <<< "${STATUS}" && grep -qE 'run:[[:space:]]*postgresql:' <<< "${STATUS}"; then
         PUMA_UP=1
         break
@@ -249,12 +299,12 @@ if (( PUMA_UP == 0 )); then
     exit 1
 fi
 
-docker exec gitlab-drill gitlab-rake gitlab:check SANITIZE=true
-docker exec gitlab-drill gitlab-rake gitlab:doctor:secrets
+docker exec "${DRILL_CONTAINER}" gitlab-rake gitlab:check SANITIZE=true
+docker exec "${DRILL_CONTAINER}" gitlab-rake gitlab:doctor:secrets
 
 # 8. 打印演练实例与正式实例的对象计数对比
 COUNT_RB='puts({projects: Project.count, users: User.count, issues: Issue.count}.to_json)'
-DRILL_COUNTS="$(docker exec gitlab-drill gitlab-rails runner "${COUNT_RB}" | tail -n 1)"
+DRILL_COUNTS="$(docker exec "${DRILL_CONTAINER}" gitlab-rails runner "${COUNT_RB}" | tail -n 1)"
 LIVE_COUNTS="$(docker exec gitlab gitlab-rails runner "${COUNT_RB}" | tail -n 1)"
 echo "drill: ${DRILL_COUNTS}"
 echo "live:  ${LIVE_COUNTS}"
@@ -267,19 +317,15 @@ fi
 
 # 10. 收尾处理：若无 --cleanup 则保留并打印清理命令；若有 --cleanup 则执行清理
 if (( CLEANUP == 1 )); then
-    # 路径安全防护：必须位于 /srv/gitlab-drill/ 之下且不能为根目录
-    if [[ "${WORK_DIR}" =~ ^/srv/gitlab-drill/.+ && "${WORK_DIR}" != "/srv/gitlab-drill" && "${WORK_DIR}" != "/srv/gitlab-drill/" ]]; then
-        docker rm -f gitlab-drill
-        rm -rf "${WORK_DIR}"
-        echo "Cleaned up gitlab-drill container and work directory: ${WORK_DIR}"
-    else
-        echo "Error: Invalid work directory guard failed: ${WORK_DIR}" >&2
-        exit 1
-    fi
+    remove_container
+    remove_work_dir
+    echo "Cleaned up ${DRILL_CONTAINER} container and work directory: ${WORK_DIR}"
 else
     echo ""
     echo "Drill completed successfully. Container and work directory retained."
     echo "To remove, run:"
-    echo "  docker rm -f gitlab-drill"
+    echo "  docker rm -f ${DRILL_CONTAINER}"
     echo "  rm -rf ${WORK_DIR}"
 fi
+# 演练成功：EXIT trap 保留演练现场
+DRILL_OK=1

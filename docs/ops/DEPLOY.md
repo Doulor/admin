@@ -116,6 +116,8 @@ SSH/SCP 共用 `-F <本次受控配置> yzgc-target`，固定 `IdentitiesOnly`�
 | `--health-timeout <秒>` | 健康门超时（默认 180） |
 
 - **部署参数事实源**：`STACK_ROOT`、`COMPOSE_PROJECT_NAME`、`IMAGE_TAG`、`SERVER_BIND`、`WEB_BIND`、`SERVER_PORT` 从 env 文件读取，原子安装为 `<栈根>/.env.<environment>`（0600）；这不表示业务开关只由 env 决定，持久化 GitLab mode 的覆盖见上文副本门禁。
+- **env 文件只能操作自己环境**：`deploy-stack.sh` 与 `rollback-stack.sh` 都要求 `STACK_ROOT` 的最后一段逐字等于 `--environment`、`COMPOSE_PROJECT_NAME` 逐字等于 `yzgc-<environment>`，并且上面这些键在文件里只能出现一次（重复键直接失败，不取最后一个值）。否则一份 preview env 指向 `/opt/yzgc/production` 就能用 preview 的镜像与密钥 up/回滚正式栈与 `yzgc-production-data` 卷。
+- **渲染出的运行时 env 用原子替换**：`deployment-environment.mjs render` 先写同目录 0600 临时文件再 `rename`，目标已存在时同权限收紧为 0600；`--out` 是符号链接时拒绝渲染，避免密钥顺着链接写到别处（`mode: 0o600` 只对新建文件生效）。
 - **镜像只属于本环境**：装载前读归档里 `manifest.json` 的 `RepoTags`，只接受 `yzgc-<environment>/{server,web,forum}:<IMAGE_TAG>` 这三个，出现另一环境、旧的 `yzgc/*` 或别的 tag 即拒绝（不 `docker load`，也不重新打 tag）；compose 文件解析出的镜像也必须恰好是这三个，目标机上残留旧版 compose 文件时直接失败。
 - **镜像包校验失败关闭**：必须能核到 sha256（`<包>.sha256`、去扩展名的同名 `.sha256`，或同目录的 `SHA256SUMS`/`sha256sums.txt`/`checksums.txt`），缺失或不等即拒绝部署。
 - **串行锁**：`flock <栈根>/.deploy.lock`（等待 900s），production 与 preview 各自独立串行。锁只包住 `deploy-stack.sh`（`rollback-stack.sh` 用同一把），上传归档与 env 文件（scp）在锁外，见下文「同一环境同一时刻只允许一个部署任务」。

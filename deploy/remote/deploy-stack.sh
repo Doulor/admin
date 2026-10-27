@@ -329,6 +329,13 @@ command -v flock >/dev/null 2>&1 || die "目标机缺少 flock，无法串行化
 command -v tar >/dev/null 2>&1 || die "目标机缺少 tar，无法核对镜像归档内容"
 
 # ── env 文件是唯一事实来源 ────────────────────────────────────
+# 同一个键出现多次时，env_value 取最后一个、docker compose 也取最后一个，但模板与渲染器都不该产出重复键；
+# 一旦存在，说明这个文件不是本环境该用的那一份，直接失败而不是猜。
+for required_key in GEEK_DEPLOYMENT_ENVIRONMENT STACK_ROOT COMPOSE_PROJECT_NAME IMAGE_TAG SERVER_BIND WEB_BIND SERVER_PORT; do
+  key_count=$(grep -c "^${required_key}=" "$ENV_FILE" 2>/dev/null || true)
+  [ "${key_count:-0}" -le 1 ] || die "env 文件里 ${required_key} 出现了 ${key_count} 次：$ENV_FILE"
+done
+
 FILE_ENVIRONMENT=$(env_value GEEK_DEPLOYMENT_ENVIRONMENT "$ENV_FILE")
 FILE_STACK_ROOT=$(env_value STACK_ROOT "$ENV_FILE")
 COMPOSE_PROJECT_NAME=$(env_value COMPOSE_PROJECT_NAME "$ENV_FILE")
@@ -343,6 +350,10 @@ SERVER_PORT=$(env_value SERVER_PORT "$ENV_FILE")
 require_match "$FILE_STACK_ROOT" '^/[A-Za-z0-9._/-]{1,200}$' STACK_ROOT
 [ -n "$COMPOSE_PROJECT_NAME" ] || die "env 文件缺少 COMPOSE_PROJECT_NAME"
 require_match "$COMPOSE_PROJECT_NAME" '^[a-z0-9][a-z0-9_-]{0,62}$' COMPOSE_PROJECT_NAME
+# 栈根与 compose 项目名必须属于 --environment：否则一份 preview env 可以指向 production 栈，
+# 用 preview 的镜像与密钥去 up/回滚正式的容器和数据卷。
+[ "${FILE_STACK_ROOT##*/}" = "$ENVIRONMENT" ] || die "STACK_ROOT 必须指向名为 ${ENVIRONMENT} 的栈根（${FILE_STACK_ROOT}）"
+[ "$COMPOSE_PROJECT_NAME" = "$IMAGE_REPO" ] || die "COMPOSE_PROJECT_NAME 必须是 ${IMAGE_REPO}（${COMPOSE_PROJECT_NAME}）"
 require_match "$IMAGE_TAG" '^[0-9a-f]{12}$' IMAGE_TAG
 [ -n "$STACK_ROOT_ARG" ] && [ "$STACK_ROOT_ARG" != "$FILE_STACK_ROOT" ] && die "--stack-root 与 env 文件的 STACK_ROOT 不一致"
 [ -n "$IMAGE_TAG_ARG" ] && [ "$IMAGE_TAG_ARG" != "$IMAGE_TAG" ] && die "--image-tag 与 env 文件的 IMAGE_TAG 不一致"

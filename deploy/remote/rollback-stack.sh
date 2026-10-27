@@ -177,6 +177,10 @@ fi
 [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ] || die "找不到 env 文件（用 --env-file 指定，或确认 <STACK_ROOT>/.env.$ENVIRONMENT 存在）"
 
 FILE_ENVIRONMENT=$(env_value GEEK_DEPLOYMENT_ENVIRONMENT "$ENV_FILE")
+for required_key in GEEK_DEPLOYMENT_ENVIRONMENT STACK_ROOT COMPOSE_PROJECT_NAME IMAGE_TAG SERVER_BIND WEB_BIND; do
+  key_count=$(grep -c "^${required_key}=" "$ENV_FILE" 2>/dev/null || true)
+  [ "${key_count:-0}" -le 1 ] || die "env 文件里 ${required_key} 出现了 ${key_count} 次：$ENV_FILE"
+done
 FILE_STACK_ROOT=$(env_value STACK_ROOT "$ENV_FILE")
 COMPOSE_PROJECT_NAME=$(env_value COMPOSE_PROJECT_NAME "$ENV_FILE")
 CURRENT_TAG=$(env_value IMAGE_TAG "$ENV_FILE")
@@ -188,6 +192,9 @@ WEB_BIND=$(env_value WEB_BIND "$ENV_FILE")
 require_match "$FILE_STACK_ROOT" '^/[A-Za-z0-9._/-]{1,200}$' STACK_ROOT
 [ -n "$COMPOSE_PROJECT_NAME" ] || die "env 文件缺少 COMPOSE_PROJECT_NAME"
 require_match "$COMPOSE_PROJECT_NAME" '^[a-z0-9][a-z0-9_-]{0,62}$' COMPOSE_PROJECT_NAME
+# 与 deploy-stack.sh 同一条边界：env 文件只能操作自己环境的栈。
+[ "${FILE_STACK_ROOT##*/}" = "$ENVIRONMENT" ] || die "STACK_ROOT 必须指向名为 ${ENVIRONMENT} 的栈根（${FILE_STACK_ROOT}）"
+[ "$COMPOSE_PROJECT_NAME" = "$IMAGE_REPO" ] || die "COMPOSE_PROJECT_NAME 必须是 ${IMAGE_REPO}（${COMPOSE_PROJECT_NAME}）"
 require_match "$CURRENT_TAG" '^[0-9a-f]{12}$' IMAGE_TAG
 require_match "$SERVER_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' SERVER_BIND
 require_match "$WEB_BIND" '^(127\.0\.0\.1|10\.66\.0\.2):[0-9]{2,5}$' WEB_BIND

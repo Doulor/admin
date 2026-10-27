@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cpSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
@@ -403,6 +403,26 @@ describe('runtime env rendering', () => {
     expect(values.get('IMAGE_TAG')).toBe('a1b2c3d4e5f6');
     for (const field of SECRET_FIELDS) expect(values.get(field)).toBe(secrets[field]);
     expect(result.bytes).toBeGreaterThan(0);
+  });
+
+  it('tightens an existing loose file to 0600 and refuses a symlinked output path', () => {
+    const root = fixtureRoot();
+    const out = join(root, 'runtime/.env.preview');
+    mkdirSync(dirname(out), { recursive: true });
+    // 上一次渲染/手工拷贝留下的宽权限文件：0600 只在新建时生效，必须显式收紧而不是沿用旧权限。
+    writeFileSync(out, 'STALE=1\n', { mode: 0o644 });
+    chmodSync(out, 0o644);
+    renderRuntimeEnv({ root, environment: 'preview', out, imageTag: 'a1b2c3d4e5f6', env: secrets });
+    expect(statSync(out).mode & 0o777).toBe(0o600);
+    expect(readFileSync(out, 'utf8')).toContain('GEEK_DEPLOYMENT_ENVIRONMENT=preview');
+
+    // 输出路径是符号链接时，密钥不能顺着链接写到别处。
+    const victim = join(root, 'runtime/victim.txt');
+    writeFileSync(victim, 'untouched\n');
+    const linked = join(root, 'runtime/.env.preview.link');
+    symlinkSync(victim, linked);
+    expect(() => renderRuntimeEnv({ root, environment: 'preview', out: linked, imageTag: 'a1b2c3d4e5f6', env: secrets })).toThrow(/符号链接/);
+    expect(readFileSync(victim, 'utf8')).toBe('untouched\n');
   });
 
   it('refuses to render a half-configured file or a non-SHA release tag', () => {

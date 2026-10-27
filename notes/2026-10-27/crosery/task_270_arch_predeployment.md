@@ -119,3 +119,9 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：对 task270 现有改动运行 CLI Rust 单测、部署与归档 Vitest，并以 gitlab/stage 运行 check-architecture；未混入 task295 CLI 以外文件
 - 结果：cargo test 32 passed；Vitest 185 passed、1 个平台 status 用例受 Node uv_uptime EPERM；live nginx 受 listen EPERM；architecture #270 94 个变更文件4个节点通过；git diff --check 通过
+
+## 09:33:00 +08:00 · 返工 · #270 · 保留提交后发现的部署边界补丁
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：发现首个本地提交后 task270 仍有 deploy-stack.sh、rollback-stack.sh、deploy-scripts.test.ts 和 GITLAB.md 尾部空行清理未提交；核对后确认均属于当前 task270 既有交付范围并按原路径保留
+- 结果：tests/tooling/deploy-scripts.test.ts 23/23通过；未改 task295 或其它 source tree
