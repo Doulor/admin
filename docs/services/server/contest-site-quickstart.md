@@ -2,7 +2,7 @@
 
 > 给要给自己的内部比赛做一个官网的组织者看：从建比赛到发布官网的完整步骤，接口清单，以及几条容易踩的坑。这份文档本身是给论坛「举办内部比赛指南」（t910）直接引用的材料，写法上不假设读者先看过别的文档。
 
-状态：`current` · 更新：2026-10-25 · 源码：`scripts/contest-site.mjs`、`app/server/src/lib/site-package.ts`、`app/web/shared/competition-sdk/`、`app/web/sites/contests/` · 上级合同：[server](README.md) §「比赛官网托管、公开接口、贡献收集、定榜与兑奖」 · 接口细节：[endpoint-contracts](endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」
+状态：`current` · 更新：2026-10-27 · 源码：`scripts/contest-site.mjs`、`app/server/src/lib/site-package.ts`、`app/web/shared/competition-sdk/`、`app/web/sites/contests/` · 上级合同：[server](README.md) §「比赛官网托管、公开接口、贡献收集、定榜与兑奖」 · 接口细节：[endpoint-contracts](endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」
 
 ## 整条链路
 
@@ -101,7 +101,7 @@ node scripts/contest-site.mjs pack app/web/sites/contests/<比赛 slug>/dist/sit
 | 人员 | `getParticipants({ cursor?, limit? })` | 全部已报名的参赛者（昵称、头像、部门），不是只有拿过分的人；分页 | 还没人报名时 `items` 是空数组 |
 | 队伍 | `getTeams()` | 全部未解散的队伍（队名、成员、是否还在招募） | **个人赛也能调这个接口，不会报错**：`enabled` 为 `false`、`teams` 为空数组，站点据此跳过「队伍」这一段 |
 | 奖励 | `getCompetition().prizes` | 奖项名次与金额 | 没设置奖励时是空数组，不是错误，不用单独调接口 |
-| 天梯 | `getLeaderboard()` | 按分数排名的个人榜和队伍榜（只有拿过分的人才上榜） | 还没人拿分时两个列表都是空数组 |
+| 天梯 | `getLeaderboard()` | 按分数排名的个人榜和队伍榜（已报名的0分也上榜，定榜后个人名次冻结） | 无报名时个人榜为空；个人赛队伍榜为空 |
 | 贡献动态 | `getFeed({ cursor?, limit? })` | 最近的加分、扣分记录 | 同上，空数组 |
 | 统计 | `getStats()` | 参赛人数、队伍数、合并的 MR 数等汇总 | 都是 0 |
 | 一次取齐 | `getSnapshot()` | 比赛信息、天梯、动态、统计一次给齐，`subscribe()` 轮询用的就是它 | — |
@@ -116,3 +116,7 @@ node scripts/contest-site.mjs pack app/web/sites/contests/<比赛 slug>/dist/sit
 - **不要在站点包里放真实姓名、邮箱**：接口本身只给昵称、`@用户名`、头像，不会泄露这些；站点代码里也不要自己收集或显示。
 - **图标、字体等资源打进包里**：sandbox 环境不能访问外部 CDN（`connect-src 'self'`），第三方字体、图标库要打进站点包，不能用 `<link>` 引用外部地址。
 - **本地 `dev` 预览不是开发服务器**：改代码要重新 `vite build` 才能看到效果；边改边看用上面「要接真实数据调试」那条。
+
+## 首场个人赛全流程演练
+
+要测报名、审核、定榜与核销，不用 `dev` 的只读示例冒充真实流程。按[演练矩阵与loopback入口](competition-rehearsal.md)启动真实Fastify/隔离文件库，只模拟外部OAuth/GitLab；浏览器角色依次为alice、bob、reviewer、owner、redeemer。矩阵明确列出身份集成失败及本机网络未验收项。

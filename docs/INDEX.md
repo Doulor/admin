@@ -51,6 +51,7 @@
 
 | 文档 | 说明 | EN |
 |---|---|---|
+| [`competition-rehearsal.md`](./services/server/competition-rehearsal.md) | GitHub #276 的有限后台验收矩阵、真实路由闭环和浏览器接力入口；测试通过不等于未知组合、真实 GitLab 或浏览器已验收。 | — |
 | [`contest-site-quickstart.md`](./services/server/contest-site-quickstart.md) | 给要给自己的内部比赛做一个官网的组织者看：从建比赛到发布官网的完整步骤，接口清单，以及几条容易踩的坑。这份文档本身是给论坛「举办内部比赛指南」（t910）直接引用的材料，写法上不假设读者先看过别的文档。 | — |
 | [`data-model.md`](./services/server/data-model.md) | data.db 每张表的用途、写入方、读取方和个人信息字段，以及当前没有消费者的表、列和索引；表结构以 `app/server/src/lib/db.ts` 为唯一来源。 | — |
 | [`endpoint-contracts.md`](./services/server/endpoint-contracts.md) | 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。 | — |
@@ -185,6 +186,8 @@
 
 ## history/changes/gitlab/
 
+保存跨仓同号 issue 的原始声明；本目录不是当前 GitHub 任务的实施依据。
+
 | 文档 | 说明 | EN |
 |---|---|---|
 | [`270.md`](./history/changes/gitlab/270.md) |  | — |
@@ -224,4 +227,4 @@ iPhone 15 Pro Max model attribution
 
 ---
 
-共 77 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 78 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。

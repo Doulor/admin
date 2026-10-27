@@ -33,7 +33,7 @@ const CORE_BY_LABEL = new Map(CORE.map(key => [`${CORE_LABEL_PREFIX}${CORE_LABEL
 export const COLLECT_INTERVAL_MS = 10 * 60_000;
 /** 比赛结束后还继续收集多久（迟到的标签、合并），定榜后停。 */
 export const COLLECT_GRACE_MS = 30 * 24 * 3600_000;
-/** 一次收集最多发多少个 GitLab 请求，超过就停在这里，下一轮接着补。 */
+/** 一次收集最多发多少个 GitLab 请求；未取全时整轮不应用，避免部分结果误计分。 */
 export const COLLECT_REQUEST_BUDGET = 300;
 const LIST_PAGES_MAX = 10;
 const CANDIDATE_PAGE = 50;
@@ -72,7 +72,7 @@ type GitlabReader = {
   readonly mode: "off" | "dry-run" | "on";
   readonly url: string | null;
   readApi(path: string): Promise<{ status: number; data: unknown; nextPage: number | null }>;
-  accountForGitlabUser(gitlabUserId: number): Promise<string | null>;
+  accountForGitlabUser(gitlabUserId: number): string | null | Promise<string | null>;
 };
 type Logger = { info(details: Record<string, unknown>, message: string): void; error(details: Record<string, unknown>, message: string): void };
 type GitlabItem = {
@@ -209,18 +209,29 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
     const now = clock();
     const run: CollectRun = { at: now, fetched: 0, created: 0, skipped: 0, accepted: 0, revoked: 0, error: null };
     let budget = COLLECT_REQUEST_BUDGET;
-    const read = async (path: string) => {
+    const spendBudget = () => {
       if (budget-- <= 0) throw Object.assign(new Error("budget"), { code: "request_budget_exhausted" });
+    };
+    const read = async (path: string) => {
+      spendBudget();
       return deps.gitlab.readApi(path);
     };
-    const accountFor = async (userId: number) => {
-      if (budget-- <= 0) throw Object.assign(new Error("budget"), { code: "request_budget_exhausted" });
-      return deps.gitlab.accountForGitlabUser(userId);
+    const accounts = new Map<number, Promise<string | null>>();
+    const accountFor = (userId: number): Promise<string | null> => {
+      const existing = accounts.get(userId);
+      if (existing) return existing;
+      spendBudget();
+      const pending = Promise.resolve(deps.gitlab.accountForGitlabUser(userId));
+      accounts.set(userId, pending);
+      return pending;
     };
-    const readList = async <T = GitlabItem>(path: string): Promise<T[]> => {
+    const readList = async <T>(path: string): Promise<T[]> => {
       const items: T[] = [];
       let page: number | null = 1;
-      for (let count = 0; page && count < LIST_PAGES_MAX; count++) {
+      const seen = new Set<number>();
+      for (let count = 0; page !== null && count < LIST_PAGES_MAX; count++) {
+        if (seen.has(page)) throw Object.assign(new Error("pagination"), { code: "gitlab_pagination_incomplete" });
+        seen.add(page);
         const result = await read(`${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`);
         if (result.status !== 200 || !Array.isArray(result.data)) throw Object.assign(new Error("list"), { code: `gitlab_http_${result.status}` });
         items.push(...(result.data as T[]));
@@ -231,7 +242,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       if (page !== null) throw Object.assign(new Error("pagination"), { code: "gitlab_pagination_incomplete" });
       return items;
     };
-    const signedUp = new Set(deps.signups.activeSignups(record.id).map(person => person.account_id));
+    const projects = [...deps.rules.get(record.id).gitlab_projects];
     const since = new Date(record.start_at).toISOString();
     const until = new Date(record.end_at).toISOString();
     const inWindow = (value: unknown) => {
@@ -249,46 +260,81 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       return item.labels;
     };
 
-    type LatestLabel = { action: "add" | "remove"; userId: number | null; username: string | null };
-    /** 完整事件中每个标签最后一次是谁、加还是拿掉；坏事件不能被跳过后把旧事件误认成最新。 */
+    type LatestLabel = { action: "add" | "remove"; userId: number | null; username: string | null; accountId: string | null };
+    /** 先取全事件，再核验各标签最后操作者的远端 OIDC 身份；坏事件不能被跳过后误判撤销。 */
     async function latestLabelEvents(project: string, kind: "pr" | "issue", iid: number): Promise<Map<string, LatestLabel>> {
       const resource = kind === "pr" ? "merge_requests" : "issues";
       const events = await readList<LabelEvent>(`/projects/${encodeURIComponent(project)}/${resource}/${iid}/resource_label_events`);
       const latest = new Map<string, LabelEvent>();
       for (const event of events) {
         const name = event?.label?.name;
+        const userId = event?.user?.id;
+        const username = event?.user?.username;
         if (!event || !Number.isSafeInteger(event.id) || Number(event.id) <= 0
           || !Number.isFinite(Date.parse(String(event.created_at ?? "")))
-          || typeof name !== "string" || !name || (event.action !== "add" && event.action !== "remove")) {
+          || typeof name !== "string" || !name || (event.action !== "add" && event.action !== "remove")
+          || (userId !== undefined && userId !== null && (!Number.isSafeInteger(userId) || Number(userId) <= 0))
+          || (username !== undefined && username !== null && typeof username !== "string")) {
           throw Object.assign(new Error("event"), { code: "gitlab_data_incomplete" });
         }
         const known = latest.get(name);
-        const at = Date.parse(String(event.created_at ?? ""));
-        const knownAt = known ? Date.parse(String(known.created_at ?? "")) : -Infinity;
+        const at = Date.parse(String(event.created_at));
+        const knownAt = known ? Date.parse(String(known.created_at)) : -Infinity;
         if (!known || at > knownAt || (at === knownAt && Number(event.id) > Number(known.id))) latest.set(name, event);
       }
-      return new Map([...latest].map(([name, event]) => [name, {
-        action: event.action as "add" | "remove",
-        userId: typeof event.user?.id === "number" ? event.user.id : null,
-        username: typeof event.user?.username === "string" ? event.user.username : null,
-      }]));
+      const resolved = await Promise.all([...latest].map(async ([name, event]) => {
+        const userId = typeof event.user?.id === "number" ? event.user.id : null;
+        return [name, {
+          action: event.action as "add" | "remove",
+          userId,
+          username: typeof event.user?.username === "string" ? event.user.username : null,
+          accountId: userId === null ? null : await accountFor(userId),
+        }] as const;
+      }));
+      return new Map(resolved);
     }
 
-    /** 一个标签最后一次是不是由能审核积分、又不是作者的人加上的：是就给账号，不是就给未计分的原因。 */
-    async function labelAdder(row: CandidateRow, name: string, event: LatestLabel | undefined): Promise<{ account: string } | { note: string }> {
-      const reviewer = event?.action === "add" && event.userId !== null ? await accountFor(event.userId) : null;
-      if (!event || event.action !== "add") return { note: `有「${name}」标签，但读不到是谁加的，先留在待确认` };
-      if (!reviewer) return { note: `「${name}」标签由 GitLab 用户 ${event.username ?? event.userId} 添加，对不上极客班账号，未计分` };
-      if (reviewer === row.account_id) return { note: `「${name}」标签是作者自己加的，未计分` };
-      if (!deps.canReview(reviewer)) return { note: `「${name}」标签由 ${event.username ?? reviewer} 添加，这个账号没有审核积分的权限，未计分` };
-      return { account: reviewer };
-    }
+    type SnapshotEntry = {
+      kind: "pr" | "issue";
+      project: string;
+      iid: number;
+      title: string;
+      url: string;
+      labels: string[];
+      contributedAt: number;
+      authorAccountId: string;
+      events: Map<string, LatestLabel> | null;
+    };
+    const snapshot: SnapshotEntry[] = [];
 
-    /**
-     * 按标签核对一条候选：待确认的先记下标签上的两档；加了「有用」和两档、三个标签都由审核人加上就加分；
-     * 「有用」拿掉了就撤销经标签加的分。
-     */
-    async function syncLabel(row: CandidateRow, labels: string[]) {
+    const prepare = async (kind: "pr" | "issue", project: string, item: GitlabItem, contributedAt: number) => {
+      const iid = Number(item.iid);
+      const authorId = item.author?.id;
+      const authorAccountId = typeof authorId === "number" && Number.isSafeInteger(authorId) && authorId > 0
+        ? await accountFor(authorId) : null;
+      if (!authorAccountId) { run.skipped++; return; }
+      const labels = labelsOf(item);
+      const known = selectByKey.get(record.id, kind, project, iid) as CandidateRow | undefined;
+      const needsEvents = labels.includes(USEFUL_LABEL) || (known?.status === "accepted" && known.accepted_via === "label");
+      snapshot.push({
+        kind, project, iid, labels, contributedAt, authorAccountId,
+        title: (typeof item.title === "string" ? item.title : `${kind === "pr" ? "MR" : "Issue"} ${iid}`).slice(0, 200),
+        url: urlOf(item.web_url, project, kind, iid),
+        events: needsEvents ? await latestLabelEvents(project, kind, iid) : null,
+      });
+    };
+
+    /** 以下函数只消费已完成的快照；不发 HTTP，可安全放进同步 SQLite 事务。 */
+    const applyLabel = (row: CandidateRow, labels: string[], events: Map<string, LatestLabel> | null) => {
+      const labelAdder = (name: string, event: LatestLabel | undefined): { account: string } | { note: string } => {
+        if (!event || event.action !== "add") return { note: `有「${name}」标签，但读不到是谁加的，先留在待确认` };
+        const reviewer = event.accountId;
+        if (!reviewer) return { note: `「${name}」标签由 GitLab 用户 ${event.username ?? event.userId} 添加，对不上极客班账号，未计分` };
+        if (reviewer === row.account_id) return { note: `「${name}」标签是作者自己加的，未计分` };
+        if (!deps.canReview(reviewer)) return { note: `「${name}」标签由 ${event.username ?? reviewer} 添加，这个账号没有审核积分的权限，未计分` };
+        return { account: reviewer };
+      };
+
       const labeled = labels.includes(USEFUL_LABEL);
       if (row.status === "pending") {
         const levels = levelsFromLabels(labels);
@@ -299,94 +345,69 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           keep(`有「有用」标签，但重要程度和核心度要各有一个标签（${IMPORTANCE_LABEL_PREFIX}一般/重要/关键、${CORE_LABEL_PREFIX}边缘/业务/核心），先留在待确认`);
           return;
         }
-        const events = await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid);
-        const useful = await labelAdder(row, USEFUL_LABEL, events.get(USEFUL_LABEL));
+        if (!events) { keep("有「有用」标签，但读不到是谁加的，先留在待确认"); return; }
+        const useful = labelAdder(USEFUL_LABEL, events.get(USEFUL_LABEL));
         if ("note" in useful) { keep(useful.note); return; }
-        const reviewers = new Set([useful.account]);
-        // 两档标签也要审核人加，作者自己改成「关键」「核心」不算
         for (const name of [`${IMPORTANCE_LABEL_PREFIX}${IMPORTANCE_LABELS[levels.importance]}`, `${CORE_LABEL_PREFIX}${CORE_LABELS[levels.core]}`]) {
-          const adder = await labelAdder(row, name, events.get(name));
+          const adder = labelAdder(name, events.get(name));
           if ("note" in adder) { keep(adder.note); return; }
-          reviewers.add(adder.account);
-        }
-        // 核验其它身份需要等待 HTTP，之前的审核人可能已被停用或撤权。
-        if ([...reviewers].some(accountId => !deps.canReview(accountId))) {
-          keep("标签审核人的当前权限已变化，未计分");
-          return;
         }
         const reviewer = useful.account;
         const username = events.get(USEFUL_LABEL)?.username ?? null;
         const reason = `GitLab 上由 ${username ?? "审核人"} 标记「有用」`;
         const accepted = { importance: levels.importance, core: levels.core };
-        const done = db.transaction(() => {
-          const result = acceptRow(row, reviewer, "label", accepted, reason, clock());
-          if (result.ok) {
-            deps.audit({ login: username ?? "gitlab", account_id: reviewer }, "competition.candidate.accept", row.id,
-              { competition_id: row.competition_id, via: "label", points: result.value.final_points, ...accepted, kind: row.kind }, undefined, { surface: "system" });
-          } else {
-            const text = result.error === "duplicate_score_event" ? "已经有同一条贡献的积分记录，未重复计分" : `自动计分没成功（${result.error}）`;
-            setNote.run(text, clock(), row.id, text);
-          }
-          return result.ok;
-        })();
-        if (done) run.accepted++;
+        const result = acceptRow(row, reviewer, "label", accepted, reason, clock());
+        if (result.ok) {
+          deps.audit({ login: username ?? "gitlab", account_id: reviewer }, "competition.candidate.accept", row.id,
+            { competition_id: row.competition_id, via: "label", points: result.value.final_points, ...accepted, kind: row.kind }, undefined, { surface: "system" });
+          run.accepted++;
+        } else {
+          const text = result.error === "duplicate_score_event" ? "已经有同一条贡献的积分记录，未重复计分" : `自动计分没成功（${result.error}）`;
+          setNote.run(text, clock(), row.id, text);
+        }
         return;
       }
       if (!labeled && row.status === "accepted" && row.accepted_via === "label" && row.score_event_id) {
-        const event = (await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid)).get(USEFUL_LABEL);
-        if (!event || event.action !== "remove") return; // 缺证据或列表还没刷新到，不把未知当撤销。
-        const remover = event.userId != null ? await accountFor(event.userId) : null;
+        const event = events?.get(USEFUL_LABEL);
+        if (!event || event.action !== "remove") return;
         const eventId = row.score_event_id;
-        db.transaction(() => {
-          revokeEvent.run(remover, clock(), "GitLab 上的「有用」标签被移除", eventId);
-          markPending.run({ id: row.id, now: clock(), note: "「有用」标签被移除，经标签加的分已撤销" });
-          deps.audit({ login: event?.username ?? "gitlab", account_id: remover }, "competition.candidate.label_removed", row.id,
-            { competition_id: row.competition_id, score_event_id: eventId }, undefined, { surface: "system" });
-        })();
+        revokeEvent.run(event.accountId, clock(), "GitLab 上的「有用」标签被移除", eventId);
+        markPending.run({ id: row.id, now: clock(), note: "「有用」标签被移除，经标签加的分已撤销" });
+        deps.audit({ login: event.username ?? "gitlab", account_id: event.accountId }, "competition.candidate.label_removed", row.id,
+          { competition_id: row.competition_id, score_event_id: eventId }, undefined, { surface: "system" });
         run.revoked++;
       }
-    }
+    };
 
-    function upsert(kind: "pr" | "issue", project: string, item: GitlabItem, accountId: string, contributedAt: number) {
-      const iid = Number(item.iid);
-      const title = (typeof item.title === "string" ? item.title : `${kind === "pr" ? "MR" : "Issue"} ${iid}`).slice(0, 200);
-      const url = urlOf(item.web_url, project, kind, iid);
-      const existing = selectByKey.get(record.id, kind, project, iid) as CandidateRow | undefined;
+    const upsert = (entry: SnapshotEntry) => {
+      const existing = selectByKey.get(record.id, entry.kind, entry.project, entry.iid) as CandidateRow | undefined;
       if (existing) {
-        refreshCandidate.run(title, url, clock(), existing.id, title, url);
-        return selectByKey.get(record.id, kind, project, iid) as CandidateRow;
+        refreshCandidate.run(entry.title, entry.url, clock(), existing.id, entry.title, entry.url);
+        return selectByKey.get(record.id, entry.kind, entry.project, entry.iid) as CandidateRow;
       }
       insertCandidate.run({
-        id: randomUUID(), competition_id: record.id, account_id: accountId, kind, gitlab_project: project, gitlab_iid: iid,
-        url, title, contributed_at: contributedAt, now: clock(),
+        id: randomUUID(), competition_id: record.id, account_id: entry.authorAccountId, kind: entry.kind,
+        gitlab_project: entry.project, gitlab_iid: entry.iid, url: entry.url, title: entry.title,
+        contributed_at: entry.contributedAt, now: clock(),
       });
       run.created++;
-      return selectByKey.get(record.id, kind, project, iid) as CandidateRow;
-    }
-
-    const authorAccount = async (item: GitlabItem) => {
-      const id = item.author?.id;
-      const account = typeof id === "number" ? await accountFor(id) : null;
-      return account && signedUp.has(account) ? account : null;
+      return selectByKey.get(record.id, entry.kind, entry.project, entry.iid) as CandidateRow;
     };
 
     try {
-      for (const project of deps.rules.get(record.id).gitlab_projects) {
+      for (const project of projects) {
         const encoded = encodeURIComponent(project);
-        const mrs = await readList(`/projects/${encoded}/merge_requests?state=merged&updated_after=${encodeURIComponent(since)}&order_by=updated_at`);
+        const mrs = await readList<GitlabItem>(`/projects/${encoded}/merge_requests?state=merged&updated_after=${encodeURIComponent(since)}&order_by=updated_at`);
         for (const item of mrs) {
-          if (!Number.isInteger(Number(item.iid))) continue;
+          if (!Number.isSafeInteger(item.iid) || Number(item.iid) < 1 || item.state !== "merged") continue;
           const mergedAt = inWindow(item.merged_at);
           if (mergedAt === null) continue;
           run.fetched++;
-          const account = await authorAccount(item);
-          if (!account) { run.skipped++; continue; }
-          const row = upsert("pr", project, item, account, mergedAt);
-          await syncLabel(row, labelsOf(item));
+          await prepare("pr", project, item, mergedAt);
         }
-        const issues = await readList(`/projects/${encoded}/issues?created_after=${encodeURIComponent(since)}&created_before=${encodeURIComponent(until)}`);
+        const issues = await readList<GitlabItem>(`/projects/${encoded}/issues?created_after=${encodeURIComponent(since)}&created_before=${encodeURIComponent(until)}`);
         for (const item of issues) {
-          if (!Number.isInteger(Number(item.iid))) continue;
+          if (!Number.isSafeInteger(item.iid) || Number(item.iid) < 1) continue;
           const createdAt = inWindow(item.created_at);
           if (createdAt === null) continue;
           const labels = labelsOf(item);
@@ -394,19 +415,33 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           const known = selectByKey.get(record.id, "issue", project, iid) as CandidateRow | undefined;
           let qualifies = Boolean(known) || labels.includes(USEFUL_LABEL);
           if (!qualifies && item.state === "closed" && Number(item.merge_requests_count) > 0) {
-            const closedBy = await read(`/projects/${encoded}/issues/${iid}/closed_by`);
-            qualifies = closedBy.status === 200 && Array.isArray(closedBy.data)
-              && (closedBy.data as { state?: unknown }[]).some(mr => mr.state === "merged");
+            const closedBy = await readList<GitlabItem>(`/projects/${encoded}/issues/${iid}/closed_by`);
+            qualifies = closedBy.some(mr => mr?.state === "merged");
           }
           if (!qualifies) continue;
           run.fetched++;
-          const account = await authorAccount(item);
-          if (!account) { run.skipped++; continue; }
-          const row = upsert("issue", project, item, account, createdAt);
-          await syncLabel(row, labels);
+          await prepare("issue", project, item, createdAt);
         }
       }
+
+      db.transaction(() => {
+        const current = deps.competitions.get(record.id);
+        const currentProjects = deps.rules.get(record.id).gitlab_projects;
+        if (!current || !collectable(current, clock()) || current.start_at !== record.start_at || current.end_at !== record.end_at
+          || JSON.stringify(currentProjects) !== JSON.stringify(projects) || deps.gitlab.mode === "off") {
+          throw Object.assign(new Error("state changed"), { code: "collection_state_changed" });
+        }
+        const signedUp = new Set(deps.signups.activeSignups(record.id).map(person => person.account_id));
+        for (const entry of snapshot) {
+          if (!signedUp.has(entry.authorAccountId)) { run.skipped++; continue; }
+          const existing = selectByKey.get(record.id, entry.kind, entry.project, entry.iid) as CandidateRow | undefined;
+          if (existing && existing.account_id !== entry.authorAccountId) { run.skipped++; continue; }
+          const row = upsert(entry);
+          applyLabel(row, entry.labels, entry.events);
+        }
+      })();
     } catch (error) {
+      run.created = run.accepted = run.revoked = 0;
       run.error = (error as { code?: unknown }).code ? String((error as { code: unknown }).code) : "collect_failed";
     }
     if (run.accepted || run.revoked) deps.onScoresChanged(record.id);

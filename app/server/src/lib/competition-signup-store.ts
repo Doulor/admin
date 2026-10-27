@@ -93,9 +93,10 @@ export type SignupErrorCode =
   | "team_full" | "team_too_small" | "team_locked" | "duplicate_team_name" | "is_team_leader" | "invalid_state"
   | "bad_note" | "bad_team_name" | "bad_slogan" | "bad_message" | "bad_team_size"
   | "deadline_required" | "has_signups" | "kind_locked" | "team_size_conflict"
-  | "bad_plaza_note" | "bad_plaza_skills";
+  | "bad_plaza_note" | "bad_plaza_skills" | "competition_finalized";
 
 export const SIGNUP_ERRORS: Record<SignupErrorCode, { status: number; message: string }> = {
+  competition_finalized: { status: 409, message: "这场比赛已经定榜，名单与报名设置不能再改" },
   not_found: { status: 404, message: "比赛不存在或已下线" },
   team_not_found: { status: 404, message: "队伍不存在或已解散" },
   not_team_leader: { status: 403, message: "只有领队能做这个操作" },
@@ -184,7 +185,8 @@ export function signupWritable(
   return settings.enabled && competitionStatus(record, now) === "registering";
 }
 
-function writeFailure(record: CompetitionRecord, settings: SignupSettings, now: number): SignupFailure | null {
+function writeFailure(record: CompetitionRecord, settings: SignupSettings, now: number, finalized: boolean): SignupFailure | null {
+  if (finalized) return failure("competition_finalized");
   // 规划中压过「还没开放」：组织者还在筹备，不该先看到「没开放报名」这种听起来随时会开的提示。
   if (competitionStatus(record, now) === "planning") return failure("competition_planning");
   if (!settings.enabled) return failure("signup_not_enabled");
@@ -240,6 +242,8 @@ export interface CompetitionSignupStore {
 }
 
 export function createCompetitionSignupStore(db: Database.Database, competitions: Pick<CompetitionStore, "get">): CompetitionSignupStore {
+  const selectFinal = db.prepare("SELECT 1 FROM competition_finals WHERE competition_id = ?");
+  const isFinalized = (id: string) => Boolean(selectFinal.get(id));
   const selectSettings = db.prepare("SELECT * FROM competition_signup_settings WHERE competition_id = ?");
   const selectAllSettings = db.prepare("SELECT * FROM competition_signup_settings");
   const upsertSettings = db.prepare(`INSERT INTO competition_signup_settings(competition_id, enabled, participation, team_min, team_max, scoring, updated_at, updated_by)
@@ -433,7 +437,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
 
   /** 仅列此刻服务端会接受的操作；不可写时为空。 */
   function actionsFor(record: CompetitionRecord, settings: SignupSettings, signup: SignupRow | null, team: Team | null, accountId: string, now: number): SignupAction[] {
-    if (!signupWritable(record, settings, now)) return [];
+    if (isFinalized(record.id) || !signupWritable(record, settings, now)) return [];
     if (!signup || signup.status !== "active") return ["signup"];
     const actions = new Set<SignupAction>(["update_signup", "cancel_signup"]);
     if (settings.participation === "team") {
@@ -466,7 +470,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
     return {
       competition_id: record.id,
       settings,
-      writable: signupWritable(record, settings, now),
+      writable: !isFinalized(record.id) && signupWritable(record, settings, now),
       signup: signup
         ? {
             status: signup.status === "cancelled" ? "cancelled" : "active",
@@ -501,7 +505,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   function signUp(competitionId: string, accountId: string, input: { note?: string; looking_for_team?: boolean }, now: number): SignupResult<MyStatus> {
     return mutate(competitionId, accountId, now, record => {
       const settings = settingsOf(record.id);
-      const blocked = writeFailure(record, settings, now);
+      const blocked = writeFailure(record, settings, now, isFinalized(record.id));
       if (blocked) return blocked;
       const note = (input.note ?? "").trim();
       if (charLength(note) > 200) return failure("bad_note");
@@ -519,7 +523,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
 
   function cancelSignUp(competitionId: string, accountId: string, now: number): SignupResult<MyStatus> {
     return mutate(competitionId, accountId, now, record => {
-      const blocked = writeFailure(record, settingsOf(record.id), now);
+      const blocked = writeFailure(record, settingsOf(record.id), now, isFinalized(record.id));
       if (blocked) return blocked;
       const signup = selectSignup.get(record.id, accountId) as SignupRow | undefined;
       if (!signup || signup.status !== "active") return failure("not_signed_up");
@@ -564,7 +568,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   function createTeam(competitionId: string, accountId: string, input: { name: string; slogan?: string }, now: number): SignupResult<MyStatus> {
     return mutate(competitionId, accountId, now, record => {
       const settings = settingsOf(record.id);
-      const blocked = writeFailure(record, settings, now);
+      const blocked = writeFailure(record, settings, now, isFinalized(record.id));
       if (blocked) return blocked;
       const signup = selectSignup.get(record.id, accountId) as SignupRow | undefined;
       if (!signup || signup.status !== "active") return failure("not_signed_up");
@@ -590,7 +594,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   function teamContext(team: TeamRow, now: number): SignupFailure | CompetitionRecord {
     const record = portalCompetitionOf(team.competition_id);
     if (!record) return failure("not_found");
-    const blocked = writeFailure(record, settingsOf(record.id), now);
+    const blocked = writeFailure(record, settingsOf(record.id), now, isFinalized(record.id));
     return blocked ?? record;
   }
 
@@ -878,6 +882,7 @@ export function createCompetitionSignupStore(db: Database.Database, competitions
   function updateSettings(competitionId: string, input: SignupSettings, updatedBy: string, now: number): SignupResult<SignupSettings> {
     const record = competitions.get(competitionId);
     if (!record) return failure("not_found");
+    if (isFinalized(competitionId)) return failure("competition_finalized");
     if (input.participation === "team" && !(input.team_min >= 1 && input.team_max <= 20 && input.team_min <= input.team_max)) {
       return failure("bad_team_size");
     }

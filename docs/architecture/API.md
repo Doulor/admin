@@ -136,7 +136,7 @@ portal 包括 /api/docs、/api/feedback、/api/portal/apply、/api/public/config
 
 门户的成员接口要求登录且是极客班成员（`middleware/require-member.ts` 按会话 `account_id` 判断，没有账号回 401 `not_signed_in`，不是成员回 403 `not_member`）。写操作统一要求「已开放报名且状态为报名中」：规划中（`status === "planning"`）回 409 `competition_planning`（#278 重开，压过下面两条，比「还没开放」「已经截止」更准确），未开放回 409 `signup_not_enabled`，不在报名中（含截止后）回 409 `signup_closed`；比赛不存在或已下线回 404。成员写操作每人每分钟 30 次，名单导出每分钟 5 次。请求体与响应由 [competition-contract.ts](../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 挂载，逐项错误码见 [接口行为契约](../services/server/endpoint-contracts.md)「比赛报名、组队与积分」。
 
-「我的状态」由报名、队伍与参赛形式现算，不单独存储：未报名 `none`；个人赛报名后内部赛是 `confirmed`、外部赛是 `signed_up`；团队赛已报名未入队在报名中是 `signed_up`，入队后队伍招募中是 `in_team`，队伍已确认是 `confirmed`，截止时还没入队或队伍没确认是 `unplaced`。`actions` 只列此刻服务端会接受的操作（报名、修改报名、取消报名、建队、申请、邀请、确认、撤销确认、转让、解散、退出），截止后为空。
+「我的状态」由报名、队伍与参赛形式现算，不单独存储：未报名 `none`；个人赛报名后内部赛是 `confirmed`、外部赛是 `signed_up`；团队赛已报名未入队在报名中是 `signed_up`，入队后队伍招募中是 `in_team`，队伍已确认是 `confirmed`，截止时还没入队或队伍没确认是 `unplaced`。`actions` 只列此刻服务端会接受的操作（报名、修改报名、取消报名、建队、申请、邀请、确认、撤销确认、转让、解散、退出），截止后及定榜后为空；定榜后报名设置也拒绝409 `competition_finalized`，延长日期不解除冻结。
 
 | 方法与路径 | 成功 | 主要错误 |
 |---|---|---|
@@ -151,11 +151,11 @@ portal 包括 /api/docs、/api/feedback、/api/portal/apply、/api/public/config
 | `POST`、`DELETE /api/teams/:id/lock` | 200 我的状态；确认参赛关闭其余待处理项，撤销确认回到招募中 | 403 `not_team_leader`；409 `team_too_small` / `invalid_state` |
 | `GET /api/competitions/:id/leaderboard` | 200 `{ updated_at, individuals, teams }`：0 分也列，同分并列同名次并跳号，队伍分是在队成员个人分之和 | 404；409 `scoring_not_enabled` |
 
-积分只对开启 `scoring: "contribution"` 的比赛生效：登记 Issue 5–30 分、PR 15–100 分、作弊扣分固定 −50（400 `bad_points`）；Issue 与 PR 必填 `owner/name` 仓库与正整数编号；同一条 Issue/PR 不能重复记分（409 `duplicate_score_event`），撤销后不再计分但记录保留（409 `already_revoked` 表示重复撤销）。控制台的设置、名单与积分接口见端点清单，全部要 `competitions.manage`，写入与审计同一事务；门户的自助操作不写审计。
+积分只对开启 `scoring: "contribution"` 的比赛生效：Issue/PR按重要程度×核心度两档查表（不接收points），作弊扣分固定−50；Issue与PR必填仓库与正整数编号。同贡献重复计分409 `duplicate_score_event`，重复撤销409 `already_revoked`。设置、名单要管理节点；积分登记/撤销要 `competition.score.review` 加step-up，不能审核本人（403 `self_review`），包括撤销本人的扣分。写入与操作记录同一事务；门户自助操作写 `activity_events`（不写旧 `audit_logs`/`identity_audit`），失败回滚，成功即时失效本场公开缓存。成员榜定榜前同分并列，定榜后与公开榜同用冻结严格名次。
 
 ### 比赛官网、公开接口、贡献收集、定榜与兑奖合同（#278）
 
-内部赛的官网是比赛方上传的静态站点包，同域托管在 `/c/<slug>/`，在 sandbox CSP 下运行，只能匿名调同源的 `/api/public/*`；比赛方用浏览器 SDK `/sdk/competition/v1.js` 读公开接口。只有标记「有用」的 Issue / MR 加分（GitLab 上由有 `competition.score.review` 的人打「有用」标签，或在控制台确认），每条积分记下记分时刻的年级与系数、不再重算。奖项可选，结束后定榜发兑奖码，兑奖码只给本人看、只存哈希与密文。每个接口的权限、请求、响应、错误与副作用见 [接口行为契约](../services/server/endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」，表见[数据模型](../services/server/data-model.md)，安全边界见 [SECURITY](SECURITY.md)「比赛官网与兑奖码」。
+内部赛的官网是比赛方上传的静态站点包，同域托管在 `/c/<slug>/`，在 sandbox CSP 下运行，只能匿名调同源的 `/api/public/*`；比赛方用浏览器 SDK `/sdk/competition/v1.js` 读公开接口。只有标记「有用」的 Issue / MR 加分（GitLab 上由有 `competition.score.review` 的人打「有用」标签，或在控制台确认），每条积分记下记分时刻的年级与系数、不再重算。奖项可选，结束后定榜发兑奖码，兑奖码只给本人看、只存哈希与密文。每个接口的权限、请求、响应、错误与副作用见 [接口行为契约](../services/server/endpoint-contracts.md)「比赛官网托管、公开接口、贡献收集、定榜与兑奖」，收集必须取全MR/Issue/标签事件/closed_by分页；十页截断、循环游标、300请求预算耗尽或任何上游失败时整轮不应用，`last_run.error`记录脱敏错误，不能当成撤销标签。HTTP在事务外，应用时重查报名、项目与定榜状态。人员分页游标改为本场隔离的SHA-256摘要，不编码内部账号ID，旧游标退回首页。有限矩阵与复跑见[比赛演练](../services/server/competition-rehearsal.md)。表见[数据模型](../services/server/data-model.md)，安全边界见 [SECURITY](SECURITY.md)「比赛官网与兑奖码」。
 
 ## 统一公开资料与身份资格（GitHub #271 回归）
 

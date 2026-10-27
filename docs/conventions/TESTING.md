@@ -50,6 +50,10 @@ CDN 迁移（#295）：`tests/tooling/static-cdn{,-s3,-http,-manifest}.test.ts` 
 
 `catalog-coverage.test.ts` 核对全部业务操作及补充入口都有流程关联；删除真实接口的关联后生成必须失败。`pr-contract.test.ts` 拒绝阻塞审查、隐藏或重复标题、围栏/缩进代码中的伪结论；宏观检查共享同一正文解析，并拒绝用已删除流程证明当前源码。`catalog-map.spec.ts` 在 CI 真实 Chromium 中覆盖地图搜索、表关系、窄屏和影响报告的成功、过期摘要、未知节点及清除操作。
 
+## 首场内部个人赛（GitHub #276）
+
+[有限矩阵与命令](../services/server/competition-rehearsal.md)覆盖身份/资源/精确时间/状态/幂等/并发/外部故障。新增 `competition-readiness`、`competition-identity-boundaries` 与 `competition-rehearsal` 路由测试，复用真实buildApp、同库SQLite与GitLab HTTP Adapter；身份集成哨兵保留严格失败断言，不skip。`scripts/contest-rehearsal.mts --smoke`经真实OAuth路由走至报名、贡献、审核、定榜、兑奖核销与重启；`--serve`只绑定loopback给父级浏览器接力，生产应用不注册fixture入口。Node22用 `node --import ./app/server/node_modules/tsx/dist/loader.mjs scripts/contest-rehearsal.mts --smoke`避免tsx CLI额外IPC监听。Vitest workers≤2；监听EPERM与业务断言失败分开报告。既有固定种子评分模拟不能代替路由流程。
+
 ## 身份、公开资料与 GitLab 回归（GitHub #271）
 
 `session-cleanup.test.ts` 经真实身份路由与主动清理 Interface 核对七天会话的精确边界：到期前 1ms 仍可访问，到期等值回 401；同一时刻的批量清理只删到期会话，较新会话仍可访问。保留原有启动/每小时清理、停机、错误隔离、WAL 与备份字节检查。

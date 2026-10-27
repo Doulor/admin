@@ -124,7 +124,7 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **成员**：登录且是极客班成员才能读写；成员守卫只看会话账号与组织身份，比赛路由不自己调 GitHub。成员能看到统计数字、未解散队伍的在队成员（账号、登录名、头像、角色）与「找队友」里本人写的留言。
 - **待处理的范围**：门户的待处理只含当事人自己的申请与邀请，以及本人所在队伍的待处理项（含申请留言）；其他队伍与匿名看不到任何待处理。本队普通队员能看见本队的申请，但只有领队能操作，服务端按记录判断「关系是否属于这支队伍」和角色，越权回 403 `not_team_leader` 或 404，不靠按钮是否显示；被拒绝、撤回、退出的历史不出现在门户。
 - **组织者**：名单、设置与积分复用 `competitions.manage`，没有新增能力；名单含已取消与已解散的记录，只在控制台下发。导出 CSV 写 `competition.roster.export` 审计（只有比赛 id 与行数），单元格走 `csvCell` 防公式注入；报名设置写 `competition.signup_settings.update`，积分登记与撤销写 `competition.score.add` / `competition.score.revoke`，`details` 不记留言、队名原文与撤销原因的全文。写入与审计同一事务，审计失败一起回滚。
-- **自助操作不写审计**：门户的报名、组队与取消靠行内时间与操作人追溯，不写 `audit_logs`，也不写 `identity_audit`（那是本人的账号操作）。
+- **自助操作留痕**：门户报名、组队与取消写 `activity_events`，与业务写入同一事务，操作记录失败则业务回滚；不写旧 `audit_logs` 或本人的 `identity_audit`。成功即时失效本场公开缓存，人员/统计不会保留取消前的结果。
 - **限流**：成员写操作每人每分钟 30 次、名单导出每分钟 5 次，超额 429；读接口不限流，靠登录与成员门槛限制访问面。
 
 ## 比赛官网与兑奖码（#278）
@@ -132,9 +132,9 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **托管的官网是不受信任的代码**：站点包由比赛方上传，服务端只做结构校验（大小、文件数、扩展名白名单、路径、符号链接、加密、重复、CRC），不审内容。所以 `/c/<slug>/*` 的每个响应都带 `Content-Security-Policy: sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'`：页面来源是 null，读不到主站的 `sid`、localStorage 与 IndexedDB，不能提交表单，也不能把顶层页面导走（只允许开新窗口），网络请求只能连本站；不加载外部脚本、字体和图片；不能被嵌进别的页面。响应去掉 `Set-Cookie`。只有内部赛、没下线、已发布的版本对外可见。
 - **预览不靠 cookie**：sandbox 页面里的子资源请求不带 cookie，所以预览先在 `~preview/<版本>/` 用会话核对 `competition.site.publish`，通过后跳到带 HMAC 签名（`SESSION_SECRET`，覆盖比赛、版本与到期）的地址，一小时后失效；没权限与版本不存在都回 404。
 - **公开接口不给身份**：天梯、动态、统计只给昵称、`@用户名` 与头像，不给真实姓名、邮箱、`account_id`、学号或兑奖码；扣分不给原因。按 IP 每分钟 120 次（`limit_events` 里只存 IP 的哈希），服务端缓存 10 秒，刷榜不会打到数据库。残余风险：同一个出口 IP 后面人很多时会一起被限流。
-- **「有用」才加分，经得起核实**：GitLab 上的「有用」标签要经资源标签事件核实打标签的人：对得上 `gitlab_accounts` 里的账号、此刻持有 `competition.score.review`、不是作者本人，才自动加分；否则留在待确认。控制台确认与驳回同样不能审自己的贡献（403 `self_review`），要 step-up，并经 `recordActivity` 记下操作人。年级只按 `account_profiles.enrollment_year` 由服务端算，本人改不了系数。
+- **「有用」才加分，经得起核实**：GitLab 上的「有用」标签要经资源标签事件核实打标签的人：对得上 `gitlab_accounts` 里的账号、此刻持有 `competition.score.review`、不是作者本人，才自动加分；否则留在待确认。控制台确认、驳回、手工积分与撤销同样不能审自己的贡献或撤本人的扣分（403 `self_review`），要 step-up，并经 `recordActivity` 记下操作人。年级只按 `account_profiles.enrollment_year` 由服务端算，本人改不了系数。
 - **兑奖码**：定榜时给每个得奖人生成 80 位随机的 `YUGC-XXXX-XXXX-XXXX-XXXX`（Crockford Base32，`crypto.randomBytes`），库里只存 sha256 哈希（查找用）、AES-GCM 密文（本人在「我的参赛」里看明文用）和末四位；操作记录、控制台列表与日志只有末四位。核销要 `competition.prize.redeem` 加 step-up，同一个码只能核销一次；输错的码每个账号每小时 20 次，防止逐个试。撤销定榜只在一张都没核销时允许。
-- **上传与改规则**：上传、发布、改年级系数与奖项、定榜都要对应节点加 step-up，写入与操作记录同一事务；定榜后积分、规则与候选都不能再改。
+- **上传与改规则**：上传、发布、改年级系数与奖项、定榜都要对应节点加 step-up，写入与操作记录同一事务；定榜后积分、规则、候选、报名和报名设置都不能再改；成员与公开榜同用冻结严格名次。人员游标只含比赛隔离摘要，不编码account_id。收集必须完整分页后原子应用，HTTP失败/预算耗尽不误撤旧分；网络等待期间定榜时拒绝迟到快照。身份到期/停用集成哨兵与未验收边界见[首场个人赛矩阵](../services/server/competition-rehearsal.md)。
 
 ## 论坛代码替换的边界
 

@@ -7132,7 +7132,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/competitions/:id/signup",
@@ -7151,14 +7152,16 @@
         "identities"
       ],
       "writes": [
-        "competition_signups"
+        "competition_signups",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，按account_id认人；不在报名中回409 signup_closed，未开放报名回409 signup_not_enabled，比赛不存在或下线404。",
         "请求 {note?, looking_for_team?}：备注取首尾空白后最多200字（bad_note 400）；个人赛忽略找队伍勾选。",
         "重复报名幂等：保留created_at，只更新备注与勾选；已取消的报名重新置为active并清cancelled_at。",
-        "写操作在一个事务里重读状态再写，成功回最新我的状态；限流每人每分钟30次（429 rate_limited）。"
+        "写操作在一个事务里重读状态再写，成功回最新我的状态；限流每人每分钟30次（429 rate_limited）。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7185,14 +7188,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7202,7 +7208,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "DELETE /api/competitions/:id/signup",
@@ -7223,14 +7230,16 @@
       "writes": [
         "competition_signups",
         "competition_teams",
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员；未报名回409 not_signed_up；已锁定队伍回409 team_locked，领队队里还有别人回409 is_team_leader。",
         "取消只把报名改成cancelled并记cancelled_at，不删行；普通队员的成员关系改left，只有自己一人的队伍随之解散（成员记录改disbanded）。",
         "本人在这场的待处理申请与邀请一并关闭（申请改withdrawn，邀请改declined）；成功回最新我的状态。",
-        "取消后报名截止前可以重新报名；限流每人每分钟30次。"
+        "取消后报名截止前可以重新报名；限流每人每分钟30次。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7249,14 +7258,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7384,7 +7396,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/competitions/:id/teams",
@@ -7404,14 +7417,16 @@
       ],
       "writes": [
         "competition_teams",
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员；未报名409 not_signed_up，个人赛409 individual_competition，已在队409 already_in_team。",
         "队名取首尾空白后按Unicode字符计2–30（bad_team_name），口号最多60（bad_slogan）；同一比赛未解散队伍按trim+NFKC+小写查重，重复回409 duplicate_team_name。",
         "201 建队人即领队：写一条队伍（recruiting）与一条active成员关系，回最新我的状态；不隐式报名。",
-        "写在一个事务里，唯一索引兜底并发；限流每人每分钟30次。"
+        "写在一个事务里，唯一索引兜底并发；限流每人每分钟30次。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7442,14 +7457,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7459,7 +7477,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/apply",
@@ -7478,13 +7497,15 @@
         "identities"
       ],
       "writes": [
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员；队伍不存在或已解散404 team_not_found；未报名409 not_signed_up，已在队409 already_in_team。",
         "队伍已锁定409 team_locked，满员409 team_full，已有待处理申请或邀请409 already_applied / already_invited；留言最多100字（bad_message）。",
-        "201 写一条applied成员关系；领队同意前不影响队伍名单，同一队伍对同一人只有一条待处理记录。"
+        "201 写一条applied成员关系；领队同意前不影响队伍名单，同一队伍对同一人只有一条待处理记录。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7503,14 +7524,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7520,7 +7544,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/invite",
@@ -7539,13 +7564,15 @@
         "identities"
       ],
       "writes": [
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或解散404 team_not_found。",
         "请求 {account_id}：对方须已报名本场且未入队（409 invitee_not_signed_up / already_in_team），账号须为active（409 target_not_member）；不能邀请自己。",
-        "队伍已锁定409 team_locked，满员409 team_full，已有待处理关系409 already_applied / already_invited；201 写一条invited成员关系。"
+        "队伍已锁定409 team_locked，满员409 team_full，已有待处理关系409 already_applied / already_invited；201 写一条invited成员关系。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7568,14 +7595,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7585,7 +7615,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/respond",
@@ -7604,14 +7635,16 @@
         "identities"
       ],
       "writes": [
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：成员关系必须属于路径上的队伍，否则404 not_found；申请只能由领队同意或拒绝、申请人撤回（否则403 not_team_leader），邀请只能由被邀请人接受或拒绝、领队撤回。",
         "已处理的关系回409 invalid_state；接受时队伍已锁定409 team_locked、满员409 team_full，对方已不是成员409 target_not_member，对方已有队伍409 already_in_team。",
         "接受后写active关系，并关闭这个人在本场的其他待处理关系；满员时本队其余待处理关系一并关闭。成功回最新我的状态。",
-        "限流每人每分钟30次；动作只有accept / decline / withdraw。"
+        "限流每人每分钟30次；动作只有accept / decline / withdraw。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7638,14 +7671,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7655,7 +7691,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/leave",
@@ -7674,13 +7711,15 @@
         "identities"
       ],
       "writes": [
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，且是本队在队队员（否则404 not_found）；领队不能直接退出（409 is_team_leader），要转让或解散。",
         "队伍已锁定（含已确认参赛）回409 team_locked；成功把成员关系改成left并回最新我的状态，报名保留、回到未组队。",
-        "可写窗口与报名一致：未开放报名409 signup_not_enabled，不在报名中409 signup_closed。"
+        "可写窗口与报名一致：未开放报名409 signup_not_enabled，不在报名中409 signup_closed。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7699,14 +7738,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7716,7 +7758,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/transfer",
@@ -7736,13 +7779,15 @@
       ],
       "writes": [
         "competition_teams",
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；新领队须是本队在队队员（否则404 not_found）且账号active（409 target_not_member）。",
         "队伍已锁定回409 team_locked；成功在同一事务里改队伍的leader_account_id与两条成员关系的role，回最新我的状态。",
-        "转让不改变报名、人数与状态，也不产生审计。"
+        "转让不改变报名、人数与状态，也不产生审计。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7761,14 +7806,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7778,7 +7826,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "DELETE /api/teams/:id",
@@ -7798,13 +7847,15 @@
       ],
       "writes": [
         "competition_teams",
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
         "解散只改状态：队伍改disbanded并记disbanded_at，在队成员改disbanded、待处理关系改declined或withdrawn，不物理删除。",
-        "成员回到已报名、未组队；截止后不可解散（409 signup_closed）。成功回最新我的状态。"
+        "成员回到已报名、未组队；截止后不可解散（409 signup_closed）。成功回最新我的状态。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7823,14 +7874,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7840,7 +7894,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/lock",
@@ -7860,13 +7915,15 @@
       ],
       "writes": [
         "competition_teams",
-        "competition_team_members"
+        "competition_team_members",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；已锁定回409 invalid_state。",
         "在队人数少于报名设置的最低人数回409 team_too_small；成功后队伍改locked并记locked_at，本队其余待处理关系关闭。",
-        "锁定后不再接受申请与邀请、成员不能退出，要调整先撤销确认；截止那一刻的名单就是最终名单，未确认的队伍不计入参赛。"
+        "锁定后不再接受申请与邀请、成员不能退出，要调整先撤销确认；截止那一刻的名单就是最终名单，未确认的队伍不计入参赛。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7885,14 +7942,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7902,7 +7962,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "DELETE /api/teams/:id/lock",
@@ -7921,13 +7982,15 @@
         "identities"
       ],
       "writes": [
-        "competition_teams"
+        "competition_teams",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；未锁定回409 invalid_state。",
         "撤销只把队伍改回recruiting并清locked_at，成员与报名不变；截止后不可撤销（409 signup_closed）。",
-        "成功回最新我的状态；限流每人每分钟30次。"
+        "成功回最新我的状态；限流每人每分钟30次。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -7946,14 +8009,17 @@
       "tests": [
         "tests/server/competition-signups.test.ts",
         "tests/server/competition-scores.test.ts",
-        "tests/web/portal-competition-hub.test.tsx"
+        "tests/web/portal-competition-hub.test.tsx",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -7963,7 +8029,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/teams/:id/plaza",
@@ -7982,13 +8049,15 @@
         "identities"
       ],
       "writes": [
-        "competition_teams"
+        "competition_teams",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
         "和 status 的 recruiting/locked 是两件事：锁定的队伍开着广播也不会出现在组队广场（可见性在 competition-team-plaza.ts 另外判断，不影响这里能不能开关）。",
-        "备注最多150字（400 bad_plaza_note）、想要的技能最多10项每项20字（400 bad_plaza_skills），契约层的上限更紧，先在那一层拦下；成功回最新我的状态，记一条 competition.team.plaza。"
+        "备注最多150字（400 bad_plaza_note）、想要的技能最多10项每项20字（400 bad_plaza_skills），契约层的上限更紧，先在那一层拦下；成功回最新我的状态，记一条 competition.team.plaza。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -8017,13 +8086,16 @@
         }
       ],
       "tests": [
-        "tests/server/competition-signups.test.ts"
+        "tests/server/competition-signups.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
-        "docs/services/web/portal.md"
+        "docs/services/web/portal.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -8033,7 +8105,8 @@
       "relatedDomains": [
         "identity",
         "organization",
-        "platform"
+        "platform",
+        "audit"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "DELETE /api/teams/:id/plaza",
@@ -8052,12 +8125,14 @@
         "identities"
       ],
       "writes": [
-        "competition_teams"
+        "competition_teams",
+        "activity_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
         "权限与资源：登录且是极客班成员，并且是该队领队（否则403 not_team_leader）；队伍不存在或已解散404 team_not_found。",
-        "只关掉「还在招募」，备注和想要的技能照留，下次重开不用再填一次；成功回最新我的状态，记一条 competition.team.plaza.withdraw。"
+        "只关掉「还在招募」，备注和想要的技能照留，下次重开不用再填一次；成功回最新我的状态，记一条 competition.team.plaza.withdraw。",
+        "#276：业务写入与activity_events同事务，审计失败一起回滚；成功按返回的competition_id失效公开缓存；定榜后拒绝写入，延长日期不重开。"
       ],
       "evidence": [
         {
@@ -8074,13 +8149,16 @@
         }
       ],
       "tests": [
-        "tests/server/competition-signups.test.ts"
+        "tests/server/competition-signups.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
-        "docs/services/web/portal.md"
+        "docs/services/web/portal.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -8190,7 +8268,8 @@
         "响应200 {updated_at, individuals, teams}：个人榜含本场全部未取消报名者（0分也列）与所在队伍，队伍分是当前在队成员个人分之和。",
         "同分并列同名次并跳号（1,1,3）：个人按积分降序、报名先后；队伍按积分降序、建队先后。撤销的记录不计分。",
         "只读；updated_at 取本场积分记录的最后写入或撤销时间，官网每30秒刷新。",
-        "#278：分数按 COALESCE(weighted_points, points) 计，#278 之前的记录按系数 1；门户比赛窗口每 10 秒刷新。"
+        "#278：分数按 COALESCE(weighted_points, points) 计，#278 之前的记录按系数 1；门户比赛窗口每 10 秒刷新。",
+        "#276：定榜后以competition_finals.standings冻结积分、严格名次与顺序，和公开榜/发奖一致；定榜前仍并列。"
       ],
       "evidence": [
         {
@@ -8212,19 +8291,26 @@
         {
           "path": "app/web/sites/portal/components/os/competitions/Leaderboard.tsx",
           "needle": "export default function BoardPanel("
+        },
+        {
+          "path": "app/server/src/lib/competition-score-store.ts",
+          "needle": "const frozen = JSON.parse(final.standings) as Standing[];"
         }
       ],
       "tests": [
         "tests/server/competition-scores.test.ts",
         "tests/web/portal-competition-hub.test.tsx",
-        "tests/server/competition-public.test.ts"
+        "tests/server/competition-public.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/web/portal.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -8317,7 +8403,8 @@
         "权限与资源：有效全站sid与competitions.manage；比赛不存在404。",
         "请求 {enabled, participation, scoring, team_min, team_max} 整体写入：开开放报名但比赛没有报名截止时间回409 deadline_required；团队赛人数须1–20且min≤max（400 bad_team_size），不得小于现有最大队伍（409 team_size_conflict）。",
         "有未取消的报名后不能改参赛形式（409 has_signups）；关闭报名保留已有数据。",
-        "写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。"
+        "写入与competition.signup_settings.update审计同一事务，details只记五个字段（是否开放、参赛形式、两个人数、计分），审计失败一起回滚；限流每分钟30次。",
+        "#276：定榜后409 competition_finalized，不能切换计分或参赛形式破坏冻结结果。"
       ],
       "evidence": [
         {
@@ -8351,14 +8438,17 @@
       ],
       "tests": [
         "tests/server/competition-signups.test.ts",
-        "tests/console/competition-hub.test.ts"
+        "tests/console/competition-hub.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -8589,7 +8679,8 @@
         "同一条Issue或PR已有有效记录回409 duplicate_score_event；201返回这条记录。",
         "写入与competition.score.add审计同一事务，details记比赛、选手、类型、基础分、两档与防刷折扣；限流每分钟30次。",
         "#278：加分按选手在记分那一刻的年级（account_profiles.enrollment_year）乘这场比赛的系数，grade、grade_factor、importance、core、damp_percent、weighted_points 和记录一起写下、之后不重算；扣分不乘（系数记 100）；定榜后 409 competition_finalized；清掉公开缓存。",
-        "#278 防刷：同一人同一周（北京时间周一 0 点起，按 COALESCE(contributed_at, created_at)）只数 damp_percent = 100 的有效「一般 × 边缘」，已有 1 条时新的一条 damp_percent = 0、加权分 0，记录照留；手工登记的贡献时间就是登记时间。"
+        "#278 防刷：同一人同一周（北京时间周一 0 点起，按 COALESCE(contributed_at, created_at)）只数 damp_percent = 100 的有效「一般 × 边缘」，已有 1 条时新的一条 damp_percent = 0、加权分 0，记录照留；手工登记的贡献时间就是登记时间。",
+        "#276：手工加分与撤销均禁止审核本人记录，包括撤销自己的扣分；403 self_review，不落积分。"
       ],
       "evidence": [
         {
@@ -8629,14 +8720,17 @@
         "tests/server/competition-scores.test.ts",
         "tests/console/competition-hub.test.ts",
         "tests/server/competition-public.test.ts",
-        "tests/server/competition-rubric.test.ts"
+        "tests/server/competition-rubric.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -8750,7 +8844,8 @@
         "权限与资源：有效全站sid与competition.score.review（写再要 step-up）；记录不存在或不属于这场比赛404 not_found；已撤销409 already_revoked。",
         "请求 {reason?}（最多200字）：只把状态改成revoked并记撤销人、时间与原因，原分值与说明保留，不删行；撤销后不再计分。",
         "写入与competition.score.revoke审计同一事务；限流每分钟30次。",
-        "#278：撤销一条来自 GitLab 候选的积分时，候选在同一事务里变成驳回；定榜后 409 competition_finalized；清掉公开缓存。"
+        "#278：撤销一条来自 GitLab 候选的积分时，候选在同一事务里变成驳回；定榜后 409 competition_finalized；清掉公开缓存。",
+        "#276：手工加分与撤销均禁止审核本人记录，包括撤销自己的扣分；403 self_review，不落积分。"
       ],
       "evidence": [
         {
@@ -8769,14 +8864,17 @@
       "tests": [
         "tests/server/competition-scores.test.ts",
         "tests/console/competition-hub.test.ts",
-        "tests/server/competition-candidates.test.ts"
+        "tests/server/competition-candidates.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
-        "docs/plan/COMPETITION-APP.md"
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -9326,14 +9424,17 @@
       "tests": [
         "tests/server/competition-public.test.ts",
         "tests/web/competition-sdk.test.ts",
-        "tests/web/contest-site.test.ts"
+        "tests/web/contest-site.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/architecture/SECURITY.md",
-        "docs/services/web/README.md"
+        "docs/services/web/README.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -9491,7 +9592,8 @@
         "匿名、不读会话；按 IP 每分钟 120 次（public.competition.per_minute，记在 limit_events，单场与四个公开接口共用一个桶），超了 429 {error:\"rate_limited\",bucket,retry_after} 并带 Retry-After；成功、404 与 429 都带 Access-Control-Allow-Origin: *，不带 Allow-Credentials。",
         "站点包必带的接口，和天梯不同：给全部已报名、未取消的人（不是只有拿过分的人）。200 {items:[{username, display_name, avatar_url, department}], next_cursor}；department 和 permissions.accountGroupsView().department 同一份口径，没分配部门为 null。",
         "limit 1–200，默认 100；按报名时间分页，游标是 created_at:account_id 的 base64url，账号 id 是 26 位 Crockford Base32（不是 UUID），正则和贡献动态的游标不同。",
-        "第一页（无 cursor、默认 limit）结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、改规则、发布官网、定榜时按比赛清掉；带 cursor 或自定义 limit 的翻页不缓存。"
+        "第一页（无 cursor、默认 limit）结果在服务端缓存 10 秒（publicCacheKey），加分、撤销、改规则、发布官网、定榜时按比赛清掉；带 cursor 或自定义 limit 的翻页不缓存。",
+        "#276：游标编码时间和比赛隔离的SHA-256摘要，不编码内部account_id；同时间按摘要排序，旧格式游标回首页。"
       ],
       "evidence": [
         {
@@ -9521,19 +9623,26 @@
         {
           "path": "app/web/sites/contests/_starter/vite.config.ts",
           "needle": "export default defineConfig({"
+        },
+        {
+          "path": "app/server/src/lib/competition-public.ts",
+          "needle": "function decodeParticipantCursor("
         }
       ],
       "tests": [
         "tests/server/competition-public.test.ts",
         "tests/web/competition-sdk.test.ts",
-        "tests/tooling/contest-site.test.ts"
+        "tests/tooling/contest-site.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/architecture/SECURITY.md",
-        "docs/services/web/README.md"
+        "docs/services/web/README.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -9911,7 +10020,8 @@
         "「有用」标签：资源标签事件里最后一次是加上、加的人对得上账号、有 competition.score.review、不是作者本人，并且「重要程度::」「核心度::」两个标签也各正好一个、同样由这样的人最后加上，才按两档查表自动加分（surface system，防刷按合并 / 创建时间所在那一周）；两档标签不全时留在待确认、note 写原因，候选上记下标签给的两档，加分后改标签不重算；标签被拿掉时只撤销经标签自动加的分，控制台确认的不动。",
         "200 {last_run:{at, fetched, created, skipped, accepted, revoked, error}}；写 competition.candidate.collect 操作记录，没完成时 outcome 为 error。",
         "#278 两档评定：不再按改动行数算建议分，不读 MR 的 diff。",
-        "作者/审核人经既有 sub 实时核验远端绑定；HTTP 不确定中止并报错。所有等待后审核人仍须 active 且有审核节点。列表和标签事件完整分页，只有最新明确 remove 才自动撤分，错误/缺失标签/分页中断保留已确认积分。归属核验计入每轮 300 次请求预算。"
+        "作者/审核人经既有 sub 实时核验远端绑定；HTTP 不确定中止并报错。所有等待后审核人仍须 active 且有审核节点。列表和标签事件完整分页，只有最新明确 remove 才自动撤分，错误/缺失标签/分页中断保留已确认积分。归属核验计入每轮 300 次请求预算。",
+        "#276：MR/Issue/标签事件/closed_by全分页；十页截断/循环/300预算或HTTP失败整轮不写、不误撤分。HTTP在事务外；应用时重读当前比赛/项目/报名/候选；审计失败整轮回滚。"
       ],
       "evidence": [
         {
@@ -9961,18 +10071,25 @@
         {
           "path": "app/server/src/lib/gitlab-sync.ts",
           "needle": "async function accountForGitlabUser(gitlabUserId: number)"
+        },
+        {
+          "path": "app/server/src/lib/competition-candidates.ts",
+          "needle": "const snapshot: SnapshotEntry[] = [];"
         }
       ],
       "tests": [
         "tests/server/competition-candidates.test.ts",
-        "tests/console/competition-contest.test.ts"
+        "tests/console/competition-contest.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
         "docs/services/console/README.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -10246,13 +10363,16 @@
       ],
       "tests": [
         "tests/server/competition-prizes.test.ts",
-        "tests/console/competition-contest.test.ts"
+        "tests/console/competition-contest.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
         "docs/services/server/data-model.md",
-        "docs/services/console/README.md"
+        "docs/services/console/README.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
@@ -10459,12 +10579,15 @@
       ],
       "tests": [
         "tests/server/competition-prizes.test.ts",
-        "tests/console/competition-contest.test.ts"
+        "tests/console/competition-contest.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/services/console/README.md"
+        "docs/services/console/README.md",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     {
