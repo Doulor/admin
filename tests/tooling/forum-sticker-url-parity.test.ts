@@ -1,8 +1,34 @@
-import { describe, expect, it } from 'vitest';
+import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { STATIC_CDN_BASE } from '../../scripts/static-cdn-base.mjs';
 import { stickerCdnUrl } from '../../scripts/sticker-manifest.mjs';
 import { STICKER_KEY_PREFIX as SERVER_KEY_PREFIX, createStickerUrl, loadStickerManifest, stickerSameOriginUrl } from '../../app/server/src/lib/sticker-manifest';
-import { STICKER_CDN_PREFIX, STICKER_SAME_ORIGIN_PREFIX, isStickerUrl, stickerHash } from '../../app/forum/shared/sticker-url';
+
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
+
+type StickerUrl = typeof import('../../app/forum/shared/sticker-url');
+
+// 从副本导入：在原处导入时 vite 会读 app/forum/tsconfig.json，它引用的 .nuxt/ 只有装过论坛依赖才有，CI 的 core job 没有。
+// sticker-url.ts 没有任何 import，副本就是论坛里的那份；放在仓库里被忽略的 .tools/ 下，原因同 tests/server/forum.test.ts 的 forumWriteParser。
+let copyDir = '';
+let STICKER_CDN_PREFIX: StickerUrl['STICKER_CDN_PREFIX'];
+let STICKER_SAME_ORIGIN_PREFIX: StickerUrl['STICKER_SAME_ORIGIN_PREFIX'];
+let isStickerUrl: StickerUrl['isStickerUrl'];
+let stickerHash: StickerUrl['stickerHash'];
+
+beforeAll(async () => {
+  mkdirSync(join(REPO_ROOT, '.tools'), { recursive: true });
+  copyDir = mkdtempSync(join(REPO_ROOT, '.tools', 'sticker-url-'));
+  mkdirSync(join(copyDir, 'shared'));
+  cpSync(join(REPO_ROOT, 'app/forum/shared/sticker-url.ts'), join(copyDir, 'shared/sticker-url.ts'));
+  ({ STICKER_CDN_PREFIX, STICKER_SAME_ORIGIN_PREFIX, isStickerUrl, stickerHash } = await import(pathToFileURL(join(copyDir, 'shared/sticker-url.ts')).href) as StickerUrl);
+});
+
+afterAll(() => {
+  if (copyDir) rmSync(copyDir, { recursive: true, force: true });
+});
 
 // 论坛前端对表情图片地址的白名单（app/forum/shared/sticker-url.ts，#286）是写死的两个前缀；服务端给出的地址、
 // 上传脚本列出的 CDN 地址都要被它认。三边任何一边改了前缀或哈希写法，这里先红。
