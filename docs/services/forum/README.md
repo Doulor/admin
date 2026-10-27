@@ -234,6 +234,20 @@ node scripts/check-forum-adoption.mjs   # 上游文件摘要、集成差异与�
 
 CDP 使用独立临时浏览器，只清理本次进程组。原仓单测与旧 Fastify 的历史测试不能混算。`forum:check/generate/verify` 默认以示例种子运行、不转发快照目录；调用方给 `GEEK_FORUM_SOURCE=site` 时 `check`/`generate` 按极客班论坛构建，`verify` 忽略它（上游 CDP 套件断言示例数据）。3456 上若有快照模式或极客班论坛模式的预览，`forum:verify` 拒绝执行并要求先 `forum:stop`。快照文档与资产索引的解析规则由 `app/forum/tests/local-snapshot.test.ts` 用虚构夹具覆盖，测试不读取真实投影。
 
+**真实编辑器与保存读回回归**（GitHub #274，不是历史 GitLab 同号事项）：`crepe-editor.ts` 在创建编辑器前移除 Milkdown 的 `remarkPreserveEmptyLinePlugin`。它原先将空段落写成原始 HTML `<br />`，与论坛“原始 HTML 显示为文字”的安全边界冲突。现在空段落输出 Markdown 段落间隔，soft/hard break 仍用原来的节点序列化；首尾和连续空段落重新打开后按 CommonMark 合并，不承诺保留额外空段的个数。不替换用户写出的 `<br />` 或代码中的同名文字，不改旧帖子，不放开 HTML 渲染。本树未修改核心服务端接口、统一资料 DTO 或账号资料布局。
+
+在根目录用已经准备好的两套工具链运行以下**一条命令**（`node` 必须是 Node 22；两个路径分别指向 Node ≥26 原生可执行文件和 pnpm 11.24.0 的 `pnpm.cjs`）：
+
+```bash
+FORUM_NODE=/path/to/node26 FORUM_PNPM=/path/to/pnpm.cjs node tests/integration/forum-editor/run.mjs
+```
+
+启动编排和 HTTP 夹具的完整源码在 `tests/integration/forum-editor/`，真实 Crepe / Tuffex DOM 用例在 `app/forum/tests/crepe-markdown.spec.ts`，配置是同目录的 `crepe-markdown.config.ts`。需要根工作区现有开发依赖 `jsdom`、核心 Node 22 依赖和论坛独立依赖；没有新增依赖。启动器自动绑定随机 loopback 端口、等待夹具就绪，再调用根 `scripts/forum.mjs test`，不需要手工启动服务或填写端口。默认将 `fixture.log`、`tests.log`、`http.json`、`runtime.json`、`result.json` 写到输出中显示的临时目录；`--evidence-dir <尚不存在的目录>` 可指定归档位置，不覆盖旧证据。仅需复用另一份已经安装依赖的核心 checkout 时可加 `--core-root <路径>`：启动前逐文件核对核心源码、测试 helper/内容夹具、清单和根锁文件与当前 checkout 完全一致，有差异即非零退出。
+
+核心夹具独立运行在 Node 22：真实 `buildApp` / Fastify 路由与内存 SQLite，只建合成成员、合成话题，外部 HTTP / GitHub / 发信默认拒绝，不读 `.env` 或业务库，也不复制内部 handler。论坛 Vitest 独立运行在 Node ≥26：真实 `createCrepeEditor` → `createForumApi` 的 POST → GET 正文 → Tuffex `TxMarkdownView` / DOMPurify → 重新打开编辑器；覆盖引用、空段、soft/hard break、@ 查询与 Enter 完成、图片/表情 Markdown 互换、原始 HTML 与代码字面值的安全边界。jsdom 只补缺失的 Range 几何和 IntersectionObserver，不能据此认定布局、可视性或真实浏览器交互通过。测试失败、夹具启动失败或运行中退出都非零退出；退出时只结束本次子进程组，并在 `result.json` 记录退出码及 listener 清理检查。
+
+这不是默认 `tests/**/*.test.ts` 的 Node 单测：现有 CI 的 core job 只有 Node 22 核心依赖，forum job 只有 Node 26 论坛依赖；不能让 Node 26 加载 Node 22 的 SQLite 二进制，也不能将根 jsdom 偷加进论坛生产依赖。此改动没有修改 CI，**默认 `pnpm test` / `pnpm forum:check` 与现有 CI 均不运行这套跨工具链回归**；需单独执行上述根命令并留存结果，默认 CI 绿标不能作为它已运行的证据。原有 PostEditor 替身用例仍只证明组件接线；实际 @ 建议下拉、⌘/Ctrl+Enter 发送、文件选择/粘贴上传、图片加载与响应式布局仍需真实页面验收。
+
 偏好页的 CDP 验证按当前连续表单操作：资料改动保存前不进入 store，头像颜色与通知开关随「保存更改」写入并在重载后保留；别人的偏好页不渲染表单；390px 下输入控件不越出视口。不再要求已退役的四个偏好页页签或 `tabpanel` 结构。
 
 ## 已知限制与生产准入

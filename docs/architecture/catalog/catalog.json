@@ -4902,7 +4902,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -17004,7 +17004,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "dd6e6f3740d53529c6d351fb40fe32d8cf14c223692d11ca0382e068e4dacc6a",
+    "fingerprint": "ed5a56040f67f7d69a660d3c970d6db6554ee6daaef1964132fff06452dfa951",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17624,7 +17624,7 @@
       },
       {
         "path": "app/forum/app/editor/crepe-editor.ts",
-        "sha256": "824e4d757377049a3ca95b57e7971ccfdfa859c54ba9d08d242da482654bf95a"
+        "sha256": "a0ff1205c169ff07ff20449250bec3e062281828c5346389e5448928048e8eb7"
       },
       {
         "path": "app/forum/app/editor/inline-stickers.ts",
@@ -17832,7 +17832,7 @@
       },
       {
         "path": "app/forum/tests/activity-beacon.test.ts",
-        "sha256": "338c657b30388d745f9b7ea647db9125b31a2b3d9a234e38f4a20e09e7447b46"
+        "sha256": "14f21fbfe2ccb610b62455354f7175d11d1f9ed4704d366eb2a1a47a07d7d03a"
       },
       {
         "path": "app/forum/tests/content-source.test.ts",
@@ -18980,7 +18980,7 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "cb2f424341c8190c428e8cdba246f596f89d3beb4051482424f80c4a33e06e0c"
+        "sha256": "52c8619e1071595f993bff6cfc74cd3b3bd484050c1c20df04975add5e01c5de"
       },
       {
         "path": "docs/services/server/README.md",
@@ -58379,7 +58379,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58443,7 +58443,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58507,7 +58507,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58571,7 +58571,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58635,7 +58635,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58699,7 +58699,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58763,7 +58763,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58827,7 +58827,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58891,7 +58891,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -58955,7 +58955,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59019,7 +59019,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59083,7 +59083,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59147,7 +59147,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59211,7 +59211,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59275,7 +59275,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59345,7 +59345,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59409,7 +59409,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59473,7 +59473,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59537,7 +59537,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59601,7 +59601,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59665,7 +59665,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59729,7 +59729,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59793,7 +59793,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {
@@ -59857,7 +59857,7 @@
           "path": "app/forum/app/composables/usePostDraft.ts"
         },
         {
-          "line": 33,
+          "line": 34,
           "path": "app/forum/app/editor/crepe-editor.ts"
         },
         {

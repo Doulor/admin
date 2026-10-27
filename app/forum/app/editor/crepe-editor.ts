@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view'
 import type { StickerLookup } from './inline-stickers'
 import { Crepe } from '@milkdown/crepe'
 import { editorViewCtx } from '@milkdown/kit/core'
+import { remarkPreserveEmptyLinePlugin } from '@milkdown/kit/preset/commonmark'
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
 import { $prose, insert, replaceAll } from '@milkdown/kit/utils'
 import '@milkdown/crepe/theme/common/style.css'
@@ -149,6 +150,11 @@ export async function createCrepeEditor(options: CrepeEditorOptions): Promise<Cr
       },
     },
   })
+
+  // Milkdown preserves empty paragraphs as raw `<br />` HTML. Forum posts
+  // deliberately display raw HTML as text, so use Markdown paragraph gaps
+  // instead; soft/hard break nodes keep their normal Markdown serializers.
+  await crepe.editor.remove(remarkPreserveEmptyLinePlugin)
 
   const mentionPlugin = $prose(() => new Plugin({
     key: new PluginKey('forum-mention'),
