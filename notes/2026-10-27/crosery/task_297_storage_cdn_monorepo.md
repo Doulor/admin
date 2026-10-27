@@ -15,3 +15,10 @@
 - 做了什么：deploy/storage-cdn/{garage.toml,s3manager.env,Caddyfile,scripts/upload_demo.py} 全部脱敏（三个 Garage token、S3 Access/Secret 留空，控制台口令哈希改 {$S3MANAGER_ADMIN_HASH}，示例脚本改读环境变量）；docs/ops/STORAGE-CDN.md 合并四份交接文档成一份合同；docs/README 加模块对照与阅读地图行；DEPLOY.md 增加「香港对象存储」段；docs/changes/297.json 声明影响面；新增 tests/tooling/storage-cdn-config.test.ts
 - 结果：通过：check:secrets、check:docs、check:doc-sync、check:boundaries、check:catalog 全绿；architecture --base gitlab/stage 18 文件1节点通过；storage-cdn-config 10/10；catalog 与 docs/INDEX 已重算。未通过：check:notes 仍是历史 K10（task_276:47，非本分支）
 - 下一步：推送 task/297 分支并开 MR（需授权）
+
+## 13:19:00 +08:00 · 推送 · #297 · 推送 task/297 并开 MR !34
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：git push gitlab task/297/storage_cdn_monorepo；MR !34 → stage，正文按九段契约，审查结论标为待审查
+- 结果：推送成功：https://git.yangtzeu.work/geek/admin/-/merge_requests/34
+- 下一步：收审查结论后回填 MR 并补审查记录
