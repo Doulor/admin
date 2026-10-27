@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily platform system backup (%i)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 Asia/Shanghai
+RandomizedDelaySec=20min
+Persistent=true
+Unit=platform-backup@%i.service
+
+[Install]
+WantedBy=timers.target

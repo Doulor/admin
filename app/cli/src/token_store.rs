@@ -1,5 +1,7 @@
-//! 令牌存取（SPEC §6）：`keyring` crate 存进系统钥匙串，没有钥匙串时退回 `~/.config/geek/credentials`
-//! （权限 0600）；`GEEK_TOKEN` 环境变量优先，给 CI 和 agent 用，不落盘、不写回钥匙串或文件。
+//! 令牌存取（SPEC §6）：`keyring` crate 存进系统钥匙串，不可用时退回系统配置目录下的 `geek/credentials`。
+//! macOS 为 `~/Library/Application Support/geek/credentials`；Linux 为 `$XDG_CONFIG_HOME/geek/credentials`
+//! （未设置时为 `~/.config/geek/credentials`），Unix 权限 0600。
+//! `GEEK_TOKEN` 环境变量优先，给 CI 和 agent 用，不落盘、不写回钥匙串或文件。
 //! 按源站分开存：生产和预发布各自的登录状态互不影响（和旧仓库 session.rs 的多 base 设计一致）。
 //! `GEEK_NO_KEYRING=1` 强制跳过系统钥匙串、只用文件：没有图形会话的无头环境（CI、容器、这个仓库的
 //! 本机端到端验证）里，未签名的二进制第一次碰钥匙串常常会弹一个没人能点的系统授权对话框，设了这个

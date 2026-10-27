@@ -1,8 +1,8 @@
 # 部署、维护与恢复规范
 
-> 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。
+> 两套隔离 Linux Docker 栈运行于 Arch，香港 Caddy 提供 HTTPS 入口；DNS 过渡期间旧 VPS 仅转发，不再运行应用或写库。
 
-状态：`current` · 更新：2026-10-25
+状态：`current` · 更新：2026-10-27 · 适用：GitHub admin#270 的迁移接管及后续发布；GitLab 同号身份事项与既有旁路服务见 [GITLAB](GITLAB.md)。
 
 ## 发布前置
 
@@ -10,32 +10,56 @@
 
 发布者明确目标环境、commit、镜像 tag、回滚对象和维护窗口。先在本地或 CI 完成 `pnpm verify` 与相关浏览器检查，再部署；不从含无关修改的工作区发布。核心与论坛使用两套工具链（Node 22/pnpm 9.15.9 与 Node ≥26/pnpm 11.24.0），镜像构建在容器内完成，不上传 Mac 原生依赖。
 
+## 迁移现状与授权边界
+
+2026-10-26 所有者追加授权无损迁移、Arch 只作 Docker 宿主，并在迁移后要求统一 GitHub 发版与现行连接信息。原版双栈已接管，不再是隔离候选副本。证据在主工作区 `.tools/handoff/2026-10-26-migration/RESULTS.md` 及 `evidence/`；发布连接复验在 `.tools/handoff/2026-10-26-release-target/`。后续运行变化须重新取证。
+
+| 对象 | 已验证状态 | 边界 |
+|---|---|---|
+| Arch 正式 | `v0.1.0`，`d4a24749d0775929f6ec88413f419bd9d03c6f86` | 未升级正式应用 |
+| Arch 预发布 | `v0.1.1-rc.25`，`02cb751c0b830c0e686a180f6c6c5870c0c055ec` | 未创建新的 rc |
+| 两套栈 | 6 个原镜像容器 healthy；最终停写快照的全表/schema/文件摘要与目标启动前一致，原 sessions 保留 | 后续新写入只在 Arch，不能重开旧冻结库 |
+| 原应用设置 | 原密钥未轮换；两环境 `MAIL_RECIPIENTS=all`、预发布 `GITLAB_SYNC=on`，身份源不变 | 不用副本隔离开关覆盖当前权威源 |
+| 香港 | `/etc/caddy/sites/yzgc.caddy` 已生效，两域名可信 TLS，新旧入口 52/52、交替 SNI 20/20 通过 | 未故意断隧道或重启宿主验证 |
+| 旧 VPS | 六个应用容器停止；legacy Node、旧 guard/backup timer 停用；Nginx 转发香港 | DNS 与旧管理域兼容跳转未收尾，不删除旧机或恢复材料 |
+
+后续发布目标只允许 Arch。GitHub 双环境 SSH 配置已改新目标，应用 secrets 按各环境原运行值同步；专用 key 的双环境 SSH/SCP 实测通过。源码仍在 task270 待集成，未运行新的 Actions 发布；旧 tag 不会获得新脚本能力。本轮没有新版本授权，不创建/移动/补推 tag，不切 DNS，不改变 GitLab 身份源。
+
 ## 拓扑
 
 ```text
-互联网
-  └─ 宿主 nginx（TLS 终止，certbot 证书，安全头在此下发；论坛页面的 CSP 例外见「最小权限」）
-       ├─ yangtzeu.work / prev.yangtzeu.work → 127.0.0.1:18100 / 18200（web 容器），每个环境只有这一个域名
-       └─ github.yangtzeu.work（已退役）      → 301 到 https://yangtzeu.work，保留路径
-            └─ web 容器（nginx，容器内监听 8080：官网与控制台两份静态产物 + 反代）
-                 ├─ /console、/admin、/signin（含子路径） → sites/console/index.html（app/console，Vue + Tuffex）
-                 ├─ /healthz  → server:3000（web 也代理，部署脚本用它做健康门）
-                 ├─ /api/*、/auth/* → server:3000（Fastify + /data 命名卷）
-                 ├─ /c/*      → server:3000（比赛官网站点包，server 下发 sandbox CSP，#278）
-                 ├─ /sdk/*    → 镜像里的比赛 SDK（/sdk/competition/v1.js，缓存 5 分钟，带 Access-Control-Allow-Origin: *）
-                 ├─ /forum    → 308 到相对地址 /forum/（web 与论坛两个容器都 absolute_redirect off，跳转不带协议、主机和容器端口）
-                 ├─ /forum/*  → forum:3000（Nuxt 静态产物；镜像按 GEEK_FORUM_BASE_PATH=/forum/ 构建，proxy_pass 带尾斜杠剥离前缀，proxy_redirect 把论坛的相对跳转补回前缀；location ^~，图片、字体也转给论坛）
-                 ├─ /admin、/admin/*、/console、/console/*、/signin → admin SPA 入口
-                 └─ 其余路径 → portal SPA 入口
+当前链路（DNS 尚未切换）
+互联网 → 旧 VPS Nginx（仅转发）→ 香港 Caddy（TLS）
+  → ssh -w 三层点对点隧道 10.66.0.1 ↔ 10.66.0.2
+  → Arch web：10.66.0.2:18100 / 18200 → web 容器 nginx:8080
+      ├─ /console、/admin、/signin 等 → 控制台静态入口
+      ├─ /api/*、/auth/*、/oidc/*、/healthz → 本环境 server:3000
+      ├─ /c/* → server 比赛官网（保留 sandbox CSP）
+      ├─ /forum/* → 本环境 forum:3000（保留论坛内联哈希 CSP）
+      └─ /sdk/*、/cli/*、其余路径 → SDK、CLI 分发、portal 静态产物
 ```
+
+后端只信任 Caddy 与 web nginx 两层，`TRUST_PROXY=2`。DNS 过渡多经过旧 Nginx，但它覆盖外来 X-Real-IP，Caddy 仅对来自旧 VPS 地址的请求读取该值，其他请求按实际远端地址重建 X-Forwarded-For；客户端伪造头实测未被信任。`ssh -w` 不增加 HTTP 代理层，Arch 不叠宿主 nginx。DNS 后续指向香港 `156.238.244.78`，不是 Arch 私有地址。
 
 web 镜像构建阶段分别构建 `app/web`（官网）与 `app/console`（控制台），把两份 dist 叠进同一个站点根（`sites/portal/` + `assets/`，`sites/console/` + `console-assets/`，目录不重叠）。
 
-宿主 nginx 的 server block 是 `deploy/nginx/production.conf` 与 `deploy/nginx/preview.conf`（TLS、ACME 挑战、安全头都在这里，不注入任何站点头；论坛页面的 CSP 由论坛容器下发，见下文「最小权限」；包含 `/forum/t/(\d+)` 与 `/forum/archive/t/(\d+)` 301 重定向至规范 `/forum/t/t$1`，#173、#177）。**每个环境只有一个域名**，管理端靠 URL 路径区分：web 容器 nginx 按路径选 SPA 入口（`/admin`、`/console` 及其子路径与 `/signin` 进控制台入口 `sites/console/index.html`，其余进官网；规则与 `app/server/src/app.ts` 的 `resolveSiteEntry` 一致），镜像与前端产物里不含任何环境域名，同一个镜像在两个环境通用。旧的「管理端独立子域 + 宿主注入站点头」模型已退役：正式的 `github.yangtzeu.work` 只剩 301 跳转，预发布不再有管理端子域。
+`deploy/nginx/{production,preview}.conf` 保留为网关策略源；现行公网配置在香港 Caddy，不能再把这两份 Nginx 模板装回旧 VPS 以恢复旧栈。迁移时从源机各环境真实策略提取 CSP、安全头、压缩和重定向，保留原版本差异。旧 Nginx 仅转发 HTTPS，保持上游证书验证、深度 3，关闭跨 SNI 的会话复用；ACME 路径本地文件优先再转香港。
+
+`scripts/render-arch-caddy.mjs --out <空待审目录>` 仍是待集成生成器，派生四份 Caddy 文件，不是当前香港配置的安装来源。它尚未包含 DNS 过渡期间信任旧入口并重建客户端地址的完整逻辑，不能覆盖 live 配置。默认不含旧 `github.yangtzeu.work`；该兼容跳转仍在旧 VPS，不因主域迁移而自动迁走。
+
+香港回环 `18480/18481` 仅是私有预检设计，不能代替真实域名验证。后续候选配置先留非 import 目录，获批前不放进自动加载的 `/etc/caddy/sites/*.caddy`；变更先 validate 再 reload，保留 GitLab handler，不 restart 相邻服务。
 
 `/release.json` 由 **web 镜像内置**（构建时用 build args 生成的静态文件，`Cache-Control: no-store`），不再是宿主 nginx 的 alias。
 
 论坛不再是独立子域，而是 portal 域名下的 `/forum` 路径；旧 `forum.yangtzeu.work` 子域模型已退役（见文末历史章节）。
+
+## Docker 网络与维护
+
+- 固定项目子网：production `172.31.181.0/24`、preview `172.31.182.0/24`；server DNS 为 `1.1.1.1` / `8.8.8.8`。固定子网与出网规则绑定，后续 Compose 不能丢失这些字段。
+- Arch 规则优先级 91/92 查询表 18182，经 tun0 到香港；保留 Docker 默认 NAT，香港追加 `yzgc-docker-egress` 出口 NAT。只作用于项目子网，不改宿主默认路由；容器到 GitHub/GitLab/Google 均实测 200。
+- 两端 `yzgc-egress.service` 持久化网络；Arch `yzgc-compose@production.service` / `@preview.service` 在 Docker 与隧道之后编排 Compose，不运行宿主业务 Node。
+- `/opt/yzgc/tools/docker-backup.py` 在原 Linux 镜像内做保留 sessions 的一致备份，每份再断网恢复核对；`yzgc-backup@*.timer` 北京时间 04:00、随机延后不超过 10 分钟。`yzgc-health.timer` 每 10 分钟只读检查，不全局 prune。详见 [BACKUP](BACKUP.md)。
+- 这些实机维护工具暂由迁移交接中的源码保全；现有 `platform-maintenance.sh` / `platform-backup@` 是另一套未安装候选，不能混称已纳管或覆盖现行任务。
 
 ## 两套栈
 
@@ -47,35 +71,37 @@ web 镜像构建阶段分别构建 `app/web`（官网）与 `app/console`（控�
 | compose 项目名 | `yzgc-production` | `yzgc-preview` |
 | 环境文件（目标机） | `<栈根>/.env.production`（脚本安装为 600） | `<栈根>/.env.preview` |
 | 入口域名（唯一） | `yangtzeu.work`（`github.yangtzeu.work` 仅 301 到这里） | `prev.yangtzeu.work` |
-| web 宿主端口 | `127.0.0.1:18100` → 容器 8080 | `127.0.0.1:18200` → 容器 8080 |
+| web 宿主端口（Arch 目标） | `10.66.0.2:18100` → 容器 8080 | `10.66.0.2:18200` → 容器 8080 |
 | server 宿主端口（调试/健康门） | `127.0.0.1:18101` → 容器 3000 | `127.0.0.1:18201` → 容器 3000 |
 | 容器内端口 | web 8080 / server 3000 / forum 3000 | web 8080 / server 3000 / forum 3000 |
 | 数据 | 命名卷 `<项目名>-data` 挂到 server 的 `/data` | 独立命名卷，不共享 |
 | 部署锁与历史 | `<栈根>/.deploy.lock`、`<栈根>/deploy-history.log` | 同结构，互相独立 |
 
-两栈**完全隔离**：独立目录、独立 compose 项目、独立端口、独立数据卷、独立密钥、独立域名、独立锁。不得共用数据库、上传目录、会话密钥或父域 Cookie；Cookie 使用 host-only，禁止 `.yangtzeu.work`。宿主 3000/443/2568/8787/8080 已被现有服务占用，新栈只绑回环的 18100/18101 与 18200/18201；forum 容器不发布任何宿主端口。
+两栈必须使用独立目录、项目、网络、数据卷、密钥、域名与锁；Cookie 为 host-only，禁止 `.yangtzeu.work`。server 仅回环，web 仅 Arch tun0 或旧源兼容回环，禁止 `0.0.0.0`/任意外部网卡；forum 不发布宿主端口。Compose 的 `internal` 是网络名称，不是 `internal: true`，**不能据此认定副本已断外网**。当前候选限额为 server `512m/1CPU`，web/forum 各 `128m/0.5CPU`；尚未在 Arch 实测，不是容量承诺，不能挤压既有 GitLab、隧道与 SSH。
 
 镜像名按环境分仓库：正式 `yzgc-production/{server,web,forum}:<tag>`，预发布 `yzgc-preview/{server,web,forum}:<tag>`，tag = 本次 commit 的 `<sha12>`，部署时写入目标机环境文件的 `IMAGE_TAG`。两套栈共用同一个 Docker 守护进程，同一提交的正式与预发布镜像构建参数不同（`release.json`、版本串），共用镜像名会在 `docker load` 时互相覆盖；仓库名在 compose 文件里是字面量，不从 env 文件读取，`scripts/deployment-environment.mjs --check` 会拒绝两套 compose 在同一 SHA 上解析出相同镜像引用。构建上下文是仓库根，`dockerfile: app/<service>/Dockerfile`；每个服务有 `app/<service>/.dockerignore`，另有根 `.dockerignore` 控制上下文（Docker 读的是构建上下文根下的那一份，因此根文件才是实际生效的排除规则）。三个镜像共享同一组 build args：`GEEK_DEPLOYMENT_ENVIRONMENT`（必填，`production`/`preview`）、`GEEK_RELEASE_VERSION`、`GEEK_RELEASE_COMMIT`；论坛会校验组合（预发布要 `X.Y.Z-rc.N@<sha12>`、正式要 `X.Y.Z`、commit 必须 40 位十六进制），不合格直接构建失败。另有只在构建阶段生效的下载源参数：`NPM_REGISTRY`（三个镜像）、`DEBIAN_MIRROR` 与 `BETTER_SQLITE3_BINARY_HOST`（只有 server），不传就是官方源，不进运行镜像；取值、校验与信任依据见 [CICD](CICD.md#构建下载源104)。
 
 ## 部署流程
 
-```bash
-# 0) 部署工作流由发布 tag 触发，并先用规划器核对 tag、提交、版本号与所在分支：
-node scripts/release-policy.mjs plan --tag <vX.Y.Z> --commit <40 位 SHA>
-# 1) 可信机器上构建并打包镜像（CI 或人工，两条工具链分别构建）
-docker compose --env-file deploy/env/.env.production -f deploy/compose/production.yml build \
-  --build-arg GEEK_DEPLOYMENT_ENVIRONMENT=production \
-  --build-arg GEEK_RELEASE_VERSION=<X.Y.Z，预发布为 X.Y.Z-rc.N@<sha12>> \
-  --build-arg GEEK_RELEASE_COMMIT=<40 位 SHA>
-# 镜像必须带本环境的仓库名：compose 文件的 image 就是 yzgc-production/<服务>:${IMAGE_TAG}
-docker save yzgc-production/server:<sha12> yzgc-production/web:<sha12> yzgc-production/forum:<sha12> \
-  -o yzgc-images-production-<sha12>.tar
-sha256sum yzgc-images-production-<sha12>.tar > yzgc-images-production-<sha12>.tar.sha256
+后续发布由 tag 对应的 CI 产物、环境审批及部署入口完成，详见 [CICD](CICD.md)。已完成的原版迁移复用原镜像及最终停写全卷快照，没有重建同一 tag 或清除 sessions；`export-stack-snapshot.mjs` 的业务导出不等于此次全量迁移。后续不得把工作区新脚本拼进旧 tag 物料。
 
-# 2) 分发 tar(+sha256) 与渲染好的运行时 env 文件到目标机，然后：
-bash deploy-stack.sh --environment production \
-  --images ./yzgc-images-production-<sha12>.tar --env-file ./runtime/.env.production
-```
+### Arch 副本启动前的独立门禁
+
+1. 正式和预发布分别在**新空命名卷**恢复，不以 preview 整库覆盖 production，不用 `--force` 覆盖未知目录；完整工具布局和验证见 [BACKUP](BACKUP.md)。
+2. `prepare-arch-runtime.mjs` 只准备运行配置：`/config` 挂该环境栈根，`/templates` 只读挂模板；保留原 `ENCRYPTION_KEY` 等密钥，设置 env sync off、邮件空白名单。它不修改恢复库，输出 `gitlab_sync: off` 只说明 env，**不是有效同步模式的证明**。
+3. `app_state(key='gitlab_settings').value.mode` 会覆盖 `GITLAB_SYNC`；核心真实入口还会启动 GitLab 同步及贡献收集循环。须先在出站隔离下独立验证恢复副本的 **effective mode 为 off**、贡献收集不访问 GitLab/不计分、邮件无外发。`dry-run` 也不能替代贡献收集的 off 门禁。需改复制库时先获该目标的数据操作批准；不修改旧源/原快照，不提供随意 UPDATE 线上库的捷径。
+4. 准备器不等于部署器；先形成受控 incoming 配置，再由标准脚本原子安装。已有 canonical env、历史部署或半成品目录须核对，不能当全新栈盲目覆盖。
+5. 本节只约束另建的隔离恢复副本，不用于关闭已接管权威源的外发；本地测试、目标启动、真实代理链验证与所有者验收分别取证。
+
+`node deploy/remote/verify-arch-replica.mjs --environment <production|preview> --env-file <明确文件> --database <独立一致快照>` 提供只读配置门禁：核对环境/原版本/bind、邮件空名单、env 与持久 sync off、非空原加密密钥；WAL 格式或 WAL/SHM/journal 旁文件、非法持久设置一律拒绝，不修库。其 `scope=configuration` 与 `encryption_key_match_verified=false` 不证明原密钥匹配、业务完整性或实际无外发；完整分发布局见 [BACKUP](BACKUP.md)。
+
+### SSH 目标绑定
+
+`deployment-environment.mjs ssh-config` 是 CI/manual 共用入口：先核对 `DEPLOY_TARGET_ENVIRONMENT` 与模板身份，再逐字核对 `DEPLOY_SSH_HOST/PORT/USER` 与该提交的 `DEPLOY_HOST/PORT/USER`。Arch 模板为 `10.66.0.2:22`，`DEPLOY_PROXY_JUMP=root@156.238.244.78:22`；旧源地址不符必须在任何 SSH/SCP 前失败，缺失值也不 fallback。跳板只能来自模板，直连要显式留空。
+
+SSH/SCP 共用 `-F <本次受控配置> yzgc-target`，固定 `IdentitiesOnly`、`BatchMode`、`StrictHostKeyChecking=yes` 和专用 known_hosts；必须预先核验**跳板与 Arch 双端主机公钥**并配置专用部署 key。模板的 root 用户不是可达性/权限证明，不把个人 root 私钥上传 CI，不关闭主机密钥检查。新代码只存在于工作区不代表旧发布 tag 已具备此保护。
+
+本地可只读核对：`node scripts/deployment-environment.mjs --check`、`node --check scripts/render-arch-caddy.mjs`、`node --experimental-strip-types scripts/backup-restore.mjs --help`；它们不生成 SSH 配置、不连目标机，也不放行部署。
 
 `deploy/remote/deploy-stack.sh` 的行为（目标机上，参数即契约）：
 
@@ -89,11 +115,13 @@ bash deploy-stack.sh --environment production \
 | `--compose-file <路径>` | 覆盖 compose 文件解析结果 |
 | `--health-timeout <秒>` | 健康门超时（默认 180） |
 
-- **env 文件是唯一事实源**：`STACK_ROOT`、`COMPOSE_PROJECT_NAME`、`IMAGE_TAG`、`SERVER_BIND`、`WEB_BIND`、`SERVER_PORT` 都从它读取，脚本把它原子安装为 `<栈根>/.env.<environment>`（权限 600）。
+- **部署参数事实源**：`STACK_ROOT`、`COMPOSE_PROJECT_NAME`、`IMAGE_TAG`、`SERVER_BIND`、`WEB_BIND`、`SERVER_PORT` 从 env 文件读取，原子安装为 `<栈根>/.env.<environment>`（0600）；这不表示业务开关只由 env 决定，持久化 GitLab mode 的覆盖见上文副本门禁。
+- **env 文件只能操作自己环境**：`deploy-stack.sh` 与 `rollback-stack.sh` 都要求 `STACK_ROOT` 的最后一段逐字等于 `--environment`、`COMPOSE_PROJECT_NAME` 逐字等于 `yzgc-<environment>`，并且上面这些键在文件里只能出现一次（重复键直接失败，不取最后一个值）。否则一份 preview env 指向 `/opt/yzgc/production` 就能用 preview 的镜像与密钥 up/回滚正式栈与 `yzgc-production-data` 卷。
+- **渲染出的运行时 env 用原子替换**：`deployment-environment.mjs render` 先写同目录 0600 临时文件再 `rename`，目标已存在时同权限收紧为 0600；`--out` 是符号链接时拒绝渲染，避免密钥顺着链接写到别处（`mode: 0o600` 只对新建文件生效）。
 - **镜像只属于本环境**：装载前读归档里 `manifest.json` 的 `RepoTags`，只接受 `yzgc-<environment>/{server,web,forum}:<IMAGE_TAG>` 这三个，出现另一环境、旧的 `yzgc/*` 或别的 tag 即拒绝（不 `docker load`，也不重新打 tag）；compose 文件解析出的镜像也必须恰好是这三个，目标机上残留旧版 compose 文件时直接失败。
 - **镜像包校验失败关闭**：必须能核到 sha256（`<包>.sha256`、去扩展名的同名 `.sha256`，或同目录的 `SHA256SUMS`/`sha256sums.txt`/`checksums.txt`），缺失或不等即拒绝部署。
 - **串行锁**：`flock <栈根>/.deploy.lock`（等待 900s），production 与 preview 各自独立串行。锁只包住 `deploy-stack.sh`（`rollback-stack.sh` 用同一把），上传归档与 env 文件（scp）在锁外，见下文「同一环境同一时刻只允许一个部署任务」。
-- **健康门**：轮询 `http://127.0.0.1:<SERVER_BIND 端口>/healthz` 与 `http://127.0.0.1:<WEB_BIND 端口>/healthz`（web nginx 代理 `/healthz` → server:3000），两者都必须返回 HTTP 200 且 `"ok":true`；默认 180s 超时、3s 间隔。每一轮先探测、再看是否超时，所以至少探测一次（先判断超时的话，bash 的 `SECONDS` 整秒跳变正好落在算出截止时间之后时，会一次不探测就判失败）；`rollback-stack.sh` 相同。
+- **健康门**：按实际 `SERVER_BIND` 与 `WEB_BIND` 探测 `http://<bind>/healthz`，两者都须 HTTP 200 且 `"ok":true`；默认 180s 超时、3s 间隔，每轮先探测再判超时，`rollback-stack.sh` 相同。Arch web 走 tun0 地址，不再硬测不存在的回环映射；直连健康门不覆盖香港 TLS/代理和身份链路。
 - **失败即回滚**：`docker compose up -d` 本身失败（web 对 server 是 `depends_on: condition: service_healthy`，新 server 起不来时 up 自己就非零退出）与健康门超时走同一条路：记 `FAILED`（说明里写是哪一种），有上一个版本就把 `IMAGE_TAG` 切回部署前的值、重新 `compose up -d` 并复检，通过记 `ROLLED_BACK`，不通过记 `ROLLBACK_FAILED`；无论哪种结局脚本都非零退出。回滚只用本机已装载的镜像，不读 incoming 里的归档。
 - **历史记录**：追加写 `<栈根>/deploy-history.log`，制表符分列 `<UTC ISO8601> <环境> <生效版本> <结果> <说明>`。第 3 列是**该次动作后真正在跑的 tag**：`OK` / `MANUAL_ROLLBACK` 行 = 部署后生效的 tag；`FAILED` 行 = 尝试部署但没起来的 tag；`ROLLED_BACK` 行 = 回滚后真正生效的旧 tag（说明里写明目标版本未上线）。镜像保留策略与 `rollback-stack.sh --to previous` 都按这一列判断。结果取值：`OK` / `FAILED` / `ROLLED_BACK` / `ROLLBACK_FAILED` / `ROLLBACK_SKIPPED`（部署）与 `MANUAL_ROLLBACK` / `MANUAL_ROLLBACK_FAILED`（回滚）。
 - **镜像构成**：`node:22-bookworm-slim`（server 构建与运行）、`node:22-bookworm-slim` + `nginx:1.31-alpine`（web 构建 + 运行）、`node:26-bookworm-slim` + `nginx:1.31-alpine`（forum 构建 + 运行）。基础镜像大版本变更必须单独验证（1.27 系列已下线，不要再回退到旧 tag）。
@@ -106,20 +134,22 @@ bash deploy-stack.sh --environment production \
 - 目标机只 `docker load` 镜像并 `up -d`，**不在服务器上 `git pull` 后构建**。
 - 同一环境同一时刻只允许一个部署任务；正式环境部署不得在切换过程中被新任务取消。工作流的 `concurrency: deploy-<environment>` 只让同环境的 CI 部署彼此排队，`flock` 只包住 `deploy-stack.sh`，上传在锁外，`scripts/deploy-manual.mjs` 两者都管不到。所以**不要让 `deploy-manual.mjs` 与同环境的 CI 部署同时跑**：运行前先确认这个环境没有正在跑或排队的部署工作流。两者重叠时，前一次成功后的 incoming 清理会删掉后一次已经上传的归档与 env 文件，后一次失败关闭、不会部署错版本；视时机停在上传后的 `sha256sum -c`、`deploy-stack.sh` 的「env 文件不存在」，或者等锁之后的「compose 文件解析出的镜像不是 …」（这时是 env 文件没了，不是 compose 文件旧）。
 
-**实施状态**：`deploy/compose/{production,preview}.yml`、`deploy/nginx/{production,preview}.conf`、`deploy/remote/{deploy-stack,rollback-stack}.sh` 已入库并定义本模型。旧 systemd / 发布包模型的文件已随本次改造**删除**：`deploy/remote/{deploy-release,rollback}.sh`、`deploy/yzgc-admin.service`、`deploy/yzgc-preview.service`、`deploy/setup.sh`、根目录旧 `deploy/nginx*.conf`（含 `nginx-release-metadata.conf`）、`deploy/forum-subdomain-setup.md`、`scripts/release-bundle.mjs`、`tests/tooling/release-bundle.test.ts`。这些路径只存在于历史章节，不要按旧流程重建。
+**源码与运行分开**：原版应用已迁移，新的 Compose、deploy/rollback 与 CI 变更仍待集成审查。旧 `yzgc-admin.service` 已实测停用，不再作为入口；只保留过渡 Nginx、certbot 与恢复材料。香港现行配置来源及尚未纳管的维护脚本见上文，不能从工作区存在文件推断已安装。
 
 ## 前置条件（部署前必须由维护者确认）
 
-1. DNS：`prev.yangtzeu.work` 已有指向本机 IP 的 A 记录（2026-09-24 `dig` 核对为 `103.117.123.226`，与正式域名同一主机、不同栈）；不需要任何管理端子域记录。
-2. TLS：宿主 nginx 用 certbot 签发/续期三张证书：`yangtzeu.work`、`prev.yangtzeu.work`、`github.yangtzeu.work`（最后一张只服务 301 跳转）；命令 `certbot certonly --webroot -w /var/www/html -d <域名>`。证书准备完成前不引用，改完先 `nginx -t` 再 reload。
-3. 宿主 nginx：把 `deploy/nginx/production.conf`、`deploy/nginx/preview.conf` 分别安装到 `/etc/nginx/sites-available/` 并 symlink 进 `sites-enabled/`；TLS、ACME 挑战、安全头与旧管理端域名的 301 都由这两个文件负责，不要把两者配成同名 `server_name` 而冲突。
-4. GitHub OAuth App：Callback URL 必须是 `<origin>/auth/callback`。正式环境切换当天，要把现有 OAuth App 的 Callback URL 改成 `https://yangtzeu.work/auth/callback`；预发布另建一个 Callback URL 为 `https://prev.yangtzeu.work/auth/callback` 的 OAuth App（密钥不跨环境共用）。细节见 [ENVIRONMENTS](ENVIRONMENTS.md#github-oauth-app-回调地址)。
-5. Docker 与 Compose v2 已安装；栈根目录存在且属部署用户；`<栈根>/.env.<environment>` 由部署脚本原子安装（含真实密钥，权限 600）。
-6. 环境文件里的必填项（`HOST`、`TRUST_PROXY`、`PUBLIC_ORIGIN`、`DB_PATH`、`IMAGE_TAG` 等）缺失时 compose 会直接拒绝启动；不要靠临时改 compose 文件绕过。
+1. 目标为已接管的 Arch + 香港 Caddy；DNS 仍由所有者另行切换。香港证书已签发并由 Caddy 续期；旧入口 nginx/certbot 保持过渡服务。
+2. 后续香港配置变更先审查、validate，再获批 reload；保留 GitLab 与其他站点，复验 CSP、真实 IP 和两域名 SNI。
+3. 两端专用部署 key/known_hosts 与 GitHub 环境目标已匹配并实测；新版本物料仍要通过目标门禁，不能绕过校验去连旧机。SSH/SCP 本机通过不代表新 Actions 工作流已执行。
+4. OAuth 回调继续逐字匹配本环境 origin；新的完整授权往返未验证，不能用旧会话仍可用代替。
+5. 保留独立卷与原密钥；原版本接管后保持原外发行为。只有另建隔离恢复副本时才使用副本关闭外发门禁，不把它应用于权威源。
+6. 发布仍需要获批 tag、完整物料与原门禁；不重置数据库或临时放宽校验求绿。
 
 ## 证书续期与到期监控
 
 2026-09-25：「这个签证书是要永久签哈，要一直监控着签。」
+香港 Caddy 已取得两个入口的可信证书并自动管理续期；`cert-watch.yml` 按公开域名监控，到 DNS 切换后继续生效。下列 nginx/certbot 仅是旧入口过渡期的续期安排，不是 Arch 安装步骤。未模拟未来证书到期或重启整机。
+
 
 - **续期**：目标机 `certbot.timer`（systemd，每天两次）对 `/etc/letsencrypt/renewal/` 下的全部证书执行 `certbot renew`；`prev.yangtzeu.work` 与 `yangtzeu.work` 都走 webroot `/var/www/html`（两个 server block 的 80 端口都放行 `/.well-known/acme-challenge/`）。
 - **续期后生效**：`/etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh` 在任何证书续期成功后执行 `nginx -t -q && systemctl reload nginx`；配置检查不过就不 reload，旧证书继续服务，由到期监控报警。
@@ -139,7 +169,7 @@ bash deploy-stack.sh --environment production \
 
 环境变量**只**经 `.env` 文件：`deploy/env/.env.production` 与 `deploy/env/.env.preview` 提交入库，非密值（地址、端口、域名、路径、开关）预填真实值，密钥字段留空由 CI/CD 注入。完整字段契约、可见性规则与 GitHub 环境 secrets/vars 清单见 [ENVIRONMENTS](ENVIRONMENTS.md)；本机开发模板见 [ENVIRONMENT](ENVIRONMENT.md)。
 
-关键非密字段：`GEEK_DEPLOYMENT_ENVIRONMENT`、`GEEK_ENVIRONMENT_ORIGIN`、`COMPOSE_PROJECT_NAME`、`STACK_ROOT`、`DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER`、`IMAGE_TAG`、`WEB_BIND`、`SERVER_BIND`、`SERVER_PORT`、`FORUM_PORT`、`PUBLIC_ORIGIN`（环境唯一的对外地址，逐字等于 `deploy/environments.json` 的 origin）、`NODE_ENV`、`PORT`、`HOST`（容器内必须 `0.0.0.0`，否则 web 容器连不上）、`TRUST_PROXY`（反代层数，必须为 `2`：宿主 nginx 与 web 容器 nginx 两层；写 `true` 会让客户端伪造 IP，见 [ENVIRONMENTS](ENVIRONMENTS.md)）、`DB_PATH`、`POW_DIFFICULTY`、`COOKIE_DOMAIN`（留空 = host-only）、发信的 `MAIL_ALIYUN_FROM`、`MAIL_RESEND_FROM`、`MAIL_ASSET_BASE`、`MAIL_REPLY_TO`（留空 = 不带 Reply-To）、`MAIL_RECIPIENTS`（预发布和正式均为 `all`，#169），自建 GitLab 的 `GITLAB_SYNC`（正式 `off`、预发布 `on`）、`GITLAB_URL`、`GITLAB_GROUP`（#270）。密钥字段：`OAUTH_CLIENT_ID`、`OAUTH_CLIENT_SECRET`、`SESSION_SECRET`、`ENCRYPTION_KEY`、`TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`，以及可以不配的 `MAIL_ALIYUN_ACCESS_KEY_ID`、`MAIL_ALIYUN_ACCESS_KEY_SECRET`、`MAIL_RESEND_API_KEY`、`MAIL_ALLOWLIST`、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`OIDC_JWKS`、`GITLAB_API_TOKEN`（#270，后者只在 `GITLAB_SYNC=on` 时必填）——**仓库里必须留空**。发布身份（`GEEK_RELEASE_VERSION`、`GEEK_RELEASE_COMMIT`、`GEEK_RELEASE_DISPLAY_SUFFIX`）是 `BUILD_ONLY_FIELDS`：只经 build args 注入，写在 env 文件里不会被读取。
+字段、非密模板目标、`DEPLOY_PROXY_JUMP`、密钥注入和副本安全限制集中在 [ENVIRONMENTS](ENVIRONMENTS.md)。`TRUST_PROXY=2` 对应两层代理，`HOST=0.0.0.0` 仅用于容器内；发布身份只经 build args。邮件/sync 的模板值、运行副本值和数据库 effective mode 必须分别核对，不能只改日期或复制一份 env 当作部署完成。
 
 禁止把真实密钥写入仓库、镜像、日志或发布记录；`.env` 由目标机最小权限保存，不打印、不提交。
 
@@ -155,10 +185,11 @@ bash deploy-stack.sh --environment production \
 ## 回滚
 
 ```bash
-# 目标机（栈根）：
-bash deploy-stack.sh  ... # 部署失败时自动回滚（见上文「失败即回滚」）
-bash rollback-stack.sh --environment production --to <sha12|previous>
+# 获批后在目标机执行；CI/manual 将同 tag 的两个脚本一起分发到本环境 incoming：
+bash /opt/yzgc/production/incoming/rollback-stack.sh --environment production --to previous
 ```
+
+预发布对应 `/opt/yzgc/preview/incoming/rollback-stack.sh`，不能混用环境。2026-10-26 实查 Arch 两环境目前只有迁移原物料 `deploy-stack.sh`，尚无 `rollback-stack.sh`；以上命令须等获批 tag 的两个脚本一起分发后使用。不能拿工作区草稿覆盖旧发布物料。当前可用的是已验证的全量备份与隔离恢复路径，不冒称应用版本回滚已执行。
 
 `rollback-stack.sh` 只做两件事：把 `<栈根>/.env.<environment>` 的 `IMAGE_TAG` 改成目标 tag，然后 `docker compose up -d`。目标镜像只在本环境仓库 `yzgc-<environment>/…` 里找，另一环境同一 SHA 的镜像不能代替；compose 文件解析出的镜像不是本环境仓库时直接失败。它**不触碰数据卷、不删除数据、不清理镜像、不改分支或版本号**；`previous` = `deploy-history.log` 中与当前不同的最近一个 tag。可选参数 `--env-file`、`--stack-root`、`--compose-file`、`--health-timeout` 与部署脚本同名同义，健康门同样生效；结果写入同一份 `deploy-history.log`。
 
@@ -166,25 +197,38 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 
 回滚后重新执行健康检查并记录结果。旧日志、旧请求排队不能覆盖更晚版本；切换前再次核对目标环境、镜像 tag 与当前部署序号。
 
+### 最终切换与含新写入的回退
+
+2026-10-26 已停止旧应用、分别完成最终全卷快照与恢复，在原版镜像下接管并转发旧入口；Arch 为唯一写入源，原账号/GitLab 映射/sector/sub/会话及密钥保留。DNS 尚未切换不等于旧库仍是权威源。本次切换出现过已修复的 TLS 502，不宣称零停机；应用升级仍需新的 rc 验收与精确版本授权。
+
+回退必须先冻结新机写入，保全新帖子、报名、账号及积分事件并生成可核对的恢复点；验证旧镜像与迁后库/新增写入兼容，确定可执行回灌路径后才切回。只改 DNS 回旧库、丢弃新写入不算回滚。旧源、原镜像和恢复点保留完整观察窗口，停服与删除另批。
+
 ## 最小权限
 
 - 容器内进程非 root 运行（web 容器 nginx 以 nginx 用户跑非特权 8080）；镜像只含运行必需的代码与静态产物。
-- 宿主 nginx 只做 TLS 终止与反代，不读取应用密钥；安全头统一在宿主下发，容器不重复。唯一例外是论坛页面的 CSP：论坛容器下发站点策略加上论坛内联脚本的哈希，宿主模板开头的 `map` 只在 `/forum/` 下、上游已带 CSP 时不再叠加第二份，其它路径照发站点策略（#78）。站点策略的 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`（官网宣传片是 HLS，hls.js 用 XHR 取分片、以 `blob:` 地址交给 `<video>`，#77）。`connect-src` 另放行 `blob:`（手机 3D 模型的 GLB 内嵌贴图，three.js 的 `GLTFLoader` 先转成 `blob:` 地址再用 `fetch` 读取，#240）；论坛容器的策略取自同一份模板，会一起带上。`script-src`、`style-src`、`font-src` 只放行 CDN 上的 `https://cdn.crosery.com/yzgc/static/site/` 前缀（带哈希的静态文件，#146，见下文「静态资源 CDN」）；论坛容器的 CSP 取自同一份模板，构建时就带上。改宿主模板后要重新安装到服务器（只装对应环境那一份，先备份、`nginx -t` 再 reload），这一步不在 CI 里；发版后经公网确认 `/forum/` 只有一条带 `sha256-` 的 CSP（部署脚本的健康检查不经过宿主 nginx，查不出来）。
-- 比赛官网（#278）：`/c/<slug>/` 由 server 下发 `sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; …` 这份 CSP，宿主的站点策略照常叠加，浏览器取交集（两份都只放行 `'self'`，站点包不能引用外部地址）。上传站点包的 `POST /api/console/competitions/<id>/site/versions` 请求体是 zip（服务端上限 20MB）：web 容器只给这一条路径放宽到 `client_max_body_size 21m`，其余仍是 6m；宿主模板没有改，整站仍是 6m，所以经正式域名上传时超过 6MB 的包会被宿主 nginx 回 413（控制台写「文件超过了网关允许的上传大小」）。宿主模板只有一个反代 location，`X-Forwarded-For` 只追加一次、上游端口只写一处（`tests/tooling/deployment-environment.test.ts` 与 `hashed-asset-cache.test.ts` 核对），要放宽到 20MB 由所有者决定怎么改；第一期站点包约 230KB，不受影响。`tests/tooling/web-nginx.test.ts` 核对容器与宿主的上限。
+- **CSP 与代理等价性**：现行安全头由香港 Caddy 下发，旧入口已去掉重复头。论坛保留上游内联 `sha256-` CSP，不叠冲突策略；迁移复验首页和论坛均只有一份 CSP。原生产与预发布版本的策略差异保留，没有借迁移升级生产策略。HLS、GLB、CDN 和比赛 sandbox 的完整业务路径仍分别验证，生成器通过不代表已安装。
+- **比赛官网**：`/c/<slug>/` 的 server sandbox CSP 必须与默认策略取交集，不被边缘覆盖。容器仅比赛 zip 上传入口放宽到 21m，站点网关策略源仍为 6m，生成器沿用该上限；大包经整条链可能 413，不能顺带扩权。论坛 CSP、sandbox、上传/旧链接/HLS、Host/SNI、Secure Cookie/OIDC 和真实 IP 防伪造都列为目标验收，不由直连 `/healthz` 代替。
 - 部署用户的 SSH 密钥只存在于 GitHub 环境级 secrets 与维护者机器（`scripts/deploy-manual.mjs` 通过 `DEPLOY_SSH_KEY_FILE` 读取）；不在仓库、脚本或日志中出现。
 - 镜像与 env 文件按 600/最小权限落在栈根，发布产物不包含 `.env`、真实数据库或 SSH 材料；incoming 里分发来的归档与 env 副本在部署成功后删除（见「incoming 清理」）。
 
-## 静态资源 CDN（#146）
+## 静态资源 CDN（#295）
 
-开关、工作流、凭据与手工操作的顺序见 [CICD](CICD.md)「静态资源 CDN」。这里只写与宿主机、CDN 有关的部分。
+完整合同见 [CDN](CDN.md)，发布接线见 [CICD](CICD.md)。只允许构建前缀 `https://cdn.yangtzeu.work/geek-public/static/site/`，公开对象在 `geek-public`；HLS 在 `media/promo/`，邮件图片在 `mail/v1/`，业务数据不外移。
 
-- **先装模板，再给凭据**：部署工作流的 `cdn-plan` 在构建前 HEAD 一次环境首页，读线上 CSP；`script-src`、`style-src`、`font-src` 没有放行 `https://cdn.crosery.com/yzgc/static/site/` 就告警并同源构建。所以宿主机还是旧模板时，即使配了上传 token，页面也不会引用 CDN，不会出现样式、脚本被 CSP 拦下的情况。装模板的步骤同上文「最小权限」：只装对应环境那一份，先备份、`nginx -t` 再 reload。
-- **镜像里仍有全部文件**：开关只改页面引用的地址，web 与 forum 镜像照样带着 `/assets/`、`/console-assets/`、`/forum/_nuxt/`；server 镜像（#286）带着内置表情包的源图片和清单，内置表情图片的 CDN 地址只在开关打开时给，同源的 `/api/forum/stickers/<哈希>.webp`（图片本来就存在 `data.db` 里）始终可用。CDN 回源不经过我们的源站（文件是上传进七牛存储的），源站上的这些路径只是兜底，不会自动切换。
-- **CDN 出问题时**：删掉 GitHub Environment `static-cdn` 里的 `STATIC_CDN_UPLOAD_TOKEN`，重新运行这个 tag 的部署工作流（或打下一个 rc），这次就是同源构建。已经上线的镜像不会自己回到同源。
-- **回滚**：`rollback-stack.sh` 切回的旧镜像如果是开关打开时构建的，它引用的 CDN 对象仍在（上传只增不改，没有任何流程删除它们）。不要手工删 `yzgc/static/site/` 下的对象。
-- **CDN 的防盗链与 CORS（2026-09-26 用 curl 实测，不需要改 CDN 配置）**：`Referer: https://prev.yangtzeu.work/` 与 `https://yangtzeu.work/` 返回 200；别的站点（如 `https://evil.example/`）返回 403；不带 Referer 返回 200。`.js` 是 `text/javascript`，`.css` 是 `text/css`，`.woff2` 是 `font/woff2`，都带 `Access-Control-Allow-Origin: *`、`Cache-Control: public, max-age=31536000`、`Vary: Origin, Accept-Encoding`。CDN 对文本做 gzip（论坛入口 CSS 626,718 → 95,554 字节），不支持 brotli。站点的 `Referrer-Policy: strict-origin-when-cross-origin` 让浏览器发出 `https://<域名>/`，正好命中白名单。
-- **本机验证**：`http://127.0.0.1:<端口>/` 不在防盗链白名单里（实测 403）。本机用开关打开的构建做预览时，让本机服务器发 `Referrer-Policy: no-referrer`（不带 Referer 是放行的），或只看 HTML 里的地址，不要去改 CDN 的白名单。
-- **源站压缩**：web 与 forum 容器的 nginx 都对文本做 gzip，级别都是 6。forum 容器原来用 nginx 默认的 1，论坛入口 CSS（626,718 字节）经源站传 128,152 字节，改成 6 后本机 nginx 1.31.6 实测 95,932 字节（web 容器反代论坛时不会再压一次，所以只能在 forum 容器改）。web 容器和宿主 nginx 模板（`deploy/nginx/preview.conf`、`production.conf`）的 `gzip_types` 还包含 `application/wasm model/gltf-binary`，官网手机模型 1.77MB→1.16MB（#217）；宿主 nginx 模板改动要在宿主机上重新安装才生效。预压缩（`gzip_static`，`-9`）比 6 级只再少 0.2%–1.2%，`nginx:1.31-alpine` 没有 brotli 模块，所以没有做。
+- 先在香港按两环境策略源核对现行 Caddy 配置，保留论坛内联哈希与比赛 sandbox，备份、validate 并在授权后 reload，再经公网核对 CSP，再由受保护发布 job 注入 S3 环境凭据。无凭据或未放行 CSP 时按原约定同源构建；签名请求401或网络失败不得绕过认证或回旧服务。
+- 镜像始终保留全部同源构建资源，表情 BLOB 同源接口保持可用；宣传片、邮件和指南的固定 CDN 地址不能靠空构建开关恢复。
+- 上传器只在已存在对象完整 GET 逐字一致时复用，冲突拒绝；没有主动删除/覆盖调用，但 Garage 不提供 insertOnly/条件创建/WORM，跨进程与恶意写入者竞态未被客户端隔离。
+- 回滚到旧镜像所引用的资源不能删除；旧镜像仍引用旧供应商时，父级需保留原资源及迁移哈希清单，不移动发布 tag。
+- 新端点的两环境 GET/HEAD/Range、MIME、CORS、缓存、HLS 全链、匿名权限、TLS 与浏览器均由父级真实验收。旧七牛的防盗链、压缩和 CORS 实测不能作为新服务已经生效的证据。
+- 源站 web/forum nginx 的 gzip 级别保持6；本任务不修改压缩策略、镜像身份或部署授权门禁。
+
+## 香港对象存储（备份归档，不是站点 CDN）
+
+`cdn.yangtzeu.work` 是香港一台 1 vCPU / 1 GiB 小机器上的 S3 兼容对象存储（Garage + Caddy + S3 Manager），承担备份归档与公共图床；**站点带哈希的静态资源仍走七牛 `https://cdn.crosery.com`**，两者不是同一个 CDN，不要互相替代。
+
+- 配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)（`garage.toml`、`s3manager.env`、`Caddyfile`、`scripts/upload_demo.py`），合同见 [STORAGE-CDN](STORAGE-CDN.md)。
+- 模板里的密钥字段一律留空：S3 Access/Secret 在目标机 `/etc/s3manager.env`（0600），Garage 的 rpc/admin/metrics 三个 token 在 `/etc/garage.toml`，控制台 basic-auth 哈希由 systemd 变量 `S3MANAGER_ADMIN_HASH` 提供。仓库里出现真实值就是泄漏。
+- 这台机器不跑应用容器、数据库或 CI Runner；改 Caddyfile 先 `caddy validate` 再 `reload`，改 garage.toml 才 `restart garage`。
 
 ## 发布和回滚验收
 

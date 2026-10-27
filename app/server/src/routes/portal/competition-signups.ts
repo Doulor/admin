@@ -2,7 +2,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { requireCompetitionAccess, requireCompetitionNode } from "../../middleware/require-member.js";
 import { SCORE_ERRORS, type ScoreErrorCode } from "../../lib/competition-score-store.js";
-import { SIGNUP_ERRORS, type SignupErrorCode, type SignupFailure } from "../../lib/competition-signup-store.js";
+import { SIGNUP_ERRORS, type MyStatus, type SignupErrorCode, type SignupFailure } from "../../lib/competition-signup-store.js";
+import { publicCachePrefix } from "../../lib/competition-public.js";
 
 /** 报名与组队两种错误码合成一张表：路由只负责把存储层的结果翻成 HTTP。 */
 const ERRORS: Record<SignupErrorCode | ScoreErrorCode, { status: number; message: string }> = { ...SIGNUP_ERRORS, ...SCORE_ERRORS };
@@ -16,9 +17,14 @@ function refuse(reply: FastifyReply, error: SignupErrorCode | ScoreErrorCode) {
  * competition.*」），失败回稳定的错误码与中文说明（store 层的业务拒绝不是 403/429，http-policy.ts 的
  * 全局钩子不管，这里不用另记——SPEC 只要求 403 denied / 429 limited 两种，这些不在其列）。
  */
-function settle(req: FastifyRequest, reply: FastifyReply, action: string, competitionId: string, result: { ok: true; value: unknown } | SignupFailure, status = 200) {
+function settle(req: FastifyRequest, reply: FastifyReply, action: string, competitionId: string, write: () => ({ ok: true; value: MyStatus } | SignupFailure), status = 200) {
+  const result = req.server.services.storage.db.transaction(() => {
+    const value = write();
+    if (value.ok) req.server.services.activity.recordActivity(req, { action: `competition.${action}`, surface: "portal", target_type: "competition", target_id: competitionId, outcome: "ok" });
+    return value;
+  })();
   if (!result.ok) return refuse(reply, result.error);
-  req.server.services.activity.recordActivity(req, { action: `competition.${action}`, surface: "portal", target_type: "competition", target_id: competitionId, outcome: "ok" });
+  req.server.services.cache.invalidate(publicCachePrefix(result.value.competition_id));
   return reply.code(status).send(result.value);
 }
 
@@ -46,11 +52,11 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string }; Body: { note?: string; looking_for_team?: boolean } }>(
     "/api/competitions/:id/signup", signup,
-    async (req, reply) => settle(req, reply, "signup", req.params.id, signups.signUp(req.params.id, req.session!.account_id, req.body ?? {}, Date.now())),
+    async (req, reply) => settle(req, reply, "signup", req.params.id, () => signups.signUp(req.params.id, req.session!.account_id, req.body ?? {}, Date.now())),
   );
 
   app.delete<{ Params: { id: string } }>("/api/competitions/:id/signup", signup, async (req, reply) =>
-    settle(req, reply, "signup.cancel", req.params.id, signups.cancelSignUp(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "signup.cancel", req.params.id, () => signups.cancelSignUp(req.params.id, req.session!.account_id, Date.now())));
 
   app.get<{ Params: { id: string } }>("/api/competitions/:id/teams", read, async (req, reply) => {
     const result = signups.teams(req.params.id);
@@ -64,51 +70,51 @@ export default async function competitionSignupRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string }; Body: { name: string; slogan?: string } }>(
     "/api/competitions/:id/teams", team,
-    async (req, reply) => settle(req, reply, "team.create", req.params.id, signups.createTeam(req.params.id, req.session!.account_id, req.body, Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.create", req.params.id, () => signups.createTeam(req.params.id, req.session!.account_id, req.body, Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { message?: string } }>(
     "/api/teams/:id/apply", team,
-    async (req, reply) => settle(req, reply, "team.apply", req.params.id, signups.apply(req.params.id, req.session!.account_id, req.body.message ?? "", Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.apply", req.params.id, () => signups.apply(req.params.id, req.session!.account_id, req.body.message ?? "", Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { account_id: string } }>(
     "/api/teams/:id/invite", team,
-    async (req, reply) => settle(req, reply, "team.invite", req.params.id, signups.invite(req.params.id, req.session!.account_id, req.body.account_id, Date.now()), 201),
+    async (req, reply) => settle(req, reply, "team.invite", req.params.id, () => signups.invite(req.params.id, req.session!.account_id, req.body.account_id, Date.now()), 201),
   );
 
   app.post<{ Params: { id: string }; Body: { membership_id: string; action: "accept" | "decline" | "withdraw" } }>(
     "/api/teams/:id/respond", team,
-    async (req, reply) => settle(req, reply, `team.${req.body.action}`, req.params.id, signups.respond(
+    async (req, reply) => settle(req, reply, `team.${req.body.action}`, req.params.id, () => signups.respond(
       req.params.id, req.session!.account_id, req.body.membership_id, req.body.action, Date.now(),
     )),
   );
 
   app.post<{ Params: { id: string } }>("/api/teams/:id/leave", team, async (req, reply) =>
-    settle(req, reply, "team.leave", req.params.id, signups.leave(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.leave", req.params.id, () => signups.leave(req.params.id, req.session!.account_id, Date.now())));
 
   app.post<{ Params: { id: string }; Body: { account_id: string } }>(
     "/api/teams/:id/transfer", team,
-    async (req, reply) => settle(req, reply, "team.transfer", req.params.id, signups.transfer(req.params.id, req.session!.account_id, req.body.account_id, Date.now())),
+    async (req, reply) => settle(req, reply, "team.transfer", req.params.id, () => signups.transfer(req.params.id, req.session!.account_id, req.body.account_id, Date.now())),
   );
 
   app.delete<{ Params: { id: string } }>("/api/teams/:id", team, async (req, reply) =>
-    settle(req, reply, "team.disband", req.params.id, signups.disband(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.disband", req.params.id, () => signups.disband(req.params.id, req.session!.account_id, Date.now())));
 
   app.post<{ Params: { id: string } }>("/api/teams/:id/lock", team, async (req, reply) =>
-    settle(req, reply, "team.lock", req.params.id, signups.lock(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.lock", req.params.id, () => signups.lock(req.params.id, req.session!.account_id, Date.now())));
 
   app.delete<{ Params: { id: string } }>("/api/teams/:id/lock", team, async (req, reply) =>
-    settle(req, reply, "team.unlock", req.params.id, signups.unlock(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.unlock", req.params.id, () => signups.unlock(req.params.id, req.session!.account_id, Date.now())));
 
   // 组队广场广播（#278 重开）：领队开关「还在招募」，写一句话和想要的技能；撤下不清掉内容，下次重开不用再填。
   app.post<{ Params: { id: string }; Body: { recruiting: boolean; note?: string; wanted_skills?: string[] } }>(
     "/api/teams/:id/plaza", team,
-    async (req, reply) => settle(req, reply, "team.plaza", req.params.id, signups.setPlaza(req.params.id, req.session!.account_id, req.body, Date.now())),
+    async (req, reply) => settle(req, reply, "team.plaza", req.params.id, () => signups.setPlaza(req.params.id, req.session!.account_id, req.body, Date.now())),
   );
 
   app.delete<{ Params: { id: string } }>("/api/teams/:id/plaza", team, async (req, reply) =>
-    settle(req, reply, "team.plaza.withdraw", req.params.id, signups.withdrawPlaza(req.params.id, req.session!.account_id, Date.now())));
+    settle(req, reply, "team.plaza.withdraw", req.params.id, () => signups.withdrawPlaza(req.params.id, req.session!.account_id, Date.now())));
 
   // 组队广场（#278 重开）：只读聚合，不记操作记录（没有写任何状态）；筛选与分页全在 lib/competition-team-plaza.ts。
   app.get<{ Querystring: { competition_id?: string; kind?: "seeking_team" | "recruiting_team"; keyword?: string; cursor?: string; limit?: string } }>(

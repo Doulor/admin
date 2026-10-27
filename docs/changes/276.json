@@ -2,307 +2,230 @@
   "version": 1,
   "issue": 276,
   "kind": "business",
-  "summary": "论坛回复框、表情和控制台表情管理照 B 站改（所有者 2026-10-24 22:11–23:19、2026-10-25 00:13–00:51 的要求，原话见 MR）：回复框默认短抽屉、框下一行放表情、图片、取消、回复，「展开」写长文；表情面板一次一个包、图下写名字、底部页签、最近使用；表情在聊天框里是夹在字中间的 48px 行内图，不单独成块；照 B 站支持 `[包名_名字]` 写法，聊天框里打出来自动变成表情，帖子里也按表情显示，存的仍是短码；第一套极客娘里 15 张换成生图模型带字的版本，迁移把库里还是原图的换掉；控制台表情改成表情包卡片、点进去管理包里的表情，能新建表情包、批量加表情；服务端加 POST /api/console/forum/sticker-packs。",
+  "summary": "GitHub #276 首场内部个人赛的真实后台路由与CLI演练，修复收集原子性/竞态、自审、报名审计与缓存、定榜冻结和公开游标隐私，保留身份集成失败。",
   "applications": [
-    "forum",
-    "console",
     "server"
   ],
   "domains": [
-    "forum",
-    "organization",
-    "audit",
+    "competitions",
     "identity",
     "permissions",
-    "platform",
-    "recruitment",
-    "feedback",
-    "competitions",
+    "organization",
     "gitlab",
-    "github"
+    "audit",
+    "platform"
   ],
   "flows": [
-    "flow:forum.posts.reply",
-    "flow:forum.uploads.create",
-    "flow:forum.stickers.list",
-    "flow:console.forum.stickers.list",
-    "flow:console.forum.stickers.create",
-    "flow:console.forum.sticker_packs.create",
-    "flow:console.forum.categories.list",
-    "flow:console.summary",
-    "flow:identity.callback"
+    "flow:competition.signup.upsert",
+    "flow:competition.signup.cancel",
+    "flow:competition.signup_settings.update",
+    "flow:competition.leaderboard.read",
+    "flow:competition.public.participants",
+    "flow:competition.candidates.collect",
+    "flow:competition.candidates.accept",
+    "flow:competition.score_events.create",
+    "flow:competition.score_events.revoke",
+    "flow:competition.finalize",
+    "flow:competition.prize.redeem"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "论坛回复框分短抽屉和展开两种，框下面多了「图片」按钮，「回复」改成实心；表情在聊天框里是 48px 行内图，`[包名_名字]` 自动变成表情；表情面板按包分页签、图下写名字、带最近使用、悬停显示写法；15 张极客娘表情带字；控制台论坛管理的表情分表情包卡片和包详情两层，能新建表情包、批量加表情，名字在包里不重复、表情包不重名。",
+      "reason": "首场个人赛全流程及失败路径演练；基础分、年级权重、每周防刷、可选奖项不改。定榜结果与名单冻结，禁止自己审核或撤自己的扣分。",
       "evidence": [
-        "app/forum/app/components/ReplyComposer.vue",
-        "app/forum/app/components/PostEditor.vue",
-        "app/forum/app/components/StickerPicker.vue",
-        "app/forum/app/editor/inline-stickers.ts",
-        "app/forum/shared/post-markdown.ts",
-        "app/console/src/pages/forum/StickersTab.vue",
-        "app/console/src/pages/forum/NewStickerDialog.vue"
+        "app/server/src/lib/competition-score-store.ts",
+        "app/server/src/lib/competition-signup-store.ts",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "新增 POST /api/console/forum/sticker-packs（forum.sticker.manage + step-up，id 重复 409，写审计 forum.sticker_pack.create），forum-store 加 createStickerPack；forum v2 迁移加换带字表情图的一步；其余接口不变。",
+      "reason": "保留现有方法路径及响应；完善错误与事务边界。收集完整HTTP快照后原子应用，重查等待期间状态；增加隔离fixture复用真实应用而非平行handler。",
       "evidence": [
-        "app/server/src/routes/console/forum.ts",
-        "app/server/src/routes/console/contracts.ts",
-        "app/server/src/lib/forum-store.ts",
-        "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+        "app/server/src/lib/competition-candidates.ts",
+        "app/server/src/routes/portal/competition-signups.ts",
+        "scripts/contest-rehearsal-fixture.mts"
       ]
     },
     "permissions": {
-      "status": "unchanged",
-      "reason": "新接口沿用已有的 forum.sticker.manage 和 10 分钟内登录过的要求，没有新节点；论坛里的「图片」按钮沿用 forum.upload.image。",
+      "status": "changed",
+      "reason": "比赛手工计分及撤销禁止自审，定榜后报名和设置拒写。全局节点不接受仅部门scope；身份到期与停用映射三项严格红灯由#271修复，未复制其实现。",
       "evidence": [
-        "app/server/src/routes/console/forum.ts",
-        "app/forum/app/components/PostEditor.vue"
+        "app/server/src/lib/competition-score-store.ts",
+        "app/server/src/lib/competition-signup-store.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-identity-boundaries.test.ts",
+        "tests/server/competition-candidates.test.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "新接口往已有的 forum_sticker_packs 表插一行，表结构不变；forum v2 迁移加 recaptionYugcStickers：库里还指着 15 张原图的极客娘表情换成带字的新图（按原图 sha256 比对，管理员换过的不动，原图文件行保留），预发布库副本上跑两次，第一次换 15 张、forum_sticker_files 24→39，第二次零变化。",
+      "reason": "不改schema、不读真实库。现有SQLite内业务写入与activity原子提交，定榜两榜同一standings，人员游标不编码account_id。合成文件库验证重启和本次目录清理。",
       "evidence": [
-        "app/server/src/lib/forum-store.ts",
-        "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+        "app/server/src/lib/competition-candidates.ts",
+        "app/server/src/lib/competition-public.ts",
+        "app/server/src/lib/competition-score-store.ts",
+        "app/server/src/routes/portal/competition-signups.ts",
+        "tests/server/competition-rehearsal.test.ts"
       ]
     },
     "dependencies": {
-      "status": "unchanged",
-      "reason": "没有新增或升级依赖：服务端新接口只用已有的 better-sqlite3 语句和路由工具，论坛编辑器只用已有的 Milkdown/ProseMirror（行内表情的规则单独放在 inline-stickers.ts，只引类型），图标用已经装着的 Remix Icon，组件都是 Tuffex 0.9.1 已有的；带字表情图由 crapi（gpt-image-2.5）离线生成后放进仓库，运行时不调用任何外部服务。",
+      "status": "changed",
+      "reason": "无新增生产依赖或凭据；GitLab HTTP仍经同一Adapter，分页/超时/429/部分结果失败不再误写。fixture仅模拟外部OAuth/GitLab并禁止邮件与其他网络。",
       "evidence": [
-        "app/server/src/routes/console/forum.ts",
-        "app/server/src/lib/forum-store.ts",
-        "app/forum/app/components/StickerPicker.vue"
+        "app/server/src/lib/competition-candidates.ts",
+        "scripts/contest-rehearsal-fixture.mts",
+        "tests/server/competition-candidates.test.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "论坛文档写回复框两种模式、表情面板、48px 行内表情、`[包名_名字]` 写法和带字表情；控制台文档写表情包卡片两层、新建表情包、批量上传、名字不重复；数据模型写换带字图的迁移；接口合同加新建表情包一节；ADOPTION.json 记上游文件改动和样式例外的范围。",
+      "reason": "同步Server/API/安全/接口/quickstart/测试矩阵与catalog。先逐字归档历史GitLab同号论坛声明并记原blob，再替换当前GitHub比赛声明；旧notes只保留不改写。",
       "evidence": [
-        "docs/services/forum/README.md",
-        "docs/services/console/README.md",
-        "docs/services/server/data-model.md",
+        "docs/services/server/README.md",
+        "docs/services/server/competition-rehearsal.md",
         "docs/services/server/endpoint-contracts.md",
-        "app/forum/ADOPTION.json"
+        "docs/services/server/contest-site-quickstart.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/conventions/TESTING.md",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/history/changes/gitlab/README.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "论坛全部 vitest、nuxt typecheck、测试类型检查、lint、样式检查；新增 inline-stickers.test.ts、sticker-picker.test.ts、post-markdown 的 [包名_名字] 用例、回复框展开用例；服务端 forum-v2-endpoints 与 forum-v2-migration（换带字图、管理员换过的不动、第二次零变化）；控制台 tests/console 与 vue-tsc。本机隔离后端加论坛开发服务器、控制台样板数据下用浏览器在 1440 和 390 截图，2 倍屏核对 48px 表情清晰；预发布库副本迁移两遍。未验证：预发布真实数据，随 rc.21 截图。",
+      "reason": "全比赛297例289通过8失败，含3身份真实红与5网络环境失败，0跳过；inject闭环及重启通过。loopback网络、桌面手机浏览器和#271集成由父级补验，不能称就绪全绿。",
       "evidence": [
-        "app/forum/tests/inline-stickers.test.ts",
-        "app/forum/tests/sticker-picker.test.ts",
-        "app/forum/tests/post-markdown.test.ts",
-        "app/forum/tests/post-editor-flows.test.ts",
-        "tests/server/forum-v2-endpoints.test.ts",
-        "tests/server/forum-v2-migration.test.ts",
-        "tests/console/forum.test.ts"
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-identity-boundaries.test.ts",
+        "tests/server/competition-rehearsal.test.ts",
+        "tests/server/competition-candidates.test.ts",
+        "tests/server/competition-scores.test.ts",
+        "docs/services/server/competition-rehearsal.md"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "论坛、控制台和服务端三个镜像都要随 rc.21 重新构建发布；服务端镜像带上 15 张新表情图，启动时迁移换图。",
+      "status": "unchanged",
+      "reason": "仍随原server产物交付，无配置/镜像/tag/CI/deploy变动，无数据库迁移。fixture为显式CLI入口，不被生产应用导入；当前仅本地未提交改动，父级统一集成审查。",
       "evidence": [
-        "app/forum/app/components/ReplyComposer.vue",
-        "app/server/src/routes/console/forum.ts",
-        "app/console/src/pages/forum/StickersTab.vue"
+        "scripts/contest-rehearsal.mts",
+        "scripts/contest-rehearsal-fixture.mts",
+        "docs/services/server/competition-rehearsal.md"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/forum/app/components/ReplyComposer.vue",
-        "app/forum/app/components/PostEditor.vue",
-        "app/forum/uno.config.ts",
-        "app/forum/ADOPTION.json",
-        "app/forum/tests/post-editor-flows.test.ts",
-        "docs/services/forum/README.md",
-        "app/forum/app/editor/crepe-editor.ts",
-        "app/forum/app/editor/inline-stickers.ts",
-        "app/forum/shared/post-markdown.ts",
-        "app/forum/tests/inline-stickers.test.ts",
-        "app/forum/tests/post-markdown.test.ts",
-        "app/forum/tests/post-editor.test.ts",
-        "app/forum/tests/support/post-editor.ts"
+        "app/server/src/lib/competition-candidates.ts",
+        "app/server/src/lib/competition-public.ts",
+        "app/server/src/lib/competition-score-store.ts",
+        "app/server/src/lib/competition-signup-store.ts",
+        "app/server/src/routes/portal/competition-signups.ts"
       ],
       "domains": [
-        "forum",
-        "organization",
-        "audit",
+        "competitions"
+      ],
+      "nodes": [
+        "domain:competitions",
+        "flow:competition.signup.upsert",
+        "flow:competition.signup.cancel",
+        "flow:competition.signup_settings.update",
+        "flow:competition.leaderboard.read",
+        "flow:competition.public.participants",
+        "flow:competition.candidates.collect",
+        "flow:competition.candidates.accept",
+        "flow:competition.score_events.create",
+        "flow:competition.score_events.revoke",
+        "flow:competition.finalize",
+        "flow:competition.prize.redeem"
+      ],
+      "reason": "比赛持久化/收集/门户路由行为修复，复用既有业务合同与同一存储。"
+    },
+    {
+      "paths": [
+        "scripts/contest-rehearsal-fixture.mts",
+        "scripts/contest-rehearsal.mts",
+        "tests/server/competition-candidates.test.ts",
+        "tests/server/competition-identity-boundaries.test.ts",
+        "tests/server/competition-readiness.test.ts",
+        "tests/server/competition-rehearsal.test.ts",
+        "tests/server/competition-scores.test.ts"
+      ],
+      "domains": [
+        "competitions",
         "identity",
-        "permissions",
+        "gitlab",
+        "audit",
         "platform"
       ],
       "nodes": [
-        "application:forum",
-        "flow:forum.posts.reply",
-        "flow:forum.uploads.create"
+        "domain:competitions",
+        "flow:competition.candidates.collect",
+        "flow:competition.finalize"
       ],
-      "reason": "回复框分短抽屉和展开两种，框下一行放表情、图片、取消、回复，编辑框浅底、回复按钮实心；上游文件改动和样式例外记进 ADOPTION.json。表情在编辑器里是行内图，`[包名_名字]` 打出来变成表情、帖子里按表情显示（inline-stickers.ts、post-markdown.ts）。"
+      "reason": "真实路由矩阵、身份集成哨兵与隔离CLI闭环；严格失败不skip，网络和UI证据由父级独立补验。"
     },
     {
       "paths": [
-        "app/forum/app/components/StickerPicker.vue",
-        "app/forum/tests/sticker-picker.test.ts"
-      ],
-      "domains": [
-        "forum"
-      ],
-      "nodes": [
-        "application:forum",
-        "flow:forum.stickers.list"
-      ],
-      "reason": "表情面板照 B 站：一次一个包、图下写名字、底部页签、最近使用。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/console/forum.ts",
-        "app/server/src/lib/forum-store.ts",
-        "tests/server/forum-v2-endpoints.test.ts",
-        "docs/services/server/endpoint-contracts.md"
-      ],
-      "domains": [
-        "forum",
-        "identity",
-        "permissions",
-        "audit"
-      ],
-      "nodes": [
-        "application:server",
-        "flow:console.forum.sticker_packs.create"
-      ],
-      "reason": "新增新建表情包接口和用例，接口合同加一节，后面几条的源码行号跟着改。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/console/contracts.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "forum",
-        "gitlab",
-        "github",
-        "identity",
-        "organization",
-        "permissions",
-        "recruitment"
-      ],
-      "nodes": [
-        "application:server",
-        "flow:console.forum.sticker_packs.create",
-        "flow:console.summary",
-        "flow:identity.callback"
-      ],
-      "reason": "控制台路由共用的合同文件，登记的接口横跨这些业务域；本次只加 POST /api/console/forum/sticker-packs 一条合同，其余已登记合同不动。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/forum/StickersTab.vue",
-        "app/console/src/pages/forum/NewStickerDialog.vue",
-        "app/console/src/lib/forum.ts",
-        "app/console/src/mock/console.ts",
-        "tests/console/forum.test.ts",
-        "docs/services/console/README.md",
-        "app/console/src/pages/Forum.vue"
-      ],
-      "domains": [
-        "forum",
-        "identity",
-        "permissions",
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "application:console",
-        "flow:console.forum.stickers.list",
-        "flow:console.forum.stickers.create",
-        "flow:console.forum.sticker_packs.create",
-        "flow:console.forum.categories.list"
-      ],
-      "reason": "控制台表情改成表情包卡片和包详情两层（地址栏 ?pack=，换页签清掉），新建表情包、一次传多张表情，短码和名字按文件名起草，名字在包里不重复、表情包不重名；样板数据用仓库里的极客娘图。这几个控制台文件按控制台的归属登记在多个业务域下，本次只动论坛表情相关的部分。"
-    },
-    {
-      "paths": [
-        "docs/architecture/catalog/ownership.json",
-        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.en.md",
+        "docs/architecture/SECURITY.md",
         "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
         "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/permissions.md",
         "docs/architecture/catalog/routes.md",
-        "docs/architecture/catalog/data-model.md"
+        "docs/conventions/TESTING.md",
+        "docs/history/changes/gitlab/276.json",
+        "docs/history/changes/gitlab/README.md",
+        "docs/plan/COMPETITION-APP.md",
+        "docs/services/server/README.md",
+        "docs/services/server/competition-rehearsal.md",
+        "docs/services/server/contest-site-quickstart.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/INDEX.md"
       ],
       "domains": [
-        "forum",
+        "competitions",
         "identity",
         "permissions",
-        "audit"
+        "organization",
+        "gitlab",
+        "audit",
+        "platform"
       ],
       "nodes": [
-        "flow:console.forum.sticker_packs.create"
+        "domain:competitions",
+        "domain:platform"
       ],
-      "reason": "目录登记新建表情包的流程和证据，重新生成。"
-    },
-    {
-      "paths": [
-        "app/server/src/lib/migrations/2026-10-forum-v2.ts",
-        "tests/server/forum-v2-migration.test.ts",
-        "docs/services/server/data-model.md",
-        "app/server/assets/stickers/yugc/wave.webp",
-        "app/server/assets/stickers/yugc/thumbsup.webp",
-        "app/server/assets/stickers/yugc/confused.webp",
-        "app/server/assets/stickers/yugc/shocked.webp",
-        "app/server/assets/stickers/yugc/sleepy.webp",
-        "app/server/assets/stickers/yugc/cheer.webp",
-        "app/server/assets/stickers/yugc/thanks.webp",
-        "app/server/assets/stickers/yugc/think.webp",
-        "app/server/assets/stickers/yugc/smirk.webp",
-        "app/server/assets/stickers/yugc/proud.webp",
-        "app/server/assets/stickers/yugc/speechless.webp",
-        "app/server/assets/stickers/yugc/merged.webp",
-        "app/server/assets/stickers/yugc/go.webp",
-        "app/server/assets/stickers/yugc/goodnight.webp",
-        "app/server/assets/stickers/yugc/roger.webp"
-      ],
-      "domains": [
-        "forum"
-      ],
-      "nodes": [
-        "application:server",
-        "flow:forum.stickers.list"
-      ],
-      "reason": "第一套极客娘里 15 张换成带小字的图（所有者 2026-10-25「他们的表情包都是带点小文字的 看着更可爱一点」），迁移把库里还指着原图的换掉，管理员换过的不动，重复执行零变化。"
+      "reason": "契约、有限矩阵、旧声明逐字归档与来源、当前声明和catalog派生物同步，区分历史和本次证据。"
     }
   ],
   "documents": [
-    "docs/services/forum/README.md",
-    "docs/services/console/README.md",
-    "docs/services/server/data-model.md",
-    "docs/services/server/endpoint-contracts.md"
+    "docs/services/server/README.md",
+    "docs/services/server/competition-rehearsal.md",
+    "docs/services/server/endpoint-contracts.md",
+    "docs/services/server/contest-site-quickstart.md",
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md",
+    "docs/architecture/SECURITY.en.md",
+    "docs/conventions/TESTING.md",
+    "docs/plan/COMPETITION-APP.md",
+    "docs/history/changes/gitlab/README.md"
   ],
   "tests": [
-    "app/forum/tests/inline-stickers.test.ts",
-    "app/forum/tests/sticker-picker.test.ts",
-    "app/forum/tests/post-markdown.test.ts",
-    "app/forum/tests/post-editor.test.ts",
-    "app/forum/tests/post-editor-flows.test.ts",
-    "tests/server/forum-v2-endpoints.test.ts",
-    "tests/server/forum-v2-migration.test.ts",
-    "tests/console/forum.test.ts"
+    "tests/server/competition-readiness.test.ts",
+    "tests/server/competition-identity-boundaries.test.ts",
+    "tests/server/competition-rehearsal.test.ts",
+    "tests/server/competition-candidates.test.ts",
+    "tests/server/competition-scores.test.ts"
   ],
-  "compatibility": "接口只加不改；已有表情、短码和帖子里的 :短码: 都不变，旧帖照常显示；`[包名_名字]` 只在认得出的表情上生效，后面紧跟 ( [ : 的不换，Markdown 链接不受影响；回复框发出去的内容格式不变（存短码）；15 张表情换图后地址按新哈希变，原图文件行保留，缓存里的旧地址照样能打开。",
-  "migration": "forum v2 迁移加 recaptionYugcStickers：库里还指着原图的 15 张极客娘表情换成带字新图，按原图 sha256 比对，管理员换过的不动，原图文件行保留，重复执行零变化。预发布库副本（2026-10-25 01:00 备份）上跑两次：第一次换 15 张、forum_sticker_files 24→39，其余表行数不变；第二次所有表行数和内容都不变，表结构两次都不变。行数表贴在 MR。",
-  "rollback": "revert 本 MR 的合并提交，换回上一版镜像；这期间新建的表情包和表情留在库里，旧版控制台照样能看到、改名、停用；换过的 15 张表情指着新图，旧版照常显示（只是带字），要换回原图在控制台逐张改即可。"
+  "compatibility": "方法路径和DTO保持兼容；人员旧游标退回第一页。自审403与定榜后写入409为修复既有规则漏洞，不改计分合同。",
+  "migration": "无schema或真实数据迁移。历史GitLab 276声明逐字归档并记录38e23269bb8689c4772c5214dbdcdba8f227efde；新的GitHub 276声明仅对应本次比赛范围。",
+  "rollback": "代码回滚保留所有业务数据与历史声明，不移动发布tag。fixture退出只清理本次mkdtemp目录。父级需先合入#271并重跑严格失败用例，才可讨论首场放行。"
 }

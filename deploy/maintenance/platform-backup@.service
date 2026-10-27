@@ -1,0 +1,22 @@
+[Unit]
+Description=Platform system backup (%i)
+Requisite=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+WorkingDirectory=/opt/yzgc/tools
+ExecStart=/usr/bin/bash /opt/yzgc/tools/deploy/remote/platform-maintenance.sh backup --environment %i --env-file /opt/yzgc/%i/.env.%i
+TimeoutStartSec=35min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/opt/yzgc/%i
+RestrictAddressFamilies=AF_UNIX

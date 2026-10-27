@@ -118,6 +118,18 @@ export function createGitlabSync(db: Database.Database, deps: {
   const wantedAccess = (account: DirectoryAccount) => account.site_role === "admin" ? GITLAB_ACCESS.owner : GITLAB_ACCESS.developer;
   const wanted = (account: DirectoryAccount) => account.status === "active" && account.member;
 
+  function assertCurrent(account: DirectoryAccount): void {
+    const current = deps.directory.account(account.account_id);
+    if (!current || current.status !== account.status || current.member !== account.member || current.site_role !== account.site_role) {
+      throw new SyncError("gitlab_account_changed");
+    }
+  }
+
+  function writeApi(account: DirectoryAccount, method: string, path: string, body?: Record<string, unknown> | FormData) {
+    assertCurrent(account);
+    return gitlab(method, path, body);
+  }
+
   /** 第一次同步时的用户名：GitHub 登录名或站内登录名；保留名或已被别的账号占用时依次加 _yz、_yz2……。 */
   function freeUsername(account: DirectoryAccount, avoid: Set<string> = new Set()): string {
     const base = gitlabUsername(account.github?.login ?? account.handle ?? account.login);
@@ -202,7 +214,9 @@ export function createGitlabSync(db: Database.Database, deps: {
     const text = await res.text().catch(() => "");
     let data: unknown = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-    const next = Number(res.headers.get("x-next-page") ?? "");
+    const rawNext = res.headers.get("x-next-page") ?? "";
+    if (rawNext && !/^[1-9]\d*$/.test(rawNext)) throw new SyncError("gitlab_pagination_incomplete");
+    const next = Number(rawNext);
     return { status: res.status, data, nextPage: Number.isInteger(next) && next > 0 ? next : null };
   }
 
@@ -300,7 +314,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     const avatar = await avatarFor(source);
     const form = new FormData();
     form.append("avatar", avatar, `avatar.${AVATAR_EXTENSIONS[avatar.type]}`);
-    const result = await gitlab("PUT", `/users/${userId}`, form);
+    const result = await writeApi(account, "PUT", `/users/${userId}`, form);
     if (result.status !== 200) throw new SyncError(`gitlab_avatar_${result.status}`);
     db.prepare("UPDATE gitlab_accounts SET avatar_source = ?, updated_at = ? WHERE account_id = ?").run(source, clock(), account.account_id);
   }
@@ -320,7 +334,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     if (user.status !== 200) throw new SyncError(`gitlab_lookup_${user.status}`);
     let primary = String((user.data as { email?: unknown } | null)?.email ?? "").toLowerCase();
     if (wanted.primary && wanted.primary !== primary) {
-      const updated = await gitlab("PUT", `/users/${userId}`, { email: wanted.primary, skip_reconfirmation: true });
+      const updated = await writeApi(account, "PUT", `/users/${userId}`, { email: wanted.primary, skip_reconfirmation: true });
       if (updated.status === 200) primary = wanted.primary;
       else refused.push(updated.status);
     }
@@ -332,8 +346,8 @@ export function createGitlabSync(db: Database.Database, deps: {
     for (const email of wanted.others) {
       const existing = have.get(email);
       if (email === primary || existing?.confirmed) { present.add(email); continue; }
-      if (existing && !await deleteEmail(userId, existing.id, refused)) continue;
-      const added = await gitlab("POST", `/users/${userId}/emails`, { email, skip_confirmation: true });
+      if (existing && !await deleteEmail(account, userId, existing.id, refused)) continue;
+      const added = await writeApi(account, "POST", `/users/${userId}/emails`, { email, skip_confirmation: true });
       if (added.status === 201) present.add(email);
       else refused.push(added.status);
     }
@@ -344,7 +358,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     for (const email of stale) {
       const existing = have.get(email);
       if (!existing || email === primary || email === wanted.primary || wanted.others.includes(email)) continue;
-      if (!await deleteEmail(userId, existing.id, refused)) present.add(email);
+      if (!await deleteEmail(account, userId, existing.id, refused)) present.add(email);
     }
     const synced = { primary: primary === wanted.primary ? wanted.primary : before?.primary ?? null, others: [...present] };
     db.prepare("UPDATE gitlab_accounts SET emails_source = ?, updated_at = ? WHERE account_id = ?").run(emailsJson(synced), clock(), account.account_id);
@@ -352,25 +366,25 @@ export function createGitlabSync(db: Database.Database, deps: {
   }
 
   /** 删 GitLab 用户名下的一个次邮箱；没删掉时把状态码记进 refused。 */
-  async function deleteEmail(userId: number, emailId: number, refused: number[]): Promise<boolean> {
-    const removed = await gitlab("DELETE", `/users/${userId}/emails/${emailId}`);
+  async function deleteEmail(account: DirectoryAccount, userId: number, emailId: number, refused: number[]): Promise<boolean> {
+    const removed = await writeApi(account, "DELETE", `/users/${userId}/emails/${emailId}`);
     if (removed.status === 204) return true;
     refused.push(removed.status);
     return false;
   }
 
-  async function ensureMembership(userId: number, accessLevel: number): Promise<void> {
+  async function ensureMembership(account: DirectoryAccount, userId: number, accessLevel: number): Promise<void> {
     const group = encodeURIComponent(config.group);
-    const added = await gitlab("POST", `/groups/${group}/members`, { user_id: userId, access_level: accessLevel });
+    const added = await writeApi(account, "POST", `/groups/${group}/members`, { user_id: userId, access_level: accessLevel });
     if (added.status === 201) return;
     if (added.status !== 409) throw new SyncError(`gitlab_member_${added.status}`);
-    const updated = await gitlab("PUT", `/groups/${group}/members/${userId}`, { access_level: accessLevel });
+    const updated = await writeApi(account, "PUT", `/groups/${group}/members/${userId}`, { access_level: accessLevel });
     if (updated.status !== 200) throw new SyncError(`gitlab_member_${updated.status}`);
   }
 
   /** 封禁或解封；GitLab 对已经是这个状态的用户可能回错，再读一次状态，已经是想要的就算成功。 */
-  async function setBlocked(userId: number, blocked: boolean): Promise<void> {
-    const result = await gitlab("POST", `/users/${userId}/${blocked ? "block" : "unblock"}`);
+  async function setBlocked(account: DirectoryAccount, userId: number, blocked: boolean): Promise<void> {
+    const result = await writeApi(account, "POST", `/users/${userId}/${blocked ? "block" : "unblock"}`);
     if (result.status === 201) return;
     const user = await gitlab("GET", `/users/${userId}`);
     const state = (user.data as { state?: string } | null)?.state;
@@ -380,9 +394,48 @@ export function createGitlabSync(db: Database.Database, deps: {
 
   /** 按 OIDC 身份找 GitLab 用户：同步建的，或者他用极客班登录时 GitLab 自动建的。 */
   async function userByIdentity(sub: string): Promise<{ id: number; username: string } | undefined> {
-    const found = await gitlab("GET", `/users?extern_uid=${encodeURIComponent(sub)}&provider=${GITLAB_OIDC_PROVIDER}`);
-    if (found.status !== 200) throw new SyncError(`gitlab_lookup_${found.status}`);
-    return Array.isArray(found.data) ? found.data[0] as { id: number; username: string } | undefined : undefined;
+    const users: { id: number; username: string }[] = [];
+    let page = 1;
+    for (let count = 0; count < 10; count++) {
+      const found = await gitlab("GET", `/users?extern_uid=${encodeURIComponent(sub)}&provider=${GITLAB_OIDC_PROVIDER}&per_page=100&page=${page}`);
+      if (found.status !== 200) throw new SyncError(`gitlab_lookup_${found.status}`);
+      if (!Array.isArray(found.data) || found.data.some(user => !user || !Number.isSafeInteger(user.id) || user.id <= 0
+        || typeof user.username !== "string" || !user.username)) throw new SyncError("gitlab_lookup_incomplete");
+      users.push(...found.data);
+      const next = found.nextPage ?? (found.data.length === 100 ? page + 1 : null);
+      if (next === null) {
+        if (users.length > 1) throw new SyncError("gitlab_identity_ambiguous");
+        return users[0];
+      }
+      if (next !== page + 1) throw new SyncError("gitlab_pagination_incomplete");
+      page = next;
+    }
+    throw new SyncError("gitlab_pagination_incomplete");
+  }
+
+  /** 缓存的数字 id 不是身份凭证；每次写远端之前核对现存 sub 与管理员接口返回的完整绑定。 */
+  async function managedUser(account: DirectoryAccount, userId: number): Promise<{ id: number; username: string; state: "active" | "blocked" }> {
+    const sectorId = sector();
+    const sub = sectorId ? deps.subjects.existingSubject(sectorId, account.account_id) : null;
+    if (!sub) throw new SyncError("gitlab_subject_missing");
+    const result = await gitlab("GET", `/users/${userId}`);
+    if (result.status !== 200) throw new SyncError(`gitlab_lookup_${result.status}`);
+    const user = result.data as {
+      id?: unknown; username?: unknown; state?: unknown; is_admin?: unknown; bot?: unknown; user_type?: unknown;
+      identities?: { provider?: unknown; extern_uid?: unknown }[];
+    } | null;
+    if (!user || user.id !== userId || typeof user.username !== "string" || !user.username
+      || (user.state !== "active" && user.state !== "blocked") || typeof user.is_admin !== "boolean"
+      || !Array.isArray(user.identities)) throw new SyncError("gitlab_user_incomplete");
+    const bindings = user.identities.filter(identity => identity?.provider === GITLAB_OIDC_PROVIDER);
+    if (bindings.length !== 1 || bindings[0].extern_uid !== sub) {
+      throw new SyncError("gitlab_identity_mismatch");
+    }
+    if (user.is_admin || user.bot === true || (user.user_type != null && user.user_type !== "human")
+      || RESERVED_USERNAMES.has(user.username.toLowerCase())) throw new SyncError("gitlab_user_protected");
+    const mapped = mappedAccount(userId);
+    if (mapped && mapped !== account.account_id) throw new SyncError("gitlab_identity_mismatch");
+    return { id: userId, username: user.username, state: user.state };
   }
 
   /**
@@ -405,7 +458,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       let useNoreply = !account.email;
       for (let attempt = 0; attempt < 6 && !user; attempt++) {
         tried.add(username.toLowerCase());
-        const created = await gitlab("POST", "/users", {
+        const created = await writeApi(account, "POST", "/users", {
           username, name: profile.name, email: useNoreply ? placeholderEmail(username, sectorId) : account.email,
           extern_uid: sub, provider: GITLAB_OIDC_PROVIDER, skip_confirmation: true, force_random_password: true,
           bio: profile.bio, location: profile.location, website_url: profile.website_url,
@@ -419,9 +472,14 @@ export function createGitlabSync(db: Database.Database, deps: {
       }
       if (!user) throw new SyncError("gitlab_username_exhausted");
     }
-    db.prepare("UPDATE gitlab_accounts SET gitlab_user_id = ?, username = ?, state = 'active', updated_at = ? WHERE account_id = ?")
-      .run(user.id, user.username, clock(), account.account_id);
-    await ensureMembership(user.id, action.access_level);
+    const verified = await managedUser(account, user.id);
+    db.prepare("UPDATE gitlab_accounts SET gitlab_user_id = ?, username = ?, state = ?, updated_at = ? WHERE account_id = ?")
+      .run(verified.id, verified.username, verified.state, clock(), account.account_id);
+    if (verified.state === "blocked") {
+      await setBlocked(account, user.id, false);
+      db.prepare("UPDATE gitlab_accounts SET state = 'active' WHERE account_id = ?").run(account.account_id);
+    }
+    await ensureMembership(account, user.id, action.access_level);
     db.prepare("UPDATE gitlab_accounts SET access_level = ?, updated_at = ? WHERE account_id = ?").run(action.access_level, clock(), account.account_id);
   }
 
@@ -431,11 +489,12 @@ export function createGitlabSync(db: Database.Database, deps: {
     const sub = sectorId ? deps.subjects.existingSubject(sectorId, account.account_id) : null;
     const user = sub ? await userByIdentity(sub) : undefined;
     if (!user) return false;
+    await managedUser(account, user.id);
     const now = clock();
     db.prepare(`INSERT INTO gitlab_accounts(account_id, gitlab_user_id, username, state, access_level, created_at, updated_at)
       VALUES(?, ?, ?, 'active', NULL, ?, ?) ON CONFLICT(account_id) DO UPDATE SET gitlab_user_id = excluded.gitlab_user_id,
         username = excluded.username, state = 'active', updated_at = excluded.updated_at`).run(account.account_id, user.id, user.username, now, now);
-    await setBlocked(user.id, true);
+    await setBlocked(account, user.id, true);
     db.prepare("UPDATE gitlab_accounts SET state = 'blocked', updated_at = ? WHERE account_id = ?").run(clock(), account.account_id);
     return true;
   }
@@ -451,6 +510,7 @@ export function createGitlabSync(db: Database.Database, deps: {
       if (action.kind === "create") { await create(account, action); done.push(action); continue; }
       if (action.kind === "find_and_block") { if (await findAndBlock(account)) done.push(action); continue; }
       const userId = rowOf(account.account_id)!.gitlab_user_id!;
+      await managedUser(account, userId);
       if (action.kind === "set_avatar" || action.kind === "set_emails") {
         try {
           await (action.kind === "set_avatar" ? setAvatar(account, userId) : setEmails(account, userId));
@@ -459,10 +519,10 @@ export function createGitlabSync(db: Database.Database, deps: {
           continue;
         }
       } else if (action.kind === "block" || action.kind === "unblock") {
-        await setBlocked(userId, action.kind === "block");
+        await setBlocked(account, userId, action.kind === "block");
         db.prepare("UPDATE gitlab_accounts SET state = ?, updated_at = ? WHERE account_id = ?").run(action.kind === "block" ? "blocked" : "active", clock(), account.account_id);
       } else {
-        await ensureMembership(userId, action.access_level);
+        await ensureMembership(account, userId, action.access_level);
         db.prepare("UPDATE gitlab_accounts SET access_level = ?, updated_at = ? WHERE account_id = ?").run(action.access_level, clock(), account.account_id);
       }
       done.push(action);
@@ -476,26 +536,46 @@ export function createGitlabSync(db: Database.Database, deps: {
    * 是不是成员、什么角色按这一刻的账号重读，不用这一轮开头的名单：一轮跑到一半时管理员移除了某人并立即同步封了他，轮到他时不会按旧名单解封。
    * 这一刻已经查不到的账号（被合并进别的账号）什么都不做，也不拿旧名单里的数据去建号或解封。
    */
-  async function syncNow(snapshot: DirectoryAccount, actor: AuditActor): Promise<SyncOutcome> {
+  async function syncNow(snapshot: DirectoryAccount, actor: AuditActor, retries = 0): Promise<SyncOutcome> {
     const account = deps.directory.account(snapshot.account_id);
     if (!account) return { account_id: snapshot.account_id, login: snapshot.login, actions: [], applied: false, error: null };
-    const actions = plan(account);
+    let actions: SyncAction[] = [];
     const outcome: SyncOutcome = { account_id: account.account_id, login: account.login, actions, applied: false, error: null };
-    if (config.mode !== "on") return outcome;
-    if (!sector()) { outcome.error = "gitlab_client_missing"; return outcome; }
     const now = clock();
     let done: SyncAction[] = [];
     try {
+      if (account.account_id !== snapshot.account_id || !["active", "disabled"].includes(account.status)
+        || typeof account.member !== "boolean"
+        || (account.member ? account.status !== "active" || !["member", "admin"].includes(account.site_role ?? "") : account.site_role !== null)) {
+        throw new SyncError("gitlab_source_incomplete");
+      }
+      actions = plan(account);
+      outcome.actions = actions;
+      if (config.mode !== "on") return outcome;
+      if (!sector()) { outcome.error = "gitlab_client_missing"; return outcome; }
+      const row = rowOf(account.account_id);
+      if (row?.gitlab_user_id != null) {
+        const remote = await managedUser(account, row.gitlab_user_id);
+        assertCurrent(account);
+        db.prepare("UPDATE gitlab_accounts SET state = ? WHERE account_id = ?").run(remote.state, account.account_id);
+        actions = plan(account);
+        outcome.actions = actions;
+      }
       if (actions.length) done = await apply(account, actions);
+      assertCurrent(account);
       db.prepare("UPDATE gitlab_accounts SET last_error = NULL, last_error_at = NULL, synced_at = ? WHERE account_id = ?").run(clock(), account.account_id);
       outcome.applied = done.length > 0;
     } catch (error) {
+      // 网络等待期间资格可能改变；在同一账号锁内重算，已发送的状态变更也由新计划收敛。
+      if (error instanceof SyncError && error.code === "gitlab_account_changed" && retries < 2) return syncNow(snapshot, actor, retries + 1);
       outcome.error = error instanceof SyncError ? error.code : "gitlab_sync_failed";
-      db.prepare("UPDATE gitlab_accounts SET last_error = ?, last_error_at = ?, updated_at = ? WHERE account_id = ?").run(outcome.error, now, now, account.account_id);
+      if (config.mode === "on") {
+        db.prepare("UPDATE gitlab_accounts SET last_error = ?, last_error_at = ?, updated_at = ? WHERE account_id = ?").run(outcome.error, now, now, account.account_id);
+      }
     }
     // 按身份找、没找到人，或者找的时候就失败了（还没有这一行，什么也没改）：不写审计，免得 GitLab 出故障时这类账号每人每轮记一条
     const row = rowOf(account.account_id);
-    if (done.length || (outcome.error && row)) {
+    if (config.mode === "on" && (done.length || (outcome.error && row))) {
       deps.audit(actor, "gitlab.sync", row?.username ?? account.login,
         { account_id: account.account_id, actions: actions.map(item => item.kind), error: outcome.error }, undefined, { surface: "system" });
     }
@@ -567,9 +647,22 @@ export function createGitlabSync(db: Database.Database, deps: {
     return row && row.gitlab_user_id !== null ? { gitlabUserId: row.gitlab_user_id, username: row.username, state: row.state } : null;
   }
 
-  /** 反过来：GitLab 用户是哪个极客班账号；不是同步建的用户为 null。 */
-  function accountForGitlabUser(gitlabUserId: number): string | null {
+  function mappedAccount(gitlabUserId: number): string | null {
     return (db.prepare("SELECT account_id FROM gitlab_accounts WHERE gitlab_user_id = ?").get(gitlabUserId) as { account_id: string } | undefined)?.account_id ?? null;
+  }
+
+  /** 贡献归属也核对现存 OIDC 绑定，不能将缓存的数字 id 当成作者或审核人身份。HTTP 不确定则让调用方中止本轮。 */
+  async function accountForGitlabUser(gitlabUserId: number): Promise<string | null> {
+    const accountId = mappedAccount(gitlabUserId);
+    const account = accountId ? deps.directory.account(accountId) : null;
+    if (!account) return null;
+    try {
+      await managedUser(account, gitlabUserId);
+      return account.account_id;
+    } catch (error) {
+      if (error instanceof SyncError && ["gitlab_subject_missing", "gitlab_identity_mismatch", "gitlab_user_protected"].includes(error.code)) return null;
+      throw error;
+    }
   }
 
   let timer: ReturnType<typeof setInterval> | null = null;

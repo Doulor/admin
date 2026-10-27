@@ -72,10 +72,9 @@ ARG GEEK_RELEASE_COMMIT=""
 # nuxt.config.ts 据此设 app.cdnURL=<地址>forum/。只在构建阶段声明，运行阶段不继承。
 ARG STATIC_CDN_BASE=""
 
-# GEEK_FORUM_SOURCE=site：镜像是极客班论坛自己——站名「极客班论坛」、app/forum/content/curation.json
-# 里的分类和标签，加上 content/published 里公开的旧帖（去掉凭据后导出，只有首帖，作者是「极客班」）；
-# 没有回复、其他用户和通知（论坛还没有后端）。不带上游示例帖子，也不读任何内容目录，
-# 机器上的私有快照进不来。上游示例种子只留给 scripts/forum.mjs 的 check/generate/verify。
+# GEEK_FORUM_SOURCE=site：镜像是极客班论坛的界面壳，话题、分类、正文、Markdown 与旧帖图片都由核心
+# 按当前 viewer 动态提供。源数据仍参与 server 镜像播种，但不进入论坛客户端/静态产物；不带上游示例帖子，
+# 也不读任何私有快照。上游示例种子只留给 scripts/forum.mjs 的 check/generate/verify。
 # GEEK_FORUM_BASE_PATH=/forum/ 是路径挂载的前提（nuxt.config.ts 把它写进 app.baseURL）：
 # 产物 HTML 里的资源与路由前缀都必须是 /forum/，否则浏览器会去官网根路径找论坛资源
 # （见 app.config.json 的 sites.forum.basePath=/forum 与 web 容器的 /forum 反代）。
@@ -88,6 +87,8 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
     GEEK_RELEASE_COMMIT="$GEEK_RELEASE_COMMIT" \
     STATIC_CDN_BASE="$STATIC_CDN_BASE" \
     pnpm exec nuxt generate \
+ # site 的 llms、话题 Markdown 与 published 图片必须只走核心授权面；即使 Nuxt/public 以后又复制出来也在镜像层删掉。
+ && rm -rf .output/public/llms.txt .output/public/t/*.md .output/public/published \
  # 断言 baseURL 真的进了产物：失败信息比线上 404 好读得多。入口在开关打开时是 CDN 上的 <地址>forum/_nuxt/，
  # 关掉时是站内的 /forum/_nuxt/。
  && entry="${STATIC_CDN_BASE:+${STATIC_CDN_BASE}forum/_nuxt/}" \
@@ -95,19 +96,12 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
  && ! grep -q 'href="/_nuxt/' .output/public/index.html \
  # 开关打开时，头部 logo（代码里写的 public 文件）要变成 _nuxt/ 下带哈希的文件，才会随产物一起上传 CDN。
  && { test -z "$STATIC_CDN_BASE" || test -n "$(find .output/public/_nuxt -name 'logo.*.png' -print -quit)"; } \
- # 给 AI 读取的索引 llms.txt 与每篇公开旧帖的 t/<id>.md 必须随产物生成（nuxt.config.ts 的
- # nitro.prerender.routes）：机试文档 t73、t9（#87）和后来补进的现论坛帖子 t78、t84、t89（#108）；不公开的 t5、t15 没有文件。
- && test -s .output/public/llms.txt \
- && grep -q '极客班论坛' .output/public/llms.txt \
- && grep -q '极客班25级机试考核文档' .output/public/llms.txt \
- && test -s .output/public/t/t73.md \
- && test -s .output/public/t/t9.md \
- && test -s .output/public/t/t78.md \
- && test -s .output/public/t/t84.md \
- && test -s .output/public/t/t89.md \
- && ! test -e .output/public/t/t5.md \
- && ! test -e .output/public/t/t15.md \
- && test -n "$(find .output/public/published -name '*.webp' -print -quit)" \
+ # 构建物里不能留下可直接读取的源正文/索引/图片；外部 /forum 路径由 web 镜像转给 core。
+ && ! test -e .output/public/llms.txt \
+ && ! test -n "$(find .output/public/t -name '*.md' -print -quit 2>/dev/null)" \
+ && ! test -e .output/public/published \
+ && ! grep -rq '极客班25级机试考核文档' .output/public \
+ && ! grep -rq '国内 Agent 工具安装指南' .output/public \
  # 产物的文本文件里不能有邮箱地址（t73 原文里的共享账户已在导出时去掉），与 vitest 里的检查同一条规则；-I 跳过图片和字体，免得二进制字节碰巧像邮箱。
  # JS 包另用一条：编辑器（#276）带的 CodeMirror 语法表压缩后有形似邮箱的串（QpOAN@wO.NiQdO、9cQaOAN@wO.8），
  # 所以 JS 里只认后缀是 2–24 个同为小写或同为大写字母的地址，真实域名的后缀都是这样（example.com、QQ.COM）。
@@ -167,24 +161,15 @@ server {
     access_log /dev/stdout;
     error_log /dev/stderr warn;
 
-    # 给 AI 读取的话题 Markdown（t/<id>.md）与索引 llms.txt，构建时逐个生成。
-    # 官方 mime.types 没有 md，这里显式给出类型；charset 默认只加在 text/html 等少数类型上，
-    # 因此列出两种类型。文件不存在就是 404，不回落 SPA 壳：浏览器里新发的话题没有 .md。
-    location ~ \.md$ {
-        types { }
-        default_type text/markdown;
-        charset utf-8;
-        charset_types text/markdown;
-        add_header X-Content-Type-Options nosniff always;
-        try_files $uri =404;
-    }
+    # 文档与旧帖图片不在静态镜像里。外部入口由 web 容器直达 core；直接访问本容器也不能回落 SPA 壳。
     location = /llms.txt {
-        types { }
-        default_type text/plain;
-        charset utf-8;
-        charset_types text/plain;
-        add_header X-Content-Type-Options nosniff always;
-        try_files $uri =404;
+        return 404;
+    }
+    location ~ ^/t/[^/]+\.md$ {
+        return 404;
+    }
+    location ~ "^/published/[a-f0-9]{16}\.webp$" {
+        return 404;
     }
 
     # 带内容哈希的产物：长缓存。^~：前缀命中后不再看下面的图片正则，否则 _nuxt/ 里的字体、图片只缓存 7 天（#146）。

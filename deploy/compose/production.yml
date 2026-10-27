@@ -10,8 +10,8 @@
 #
 # 隔离与暴露边界：
 #   - 两套栈各有自己的 compose 项目名与命名卷，SQLite 与上传文件不可能互相看到；
-#   - 宿主端口一律绑 127.0.0.1（WEB_BIND / SERVER_BIND 整串就是「回环地址:端口」），
-#     公网入口只有宿主 nginx，容器端口不对 0.0.0.0 暴露；forum 不发布任何端口；
+#   - web 绑定 Arch tun0，server 只绑定回环；公网入口为香港 Caddy 经隧道反代，
+#     容器端口不对 0.0.0.0 暴露；forum 不发布任何端口；
 #   - 网络叫 internal 表示「只给本栈服务互连」。故意不开 docker 的 internal: true：
 #     那个开关会切断容器出网，而 server 必须能访问 api.github.com 完成 OAuth 登录。
 
@@ -27,6 +27,11 @@ services:
     restart: unless-stopped
     # 让 Node 进程正确收到 SIGTERM（index.ts 里注册了优雅关闭）。
     init: true
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    mem_limit: 512m
+    cpus: 1
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${SERVER_PORT:?}
@@ -96,13 +101,15 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-yzgc-production}-web
     restart: unless-stopped
     # nginx 启动时要解析 server / forum 两个上游名，因此必须等它们先起容器。
+    mem_limit: 128m
+    cpus: 0.5
     depends_on:
       server:
         condition: service_healthy
       forum:
         condition: service_started
     ports:
-      # 宿主回环 → 容器 8080（容器内 nginx 以 nginx 用户运行，不监听特权端口）。
+      # Arch tun0 → 容器 8080（容器内 nginx 以 nginx 用户运行，不监听特权端口）。
       - "${WEB_BIND:?}:8080"
     networks:
       - internal
@@ -124,6 +131,8 @@ services:
     image: yzgc-production/forum:${IMAGE_TAG:?}
     container_name: ${COMPOSE_PROJECT_NAME:-yzgc-production}-forum
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.5
     # 只声明不发布：论坛端口只给本栈的 web 容器用。
     # FORUM_PORT 是镜像里的固定监听端口（见 app/forum/Dockerfile 的 listen/EXPOSE），
     # web 容器的反代目标也是 3000；要改这个值必须同时改镜像与 web 的 nginx 配置。
@@ -151,6 +160,9 @@ networks:
   internal:
     name: ${COMPOSE_PROJECT_NAME:-yzgc-production}-internal
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.181.0/24
 
 volumes:
   data:

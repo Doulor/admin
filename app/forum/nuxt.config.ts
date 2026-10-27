@@ -4,7 +4,6 @@ import deploymentContract from '../../deploy/environments.json'
 import { selectContentSource } from './shared/content-source'
 import { createDeploymentMetadata } from './shared/deployment'
 import { markdownPrerenderRoutes, seedTopicIds } from './shared/forum-markdown'
-import { publishedTopicIds } from './shared/published'
 import { forumCdnURL, staticCdnBase } from '../../scripts/static-cdn-base.mjs'
 
 const siteDeployment = createDeploymentMetadata(
@@ -15,10 +14,9 @@ const siteDeployment = createDeploymentMetadata(
 )
 
 // 内容来源与登录方式都由构建环境决定，规则在 shared/content-source.ts（单测覆盖）：
-// - GEEK_FORUM_SOURCE=site：极客班论坛自己的站名、分类和标签（content/curation.json），加上公开的旧帖
-//   （content/published，只有首帖，作者统一是「极客班」）；没有回复、其他用户和通知。
-//   预发布与正式镜像（app/forum/Dockerfile）这样构建：不带示例帖子、用户与通知（示例种子不进产物），也不读内容目录；
-//   上游组件里只在示例模式可达的文案分支仍在打包结果里，运行时走不到。
+// - GEEK_FORUM_SOURCE=site：极客班论坛自己的站名与空 bootstrap；分类、标签、用户、话题和正文只从核心
+//   的当前 viewer 投影读取。预发布与正式镜像（app/forum/Dockerfile）这样构建：不带示例帖子，也不把
+//   content/published 或 public/published 作为可直接下载的 site 内容；上游示例分支运行时不可达。
 // - GEEK_FORUM_SOURCE=demo：上游示例种子。scripts/forum.mjs 的 check/generate/verify 默认用它
 //   （上游 CDP 验收依赖示例数据），它也压过本机 .env 里可能写着的快照目录。
 // - 不设置：GEEK_FORUM_CONTENT_DIR 非空时是本机只读快照（只有 dev 服务器的 /api/local-forum 提供），否则是示例种子。
@@ -26,9 +24,9 @@ const siteDeployment = createDeploymentMetadata(
 // 只有 scripts/forum.mjs 为上游 CDP 验收和本机示例预览设 GEEK_FORUM_LOGIN=demo，保留原仓的「选择一个身份」；
 // 真实数据（快照）和极客班论坛永远走统一登录。
 const { contentSource, contentDir: geekForumContentDir, siteName, loginMode } = selectContentSource(process.env)
-// 有静态 /t/<id>.md 的话题：示例种子的每个话题；极客班论坛是公开的旧帖。
-// 页面按这份名单决定要不要输出 alternate 链接（快照模式由 dev 服务器按请求生成，另算）。
-const markdownTopicIds = contentSource === 'site' ? publishedTopicIds() : seedTopicIds()
+// Site 的 Markdown 由核心按当前 viewer 动态生成，不能预渲染；示例种子仍保留原来的静态文档合同。
+const markdownTopicIds = contentSource === 'site' ? [] : seedTopicIds()
+const markdownRoutes = contentSource === 'site' ? [] : markdownPrerenderRoutes(markdownTopicIds)
 
 // 静态资源 CDN 开关（#146，规则在仓库根的 scripts/static-cdn-base.mjs）：STATIC_CDN_BASE 为空时与以前一样同源；
 // 非空时 app.cdnURL 指向 CDN 上的 <base>forum/，/forum/_nuxt/ 下的文件改从 CDN 加载，页面与接口仍走源站。
@@ -38,7 +36,7 @@ const cdnBase = staticCdnBase()
 // app.cdnURL 同时决定 Nuxt 的 publicAssetsURL：代码里写的 public/ 文件（如 ForumHeader 的 <img src="/logo.png">）
 // 会被改写成 CDN 上的 forum/logo.png。那是不带哈希的固定地址，上传脚本不传它。开关打开时，把代码 import 的
 // public/ 文件当成普通构建资源：Vite 给它带上内容哈希放进 _nuxt/，和其它产物一起上传。
-// 不经 import 的 public/ 文件（favicon、published/ 下的图片、llms.txt）不受影响，仍从源站取。
+// 不经 import 的 public/ 文件不受这个 Vite 插件影响；site 镜像另在 Dockerfile 删除 published/、llms 与话题 Markdown。
 const publicDir = fileURLToPath(new URL('./public', import.meta.url))
 // 论坛包不直接依赖 vite（pnpm 严格隔离），这里不 import 它的 Plugin 类型，按结构写出 Vite 插件。
 function hashPublicImports() {
@@ -87,13 +85,12 @@ export default defineNuxtConfig({
   // The editorial layer over the read-only snapshot (categories, tags,
   // polished bodies) lives in ./content and is read by server/utils through
   // `useStorage('assets:content')`.
-  // `/llms.txt` and `/t/<id>.md` are answered by server/middleware/forum-markdown.ts;
-  // prerendering them makes `nuxt generate` write one file per seed topic
-  // (only llms.txt for 极客班论坛, which has no topics yet), which is all the
-  // static image can serve.
+  // Demo builds prerender their seed documents. Site dev proxies the same
+  // paths to core in server/middleware/forum-markdown.ts; site images contain
+  // no llms/topic Markdown or published body assets.
   nitro: {
     serverAssets: [{ baseName: 'content', dir: fileURLToPath(new URL('./content', import.meta.url)) }],
-    prerender: { routes: markdownPrerenderRoutes(markdownTopicIds) },
+    prerender: { routes: markdownRoutes },
     // 本机开发：论坛单独跑在 3456，统一登录的会话在核心后端（127.0.0.1:3000）。cookie 按主机不按端口，
     // 5173 上登录后 127.0.0.1:3456 也带着同一个 sid，这里把 /auth 转给后端，论坛就能读 /auth/me。
     // 线上论坛与核心同域（/forum/ 由 web 容器反代），devProxy 不进静态产物。

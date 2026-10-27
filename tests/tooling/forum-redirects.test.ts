@@ -31,6 +31,17 @@ const locationBody = (site: string, name: string) =>
 const PRERENDERED = ['users', 'new', 'about', 'categories', 'tags', 'search', 'bookmarks', 'notifications'];
 
 describe('forum redirects stay relative (config)', () => {
+  it('web container sends dynamic forum documents and published assets straight to core before the static forum proxy', () => {
+    const llms = locationBody(webSite, '= /forum/llms.txt');
+    expect(llms).toContain('proxy_pass http://server:3000;');
+    expect(llms).toContain('include /etc/nginx/conf.d/90-proxy-headers.conf;');
+    const forum = locationBody(webSite, '^~ /forum/');
+    expect(forum).toContain('location ~ ^/forum/t/[^/]+\\.md$ {');
+    expect(forum).toContain('location ~ "^/forum/published/[a-f0-9]{16}\\.webp$" {');
+    expect(forum.match(/proxy_pass http:\/\/server:3000;/g)).toHaveLength(2);
+    expect(forum).toContain('proxy_pass http://forum:3000/;');
+  });
+
   it('web container: /forum redirects to a relative /forum/, and forum redirects get the prefix back', () => {
     expect(serverLevel(webSite).match(/^    absolute_redirect off;$/gm)).toHaveLength(1);
     expect(locationBody(webSite, '= /forum')).toBe('        return 308 /forum/;\n');
@@ -86,6 +97,16 @@ describe.skipIf(!nginxBinary)('forum redirects through host → web → forum (l
         location: response.headers.location ?? null,
         page: /data-page="([\w-]+)"/.exec(body)?.[1] ?? null,
       }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+  const getText = (port: number, path: string) => new Promise<{ status: number; body: string; type: string | null }>((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port, path, agent: false, headers: { host: 'prev.yangtzeu.work', cookie: 'sid=dynamic-doc-viewer' } }, response => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { body += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode ?? 0, body, type: response.headers['content-type'] ?? null }));
     });
     req.on('error', reject);
     req.end();
@@ -158,7 +179,7 @@ describe.skipIf(!nginxBinary)('forum redirects through host → web → forum (l
       web(ports.webLegacy, ports.legacyForum),
       forum(ports.forum),
       legacyForum,
-      `  server { listen 127.0.0.1:${ports.server}; access_log off; location / { default_type application/json; return 200 '{}'; } }`,
+      `  server { listen 127.0.0.1:${ports.server}; access_log off; location / { default_type text/plain; return 200 "$request_uri|$http_cookie"; } }`,
       '}', '',
     ].join('\n'));
 
@@ -210,6 +231,15 @@ describe.skipIf(!nginxBinary)('forum redirects through host → web → forum (l
       const response = await get(ports.host, path);
       const expected = path === '/forum/' ? 'index' : path === '/forum/t/t89' ? 'spa' : path.split('/')[2];
       expect([path, response]).toEqual([path, { status: 200, location: null, page: expected }]);
+    }
+  });
+
+  it('final /forum llms, Markdown and published paths reach core unchanged with the viewer cookie', async () => {
+    for (const path of ['/forum/llms.txt', '/forum/t/t73.md', '/forum/published/aaaaaaaaaaaaaaaa.webp']) {
+      for (const port of [ports.web, ports.host]) {
+        const response = await getText(port, path);
+        expect([port, path, response.status, response.body]).toEqual([port, path, 200, `${path}|sid=dynamic-doc-viewer`]);
+      }
     }
   });
 

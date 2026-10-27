@@ -5,6 +5,7 @@ import { toast } from '@talex-touch/tuffex/utils'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { createForumApi, ForumApiError, uploadFileProblem } from '../../shared/forum-api'
+import { siteForumState } from '../../shared/site-state'
 import { useForumStore } from './forum'
 import { useSessionStore } from './session'
 
@@ -14,11 +15,12 @@ import { useSessionStore } from './session'
  *
  * - `load()` runs once after mount (plugins/site-state.client.ts). Success
  *   replaces the forum store and signs the session in as `viewer.userId`
- *   (null for a guest). Failure leaves the published posts the build shipped,
- *   and `status: 'error'` switches every write off. A 429 is not an outage:
- *   what the page shows stays, a toast says 请求太频繁 once (not again for
- *   every refused retry), and the store asks again later with a growing wait
- *   (`busy` until then if nothing had loaded yet).
+ *   (null for a guest). A failed first read stays empty; a failed
+ *   revalidation clears the old projection instead of restoring source
+ *   bodies, and `status: 'error'` switches every write off. A 429 is not an
+ *   outage: a projection already confirmed for this identity stays, a toast
+ *   says 请求太频繁 once (not again for every refused retry), and the store asks
+ *   again later with a growing wait (`busy` until then if nothing had loaded).
  * - A write answers with only the records it changed (`WriteResult`, #145),
  *   merged into the store in place (`applyChanges`), so a like redraws one
  *   button rather than every page.
@@ -69,6 +71,17 @@ export interface SigninLapse {
   ended: boolean
   failed: string | null
   message: string | null
+}
+
+interface RefreshIdentityOptions {
+  /**
+   * A same-login revalidation still replaces the server projection and
+   * invalidates in-flight writes, but local refused replies belong to the same
+   * person and must remain available to the composer.
+   */
+  preserveLocalWork?: boolean
+  /** The state request that discovered an expired session continues as guest. */
+  preserveLoading?: boolean
 }
 
 /** The id a reply has while it is being sent; the server's ids never contain a colon. */
@@ -185,6 +198,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
   let stickersLoading: Promise<void> | null = null
 
   let loading: Promise<boolean> | null = null
+  /** Every request belongs to one viewer projection; a late answer may not restore an older one. */
+  const projectionVersion = ref(0)
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let retryAttempt = 0
   /** 请求太频繁 has been said since the state last loaded; the retries and view counts after it stay quiet. */
@@ -258,6 +273,11 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   function apply(snapshot: ServerSnapshot): void {
+    const topicIds = new Set(snapshot.state.topics.map(topic => topic.id))
+    // A category can tighten without changing the viewer's permission nodes.
+    // Reads from before that authoritative removal must not put its bodies back.
+    if (viewer.value && (!sameViewer(viewer.value, snapshot.viewer) || forum.state.topics.some(topic => !topicIds.has(topic.id))))
+      resetProjection()
     serverPosts.clear()
     serverReads.clear()
     remember(snapshot.state)
@@ -267,13 +287,41 @@ export const useForumServerStore = defineStore('forum-server', () => {
     status.value = 'ready'
   }
 
+  /** Discard the old viewer's server projection before asking for another identity. */
+  function resetProjection({ preserveLocalWork = false, preserveLoading = false }: RefreshIdentityOptions = {}): void {
+    projectionVersion.value += 1
+    clearTimeout(retryTimer)
+    retryAttempt = 0
+    saidRateLimited = false
+    if (!preserveLoading)
+      loading = null
+    topicLoads.clear()
+    lanes.clear()
+    serverPosts.clear()
+    serverReads.clear()
+    if (!preserveLocalWork)
+      refusedReplies.value = []
+    reacting.clear()
+    forum.replaceState(siteForumState())
+    viewer.value = null
+    session.currentUserId = null
+    status.value = 'idle'
+  }
+
+  function refreshIdentity(options: RefreshIdentityOptions = {}): Promise<boolean> {
+    resetProjection(options)
+    return load()
+  }
+
   /**
    * The page turns guest at once, before the state is read again: that read
    * may be refused with 429, and member controls must not stay on meanwhile.
    */
-  function noteSignedOut({ ended, failed = null, message = null }: { ended: boolean, failed?: string | null, message?: string | null }): void {
-    viewer.value = null
-    session.currentUserId = null
+  function noteSignedOut(
+    { ended, failed = null, message = null }: { ended: boolean, failed?: string | null, message?: string | null },
+    options: Pick<RefreshIdentityOptions, 'preserveLoading'> = {},
+  ): void {
+    resetProjection(options)
     signinLapse.value = { count: signinLapse.value.count + 1, ended, failed, message }
   }
 
@@ -288,32 +336,42 @@ export const useForumServerStore = defineStore('forum-server', () => {
    * cookie (#164): the state is read once more, as a guest, instead of the
    * forum showing as unreachable.
    */
-  async function readState(): Promise<ServerSnapshot> {
-    try {
-      return await api.state()
-    }
-    catch (error) {
-      if (!isSessionEnded(error))
-        throw error
-      noteSignedOut({ ended: true })
-      return await api.state()
-    }
-  }
-
   function load(): Promise<boolean> {
-    loading ??= (async () => {
-      // Only the first read holds the pages back; a page that already shows something keeps showing it
-      // while the state is re-read (after signing out, after a 429).
+    if (loading)
+      return loading
+    let version = projectionVersion.value
+    const pending = (async () => {
+      // Initial and identity-reset reads start from the empty projection. A
+      // same-identity retry after 429 may keep the projection already confirmed
+      // for that identity while this request is in flight.
       if (status.value === 'idle')
         status.value = 'loading'
       try {
-        apply(await readState())
+        let snapshot: ServerSnapshot
+        try {
+          snapshot = await api.state()
+        }
+        catch (error) {
+          if (version !== projectionVersion.value)
+            return false
+          if (!isSessionEnded(error))
+            throw error
+          noteSignedOut({ ended: true }, { preserveLoading: true })
+          version = projectionVersion.value
+          status.value = 'loading'
+          snapshot = await api.state()
+        }
+        if (version !== projectionVersion.value)
+          return false
+        apply(snapshot)
         clearTimeout(retryTimer)
         retryAttempt = 0
         saidRateLimited = false
         return true
       }
       catch (error) {
+        if (version !== projectionVersion.value)
+          return false
         if (isRateLimited(error)) {
           if (status.value !== 'ready')
             status.value = 'busy'
@@ -321,16 +379,21 @@ export const useForumServerStore = defineStore('forum-server', () => {
           retryLater()
           return false
         }
+        if (status.value === 'ready')
+          resetProjection()
         viewer.value = null
         session.currentUserId = null
         status.value = 'error'
+        retryLater()
         return false
       }
       finally {
-        loading = null
+        if (version === projectionVersion.value)
+          loading = null
       }
     })()
-    return loading
+    loading = pending
+    return pending
   }
 
   /**
@@ -341,19 +404,20 @@ export const useForumServerStore = defineStore('forum-server', () => {
    * their wish again, in case this answer carried an older value of the same
    * record.
    */
-  function merge(result: WriteResult, from?: Lane): void {
+  function merge(result: WriteResult, version: number, from?: Lane): boolean {
+    if (version !== projectionVersion.value)
+      return false
+    if (!sameViewer(viewer.value, result.viewer)) {
+      void refreshIdentity()
+      return false
+    }
     remember(result.changes)
     forum.applyChanges(result.changes)
-    if (result.viewer.userId !== (viewer.value?.userId ?? null)) {
-      void load()
-      return
-    }
-    if (!sameViewer(viewer.value, result.viewer))
-      viewer.value = result.viewer
     for (const lane of lanes.values()) {
       if (lane !== from)
         lane.reassert()
     }
+    return true
   }
 
   /** Whether a write about to go out is sent as a member; its failure is judged by that, not by who the page shows by then. */
@@ -378,13 +442,15 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   /** Runs one write that waits for the server; `null` means it failed and the toast already said why. */
-  async function attempt<T>(failure: string, task: () => Promise<T>): Promise<T | null> {
+  async function attempt<T>(failure: string, task: (version: number) => Promise<T | null>): Promise<T | null> {
+    const version = projectionVersion.value
     const asMember = sentAsMember()
     try {
-      return await task()
+      return await task(version)
     }
     catch (error) {
-      fail(failure, error, asMember)
+      if (version === projectionVersion.value)
+        fail(failure, error, asMember)
       return null
     }
   }
@@ -400,6 +466,7 @@ export const useForumServerStore = defineStore('forum-server', () => {
    * then the wishes of the other lanes still out, which may share the record).
    */
   function steer<V>(key: string, wish: V, spec: LaneSpec<V>): Promise<Settled<V> | null> {
+    const version = projectionVersion.value
     const running = lanes.get(key)
     if (running) {
       running.wish = wish
@@ -425,7 +492,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
       try {
         for (;;) {
           const sent = lane.wish as V
-          merge(await spec.send(sent, confirmed), lane)
+          if (!merge(await spec.send(sent, confirmed), version, lane))
+            return null
           confirmed = serverSays()
           const latest = lane.wish as V
           if (spec.same(latest, sent) || spec.same(latest, confirmed))
@@ -434,6 +502,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
         }
       }
       catch (error) {
+        if (version !== projectionVersion.value)
+          return null
         // Another lane's answer may have moved the server on since this one last looked.
         if (spec.confirmed)
           confirmed = spec.confirmed()
@@ -446,7 +516,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
         return null
       }
       finally {
-        lanes.delete(key)
+        if (lanes.get(key) === lane)
+          lanes.delete(key)
       }
     })()
     lane.done = done
@@ -455,9 +526,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
 
   /** Without a viewer or the record on the page there is nothing to show early: the request goes out as it is. */
   function plainly<T>(failure: string, send: () => Promise<WriteResult>, after: () => T): Promise<T | null> {
-    return attempt(failure, async () => {
-      merge(await send())
-      return after()
+    return attempt(failure, async (version) => {
+      return merge(await send(), version) ? after() : null
     })
   }
 
@@ -474,10 +544,9 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   function createTopic(body: CreateTopicBody): Promise<string | null> {
-    return attempt('话题没有发出去', async () => {
+    return attempt('话题没有发出去', async (version) => {
       const result = await api.createTopic(body)
-      merge(result)
-      return result.topicId
+      return merge(result, version) ? result.topicId : null
     })
   }
 
@@ -488,10 +557,9 @@ export const useForumServerStore = defineStore('forum-server', () => {
   async function sendReply(body: CreatePostBody, authorId: string, shown: ReplyShown | undefined, send: () => Promise<WriteResult & { postId: string }>): Promise<string | null> {
     const topic = forum.topicById(body.topicId)
     if (!topic) {
-      return attempt('回复没有发出去', async () => {
+      return attempt('回复没有发出去', async (version) => {
         const result = await send()
-        merge(result)
-        return result.postId
+        return merge(result, version) ? result.postId : null
       })
     }
     pendingCount += 1
@@ -505,13 +573,17 @@ export const useForumServerStore = defineStore('forum-server', () => {
     const pending = { posts: [id] }
     shown?.(id)
     const asMember = sentAsMember()
+    const version = projectionVersion.value
     try {
       const result = await send()
+      if (version !== projectionVersion.value)
+        return null
       forum.removeRecords(pending)
-      merge(result)
-      return result.postId
+      return merge(result, version) ? result.postId : null
     }
     catch (error) {
+      if (version !== projectionVersion.value)
+        return null
       forum.removeRecords(pending)
       const current = forum.topicById(body.topicId)
       if (current && current.lastActivityAt === at)
@@ -526,10 +598,9 @@ export const useForumServerStore = defineStore('forum-server', () => {
       return Promise.resolve(null)
     const authorId = viewer.value?.userId
     if (!authorId) {
-      return attempt('回复没有发出去', async () => {
+      return attempt('回复没有发出去', async (version) => {
         const result = await api.createPost(body)
-        merge(result)
-        return result.postId
+        return merge(result, version) ? result.postId : null
       })
     }
     return sendReply(body, authorId, shown, () => api.createPost(body))
@@ -762,7 +833,7 @@ export const useForumServerStore = defineStore('forum-server', () => {
   }
 
   async function waitFor(failure: string, send: () => Promise<WriteResult>): Promise<boolean> {
-    return await attempt(failure, async () => merge(await send())) !== null
+    return await attempt(failure, async version => merge(await send(), version) ? true : null) !== null
   }
 
   /**
@@ -782,9 +853,12 @@ export const useForumServerStore = defineStore('forum-server', () => {
       return running
     if (status.value !== 'ready')
       return Promise.resolve(false)
+    const version = projectionVersion.value
     const pending = (async () => {
       try {
         const posts = await api.topicPosts(topicId)
+        if (version !== projectionVersion.value)
+          return false
         // Bodies only: a list answer's `excerpt` stays what the list shows.
         // `remember` also takes the bodies as the server's last word, so a
         // refused edit afterwards puts this text back rather than an empty one.
@@ -793,12 +867,15 @@ export const useForumServerStore = defineStore('forum-server', () => {
         return true
       }
       catch (error) {
+        if (version !== projectionVersion.value)
+          return false
         if (isRateLimited(error))
           sayRateLimited()
         return false
       }
       finally {
-        topicLoads.delete(topicId)
+        if (version === projectionVersion.value)
+          topicLoads.delete(topicId)
       }
     })()
     topicLoads.set(topicId, pending)
@@ -823,15 +900,20 @@ export const useForumServerStore = defineStore('forum-server', () => {
     if (sameReactions(before, post.reactions))
       return true
     reacting.add(key)
+    const version = projectionVersion.value
     const asMember = sentAsMember()
     try {
       const answer = await api.react(postId, sticker.stickerId, on)
+      if (version !== projectionVersion.value)
+        return false
       const current = forum.postById(postId)
       if (current)
         current.reactions = answer
       return true
     }
     catch (error) {
+      if (version !== projectionVersion.value)
+        return false
       const current = forum.postById(postId)
       if (current)
         current.reactions = before
@@ -839,7 +921,8 @@ export const useForumServerStore = defineStore('forum-server', () => {
       return false
     }
     finally {
-      reacting.delete(key)
+      if (version === projectionVersion.value)
+        reacting.delete(key)
     }
   }
 
@@ -882,13 +965,18 @@ export const useForumServerStore = defineStore('forum-server', () => {
    * hidden topic (401 or 403 with the identity it needs) from a missing one.
    */
   async function probeTopic(topicId: string): Promise<TopicAbsence> {
+    const version = projectionVersion.value
     try {
       const posts = await api.topicPosts(topicId)
-      remember({ posts })
-      forum.applyChanges({ posts })
+      if (version === projectionVersion.value && forum.topicById(topicId)) {
+        remember({ posts })
+        forum.applyChanges({ posts })
+      }
       return 'unknown'
     }
     catch (error) {
+      if (version !== projectionVersion.value)
+        return 'unknown'
       if (!(error instanceof ForumApiError))
         return 'unknown'
       if (error.status === 404)
@@ -901,13 +989,17 @@ export const useForumServerStore = defineStore('forum-server', () => {
 
   /** The server's search (#156): the browser no longer holds every body to match on. */
   async function search(query: string): Promise<SearchAnswer['results'] | null> {
+    const version = projectionVersion.value
     const term = query.trim()
     if (!term)
       return { topics: [], posts: [], users: [] }
     try {
-      return await api.search(term)
+      const answer = await api.search(term)
+      return version === projectionVersion.value ? answer : null
     }
     catch (error) {
+      if (version !== projectionVersion.value)
+        return null
       if (isRateLimited(error))
         sayRateLimited()
       else if (error instanceof ForumApiError)
@@ -918,6 +1010,7 @@ export const useForumServerStore = defineStore('forum-server', () => {
 
   return {
     status,
+    projectionVersion,
     viewer,
     granted,
     stickerPacks,
@@ -925,6 +1018,7 @@ export const useForumServerStore = defineStore('forum-server', () => {
     signinLapse,
     noteSignedOut,
     noteSessionEnded,
+    refreshIdentity,
     keepRefusedReply,
     takeRefusedReplies,
     load,

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createConfig } from '../../app/server/src/config';
-import { gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
+import { createGitlabSync, gitlabUsername } from '../../app/server/src/lib/gitlab-sync';
+import type { DirectoryAccount } from '../../app/server/src/lib/account-directory';
 import { activityRows, signIn as rawSignIn, testApp } from './helpers';
 
 /**
@@ -27,6 +28,7 @@ const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
 type FakeEmail = { id: number; email: string; confirmed_at: string | null };
 type FakeUser = {
   id: number; username: string; email: string; name: string; state: 'active' | 'blocked'; extern_uid: string | null; provider: string | null;
+  is_admin?: boolean; bot?: boolean; user_type?: string;
   bio?: string; location?: string; website_url?: string; avatar?: string; emails?: FakeEmail[];
 };
 const CONFIRMED = '2026-10-23T12:00:00.000Z';
@@ -43,6 +45,7 @@ function fakeGitlab() {
   const members = new Map<number, number>();
   const calls: string[] = [];
   const failures: { match: string; status: number }[] = [];
+  const replies: { match: string; respond: () => Response }[] = [];
   const holds: { match: string; reached: () => void; released: Promise<void> }[] = [];
   let unreachable = false;
   let nextId = 100;
@@ -73,6 +76,8 @@ function fakeGitlab() {
     }
     const failure = failures.findIndex(item => call.startsWith(item.match));
     if (failure >= 0) return json(failures.splice(failure, 1)[0].status, { message: 'injected failure' });
+    const reply = replies.findIndex(item => `${call}${url.search}`.startsWith(item.match));
+    if (reply >= 0) return replies.splice(reply, 1)[0].respond();
     const body = typeof init.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : null;
     let match: RegExpMatchArray | null;
     if (method === 'GET' && path === '/users') {
@@ -94,7 +99,10 @@ function fakeGitlab() {
     if ((match = path.match(/^\/users\/(\d+)$/))) {
       const user = users.find(item => item.id === Number(match![1]));
       if (!user) return json(404, { message: '404 User Not Found' });
-      if (method === 'GET') return json(200, user);
+      if (method === 'GET') return json(200, {
+        is_admin: false, bot: false, ...user,
+        identities: user.provider ? [{ provider: user.provider, extern_uid: user.extern_uid }] : [],
+      });
       if (method === 'PUT' && body) {
         expect(body).toEqual({ email: expect.any(String), skip_reconfirmation: true });
         const email = String(body.email);
@@ -160,6 +168,7 @@ function fakeGitlab() {
   return {
     users, members, calls, fetch,
     fail(match: string, status: number) { failures.push({ match, status }); },
+    replyOnce(match: string, respond: () => Response) { replies.push({ match, respond }); },
     /** 下一次匹配的请求停在半路：`reached` 在它到达时兑现，`release()` 之后才继续。 */
     hold(match: string) {
       let reached!: () => void;
@@ -220,6 +229,258 @@ function emailsOn(gitlab: ReturnType<typeof fakeGitlab>, username: string) {
   return [user.email, ...(user.emails ?? []).map(item => item.email).sort()];
 }
 
+describe('GitLab managed identity safety (#271)', () => {
+  it.each([{ member: undefined }, { status: 'unknown' }, { member: false, site_role: 'member' }])(
+    'incomplete source qualification %j cannot block, and does not stop a healthy account',
+    async invalid => {
+      const { app, gitlab, github, accountOf, db } = await setup();
+      signIn(app, 'alice', 101);
+      signIn(app, 'bob', 202);
+      await app.services.gitlab.reconcile();
+      const alice = userNamed(gitlab, 'alice')!;
+      const services = app.services;
+      const sync = createGitlabSync(db, {
+        config: services.config.gitlab,
+        directory: {
+          listForSync: services.directory.listForSync,
+          account(id) {
+            const current = services.directory.account(id);
+            return current && id === accountOf(101) ? { ...current, ...invalid } as DirectoryAccount : current;
+          },
+        },
+        subjects: services.oidcStore, clients: services.oidcStore, avatars: services.profiles, audit: services.storage.audit,
+        fetch: gitlab.fetch, githubFetch: github.fetch,
+      });
+      const writes = gitlab.writes().length;
+      const run = await sync.reconcile();
+      expect(run).toMatchObject({ accounts: 2, failed: 1, changed: 0 });
+      expect(run.outcomes.find(outcome => outcome.account_id === accountOf(101))?.error).toBe('gitlab_source_incomplete');
+      expect(run.outcomes.find(outcome => outcome.account_id === accountOf(202))?.error).toBeNull();
+      expect(alice.state).toBe('active');
+      expect(gitlab.writes().slice(writes)).toEqual([]);
+    },
+  );
+
+  it('does not attribute contributions through a stale cached OIDC mapping, even before the next sync', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    expect(await app.services.gitlab.accountForGitlabUser(alice.id)).toBe(accountOf(101));
+    alice.extern_uid = 'a-different-person';
+    expect(await app.services.gitlab.accountForGitlabUser(alice.id)).toBeNull();
+  });
+
+  it('does not block a cached remote id after its OIDC binding changes', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    expect((await app.services.gitlab.reconcile()).failed).toBe(0);
+    const alice = userNamed(gitlab, 'alice')!;
+    alice.extern_uid = 'another-subject';
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const before = gitlab.writes().length;
+    const result = await app.services.gitlab.syncAccount(accountOf(101), 'system');
+    expect(result?.error).toBe('gitlab_identity_mismatch');
+    expect(alice.state).toBe('active');
+    expect(gitlab.writes().slice(before)).toEqual([]);
+  });
+
+  it('does not block a remote user carrying conflicting bindings for the same provider', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const details = () => new Response(JSON.stringify({ ...alice, is_admin: false, identities: [
+      { provider: 'openid_connect', extern_uid: alice.extern_uid },
+      { provider: 'openid_connect', extern_uid: 'another-subject' },
+    ] }), { status: 200 });
+    gitlab.replyOnce(`GET /users/${alice.id}`, details);
+    gitlab.replyOnce(`GET /users/${alice.id}`, details);
+    const writes = gitlab.writes().length;
+    expect((await app.services.gitlab.syncAccount(accountOf(101), 'system'))?.error).toBe('gitlab_identity_mismatch');
+    expect(alice.state).toBe('active');
+    expect(gitlab.writes().slice(writes)).toEqual([]);
+  });
+
+  it.each([{}, null, [null], [{ id: '100', username: 'alice' }]])('does not create on an incomplete identity response: %j', async data => {
+    const { app, gitlab } = await setup();
+    signIn(app, 'alice', 101);
+    gitlab.replyOnce('GET /users?', () => new Response(JSON.stringify(data), { status: 200 }));
+    const run = await app.services.gitlab.reconcile();
+    expect(run.failed).toBe(1);
+    expect(gitlab.writes()).toEqual([]);
+    expect(gitlab.users).toEqual([]);
+  });
+
+  it('does not block from a partial identity page when the next page fails; retries a complete lookup', async () => {
+    const { app, gitlab, accountOf, subOf } = await setup();
+    signIn(app, 'alice', 101);
+    const sub = subOf(101);
+    gitlab.users.push({ id: 444, username: 'alice', name: 'Alice', email: 'same@example.test', state: 'active', provider: 'openid_connect', extern_uid: sub });
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    gitlab.replyOnce('GET /users?', () => new Response(JSON.stringify([{ id: 444, username: 'alice' }]), { status: 200, headers: { 'x-next-page': '2' } }));
+    gitlab.replyOnce('GET /users?', () => new Response('{}', { status: 503 }));
+    expect((await app.services.gitlab.reconcile()).failed).toBe(1);
+    expect(gitlab.users[0].state).toBe('active');
+    expect(gitlab.writes()).toEqual([]);
+    expect(app.services.gitlab.gitlabUserFor(accountOf(101))).toBeNull();
+    expect((await app.services.gitlab.reconcile()).failed).toBe(0);
+    expect(gitlab.users[0].state).toBe('blocked');
+  });
+
+  it('rechecks authority after awaited identity lookup when an account returns during sync', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const held = gitlab.hold(`GET /users/${alice.id}`);
+    const before = gitlab.writes().length;
+    const pending = app.services.gitlab.reconcile();
+    await held.hit;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
+    const immediate = app.services.gitlab.syncAccount(accountOf(101), 'system');
+    held.release();
+    expect((await pending).failed).toBe(0);
+    expect((await immediate)?.error).toBeNull();
+    expect(gitlab.writes().slice(before)).toEqual([]);
+    expect(alice.state).toBe('active');
+  });
+
+  it('does not treat a skipped identity page as a complete lookup before blocking', async () => {
+    const { app, gitlab, accountOf, subOf } = await setup();
+    signIn(app, 'alice', 101);
+    gitlab.users.push({ id: 444, username: 'alice', name: 'Alice', email: 'alice@example.test', state: 'active',
+      provider: 'openid_connect', extern_uid: subOf(101) });
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    gitlab.replyOnce('GET /users?', () => new Response(JSON.stringify([{ id: 444, username: 'alice' }]),
+      { status: 200, headers: { 'x-next-page': '3' } }));
+    gitlab.replyOnce('GET /users?', () => new Response('[]', { status: 200 }));
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_pagination_incomplete');
+    expect(gitlab.users[0].state).toBe('active');
+    expect(gitlab.writes()).toEqual([]);
+    expect(app.services.gitlab.gitlabUserFor(accountOf(101))).toBeNull();
+  });
+
+  it('reblocks a revoked managed account if its remote state drifted after a successful block', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    expect(alice.state).toBe('blocked');
+    alice.state = 'active';
+    expect((await app.services.gitlab.reconcile()).failed).toBe(0);
+    expect(alice.state).toBe('blocked');
+  });
+
+  it('converges to restored authority when restoration happens after block was sent', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    const sub = alice.extern_uid;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const held = gitlab.hold(`POST /users/${alice.id}/block`);
+    const pending = app.services.gitlab.reconcile();
+    await held.hit;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
+    held.release();
+    expect((await pending).failed).toBe(0);
+    expect(alice.state).toBe('active');
+    expect(alice.extern_uid).toBe(sub);
+  });
+
+  it('keeps failed block retryable instead of recording a successful revocation', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    gitlab.fail(`POST /users/${alice.id}/block`, 503);
+    expect((await app.services.gitlab.syncAccount(accountOf(101), 'system'))?.error).toBe('gitlab_block_503');
+    expect(alice.state).toBe('active');
+    expect((await app.services.gitlab.syncAccount(accountOf(101), 'system'))?.error).toBeNull();
+    expect(alice.state).toBe('blocked');
+  });
+
+  it.each([401, 403, 404, 429, 500, 503])('HTTP %i during mapped identity verification cannot block, and retry still revokes', async status => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    gitlab.fail(`GET /users/${alice.id}`, status);
+    const writes = gitlab.writes().length;
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe(`gitlab_lookup_${status}`);
+    expect(alice.state).toBe('active');
+    expect(gitlab.writes().slice(writes)).toEqual([]);
+    expect((await app.services.gitlab.reconcile()).failed).toBe(0);
+    expect(alice.state).toBe('blocked');
+  });
+
+  it.each([
+    { is_admin: true }, { bot: true }, { user_type: 'service_account' }, { username: 'root' },
+  ])('never mutates protected remote users: %j', async protectedFields => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    Object.assign(alice, protectedFields);
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const writes = gitlab.writes().length;
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_user_protected');
+    expect(alice.state).toBe('active');
+    expect(gitlab.writes().slice(writes)).toEqual([]);
+  });
+
+  it.each([null, { id: 100 }, { id: 100, username: 'alice', state: 'active', is_admin: false }])('incomplete remote details are unknown, not evidence for block: %j', async details => {
+    const { app, gitlab, accountOf } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    gitlab.replyOnce(`GET /users/${alice.id}`, () => new Response(JSON.stringify(details), { status: 200 }));
+    const writes = gitlab.writes().length;
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_user_incomplete');
+    expect(alice.state).toBe('active');
+    expect(gitlab.writes().slice(writes)).toEqual([]);
+  });
+
+  it('missing sub and request timeout do not regenerate a subject or block a cached id', async () => {
+    const { app, gitlab, accountOf, db } = await setup();
+    signIn(app, 'alice', 101);
+    await app.services.gitlab.reconcile();
+    const alice = userNamed(gitlab, 'alice')!;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    const writes = gitlab.writes().length;
+    gitlab.replyOnce(`GET /users/${alice.id}`, () => { throw new DOMException('Synthetic timeout', 'TimeoutError'); });
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_unreachable');
+    db.prepare('DELETE FROM oauth_subjects WHERE user_id = ?').run(accountOf(101));
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_subject_missing');
+    expect(app.services.oidcStore.existingSubject('git.example.test', accountOf(101))).toBeNull();
+    expect(gitlab.writes().slice(writes)).toEqual([]);
+    expect(alice.state).toBe('active');
+  });
+
+  it('does not adopt ambiguous lookup results or merge an unmanaged user with the same email', async () => {
+    const { app, gitlab, accountOf, subOf } = await setup();
+    signIn(app, 'alice', 101);
+    const sub = subOf(101);
+    gitlab.users.push({ id: 999, username: 'unmanaged', email: 'shared@example.test', name: 'Unmanaged', state: 'active', provider: null, extern_uid: null });
+    app.services.identity.linkEmail({ accountId: accountOf(101), email: 'shared@example.test', login: 'alice', claim: () => true });
+    gitlab.replyOnce('GET /users?', () => new Response(JSON.stringify([{ id: 100, username: 'alice' }, { id: 101, username: 'other' }]), { status: 200 }));
+    expect((await app.services.gitlab.reconcile()).outcomes[0].error).toBe('gitlab_identity_ambiguous');
+    expect(gitlab.writes()).toEqual([]);
+    expect((await app.services.gitlab.reconcile()).failed).toBe(1); // only the duplicate email update fails
+    expect(app.services.gitlab.gitlabUserFor(accountOf(101))?.gitlabUserId).not.toBe(999);
+    expect(userNamed(gitlab, 'alice')?.extern_uid).toBe(sub);
+    expect(gitlab.users[0]).toMatchObject({ id: 999, state: 'active', provider: null, extern_uid: null, email: 'shared@example.test' });
+  });
+});
+
 describe('GitLab account sync (#270)', () => {
   it('creates one GitLab user per member with the OIDC identity, profile, avatar and group access', async () => {
     const { app, gitlab, github, accountOf, promote, subOf, row } = await setup(SYNC_ENV, {
@@ -254,7 +515,7 @@ describe('GitLab account sync (#270)', () => {
     expect(alice.emails!.every(item => item.confirmed_at)).toBe(true);
     expect(JSON.parse(String(row(101)!.emails_source))).toEqual({ primary: null, others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com'] });
     expect(app.services.gitlab.gitlabUserFor(accountOf(101))).toEqual({ gitlabUserId: alice.id, username: 'alice', state: 'active' });
-    expect(app.services.gitlab.accountForGitlabUser(admiral.id)).toBe(accountOf(1));
+    expect(await app.services.gitlab.accountForGitlabUser(admiral.id)).toBe(accountOf(1));
 
     // 第二次对账什么都不用做，也不再读 GitHub
     const writes = gitlab.writes().length;
@@ -526,14 +787,14 @@ describe('GitLab account sync (#270)', () => {
     const audits = audit();
     const calls = gitlab.calls.length;
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
-    expect(gitlab.calls.slice(calls)).toEqual(['GET /users']);
+    expect(gitlab.calls.slice(calls).sort()).toEqual(['GET /users', 'GET /users/61']);
     expect(audit()).toEqual(audits);
     // GitLab 不通时 erin 的查找失败：算进 failed，可她没有这一行、什么也没改，同样不写审计
     gitlab.setUnreachable(true);
-    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 1 });
+    expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 2 });
     gitlab.setUnreachable(false);
     expect(row(105)).toBeUndefined();
-    expect(audit()).toEqual(audits);
+    expect(audit()).toEqual(audits + 1); // 已管理的 alice 记核验失败，未找到的 erin 仍不记。
 
     // 回来了：alice 解封沿用原来的号，erin 照常建号
     app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'member', actor: 'system' });
@@ -711,16 +972,17 @@ describe('GitLab commit emails (#272)', () => {
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 1, failed: 0 });
     expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com', 'alice@work.example.test']);
     expect(gitlab.calls.slice(before)).toEqual([
+      `GET /users/${alice.id}`, `GET /users/${alice.id}`,
       `GET /users/${alice.id}`, `PUT /users/${alice.id}`, `GET /users/${alice.id}/emails`, `POST /users/${alice.id}/emails`, expect.stringMatching(new RegExp(`^DELETE /users/${alice.id}/emails/\\d+$`)),
     ]);
     expect(JSON.parse(String(row(101)!.emails_source))).toEqual({
       primary: 'alice@example.test', others: ['101+alice@users.noreply.github.com', 'alice@users.noreply.github.com', 'alice@work.example.test'],
     });
 
-    // 没变：下一轮一个 GitLab 请求都不发
+    // 没变：只核验绑定与远端状态，不重写邮箱。
     before = gitlab.calls.length;
     expect(await app.services.gitlab.reconcile()).toMatchObject({ changed: 0, failed: 0 });
-    expect(gitlab.calls).toHaveLength(before);
+    expect(gitlab.calls.slice(before)).toEqual([`GET /users/${alice.id}`]);
 
     // 在极客班删掉工作邮箱：GitLab 上也删掉，别的不动
     const work = emailIds(app, accountOf(101)).find(item => item.label.startsWith('a***@work'))!;
@@ -782,7 +1044,7 @@ describe('GitLab commit emails (#272)', () => {
     expect(emailsOn(gitlab, 'alice')).toEqual(['alice@example.test', '101+alice@users.noreply.github.com', 'alice@users.noreply.github.com']);
     const calls = gitlab.calls.length;
     await app.services.gitlab.reconcile();
-    expect(gitlab.calls).toHaveLength(calls);
+    expect(gitlab.calls.slice(calls)).toEqual([`GET /users/${userNamed(gitlab, 'alice')!.id}`]);
   });
 
   it('replaces an email someone added on GitLab but could not confirm', async () => {
