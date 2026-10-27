@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 环境契约：`deploy/env/.env.<environment>` 与 `deploy/environments.json` 的一致性校验 + 运行时环境文件渲染。
+ * 环境契约：模板与环境身份一致性校验、运行时环境文件及受控 SSH 配置渲染。
  *
  * 契约边界：
  *   * `deploy/environments.json` 是环境身份（域名、GitHub environment 名）的唯一机器配置。
@@ -8,16 +8,20 @@
  *     管理端靠 URL 路径（/admin、/console）区分，不再有独立域名或按站点的 host 字段。
  *   * `deploy/env/.env.production|preview` 是**提交入库的模板**：地址/端口/域名写真实值，
  *     密钥项必须为空；目标机运行时文件由 CI 用环境级 secrets 渲染后落盘（本脚本 render 模式）。
+ *   * SSH 目标三项与环境哨兵必须显式提供并匹配模板；跳板只取模板，不读取默认 SSH config。
  *   * 本脚本只读仓库、只写显式 `--out` 目标；不连接服务器、不发版、不改任何 Git 状态。
  *
  * 用法：
  *   node scripts/deployment-environment.mjs --check [--root <仓库根>]
  *   node scripts/deployment-environment.mjs render --environment <preview|production> \
  *     --out <运行时 env 文件路径> --image-tag <12 位 SHA>
+ *   node scripts/deployment-environment.mjs ssh-config --environment <preview|production> \
+ *     --out <SSH 配置路径> --key-file <私钥路径> --known-hosts-file <主机公钥路径>
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -68,7 +72,7 @@ export const MAIL_RECIPIENT_MODES = Object.freeze(['all', 'allowlist']);
 /** GitLab 账号同步（#270）：off 不同步，dry-run 只算出要做什么（不要令牌），on 照做。 */
 export const GITLAB_SYNC_MODES = Object.freeze(['off', 'dry-run', 'on']);
 /** 允许为空但不属于密钥的字段（留空是明确的语义）。MAIL_REPLY_TO 空 = 信里不带 Reply-To，改指向官网意见箱。 */
-const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'MAIL_REPLY_TO']));
+const EMPTY_IS_MEANINGFUL = Object.freeze(new Set([...SECRET_FIELDS, 'COOKIE_DOMAIN', 'MAIL_REPLY_TO', 'DEPLOY_PROXY_JUMP']));
 /** 模板里必须存在的非密钥字段。 */
 const REQUIRED_FIELDS = Object.freeze([
   'GEEK_DEPLOYMENT_ENVIRONMENT',
@@ -78,6 +82,7 @@ const REQUIRED_FIELDS = Object.freeze([
   'DEPLOY_HOST',
   'DEPLOY_PORT',
   'DEPLOY_USER',
+  'DEPLOY_PROXY_JUMP',
   'IMAGE_TAG',
   'WEB_BIND',
   'SERVER_BIND',
@@ -143,9 +148,8 @@ export const EXPECTED_ORIGINS = Object.freeze({
 /** 任何名字长得像密钥的键，一旦有非空值即拒绝（防止未来新增字段悄悄带上真值）。 */
 const SECRET_KEY_RE = /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?|ENCRYPTION_KEY|SSH_KEY|PRIVATE_KEY)(?:_|$)/i;
 const HOST_RE = /^(?=.{4,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
-const LOOPBACK_BIND_RE = /^127\.0\.0\.1:[0-9]{4,5}$/;
 /**
- * 反代层数：客户端 → 宿主 nginx（deploy/nginx/<环境>.conf）→ web 容器 nginx（app/web/Dockerfile）→ server，
+ * 反代层数：客户端 → 边缘代理（旧源宿主 nginx，Arch 入口香港 Caddy）→ web 容器 nginx → server，
  * 两层各自往 X-Forwarded-For 末尾追加一段。server 只信任这两层（TRUST_PROXY=2），客户端自己填的最左边几段不算数；
  * `true` 会一路信任到最左边，按 IP 的限流、审计 IP 都能被伪造。改了反代拓扑要同时改这里和两份模板。
  */
@@ -213,6 +217,37 @@ export function isPlainAddress(value) {
 export function isAddressList(value) {
   const text = String(value ?? '');
   return text.length <= 4096 && text.split(',').every(isPlainAddress);
+}
+
+/**
+ * 校验并解析 SSH ProxyJump（[user@]host[:port]）。
+ * 拒绝 shell 注入元字符、以 - 开头的选项注入、非法端口和非法主机名/IP。
+ */
+export function parseProxyJump(value, label = 'DEPLOY_PROXY_JUMP') {
+  if (typeof value !== 'string' || !value.trim()) fail(`${label} 不能为空`);
+  const trimmed = value.trim();
+  if (trimmed !== value) fail(`${label} 不得包含首尾空白`);
+  if (/[ \t\r\n'";`$|&><\\]/.test(trimmed)) {
+    fail(`${label} 包含非法字符或可能导致 shell 注入：${trimmed}`);
+  }
+  const match = /^(?:([A-Za-z0-9._-]+)@)?([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?$/.exec(trimmed);
+  if (!match) fail(`${label} 格式非法（期望 [user@]host[:port]）：${trimmed}`);
+  const user = match[1] || 'root';
+  const host = match[2];
+  const portStr = match[3] || '22';
+  if (user.startsWith('-') || host.startsWith('-')) {
+    fail(`${label} 用户名或主机名不得以 - 开头：${trimmed}`);
+  }
+  const port = Number(portStr);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    fail(`${label} 端口非法：${portStr}`);
+  }
+  const isIpv4 = isIP(host) === 4;
+  const isHost = HOST_RE.test(host) && !/^[0-9.]+$/.test(host);
+  if (!isIpv4 && !isHost) {
+    fail(`${label} 主机地址非法：${host}`);
+  }
+  return { user, host, port: String(port), destination: `${user}@${host}:${port}` };
 }
 
 /** 解析 KEY=VALUE 环境文件；拒绝重复键与非法行，保留「键 → 值」顺序信息。 */
@@ -315,6 +350,37 @@ export function readEnvironment(root, name) {
   };
 }
 
+/** CI 与 manual 共用的 SSH 配置生成器：先核对环境与目标，再写仅供本次部署使用的配置。 */
+export function renderSshConfig({ root = repositoryRoot(), environment, out, keyFile, knownHostsFile, env = process.env }) {
+  if (!ENVIRONMENTS.includes(environment)) fail('未知部署环境；没有默认 SSH 目标。');
+  if (env.DEPLOY_TARGET_ENVIRONMENT !== environment) fail(`DEPLOY_TARGET_ENVIRONMENT 必须等于 ${environment}`);
+  const { values } = readEnvironment(root, environment);
+  if (values.get('GEEK_DEPLOYMENT_ENVIRONMENT') !== environment) fail('模板 GEEK_DEPLOYMENT_ENVIRONMENT 与部署环境不一致');
+  for (const field of ['HOST', 'PORT', 'USER']) {
+    const name = `DEPLOY_SSH_${field}`;
+    if (typeof env[name] !== 'string' || !env[name]) fail(`缺少环境变量 ${name}`);
+    if (env[name] !== values.get(`DEPLOY_${field}`)) fail(`${name} 与该提交里这个环境模板的 DEPLOY_${field} 不一致：可能拿错了环境或目标`);
+  }
+  const target = parseProxyJump(`${env.DEPLOY_SSH_USER}@${env.DEPLOY_SSH_HOST}:${env.DEPLOY_SSH_PORT}`, 'DEPLOY_SSH_HOST/PORT/USER');
+  if (!values.has('DEPLOY_PROXY_JUMP')) fail('模板缺少 DEPLOY_PROXY_JUMP：直连必须显式留空');
+  const proxyJump = values.get('DEPLOY_PROXY_JUMP');
+  if (env.DEPLOY_SSH_PROXY_JUMP !== undefined && env.DEPLOY_SSH_PROXY_JUMP !== proxyJump) {
+    fail('DEPLOY_SSH_PROXY_JUMP 与模板 DEPLOY_PROXY_JUMP 不一致：禁止覆盖跳板');
+  }
+  const jump = proxyJump ? parseProxyJump(proxyJump).destination : 'none';
+  for (const [name, path] of [['DEPLOY_SSH_KEY_FILE', keyFile], ['DEPLOY_SSH_KNOWN_HOSTS_FILE', knownHostsFile]]) {
+    if (typeof path !== 'string' || !/^\/[A-Za-z0-9._ /-]+$/.test(path)) fail(`${name} 必须是无配置注入字符的绝对路径`);
+  }
+  if (typeof out !== 'string' || !out) fail('ssh-config 需要 --out <配置文件路径>');
+  const config = `Host yzgc-target\n  HostName ${target.host}\n  Port ${target.port}\n  User ${target.user}\n  ProxyJump ${jump}\n`
+    + `Host *\n  IdentitiesOnly yes\n  IdentityFile "${keyFile}"\n  UserKnownHostsFile "${knownHostsFile}"\n`
+    + '  GlobalKnownHostsFile /dev/null\n  StrictHostKeyChecking yes\n  BatchMode yes\n  ConnectTimeout 20\n  ProxyJump none\n';
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, config, { mode: 0o600 });
+  chmodSync(out, 0o600);
+  return { out, environment };
+}
+
 /** 全量一致性校验：模板 ↔ 契约 ↔ 跨环境隔离 ↔ compose/远端脚本。 */
 export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose = true } = {}) {
   const problems = [];
@@ -359,9 +425,47 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
     }
     if (values.get('COMPOSE_PROJECT_NAME') !== `yzgc-${name}`) problem(`COMPOSE_PROJECT_NAME 必须是 yzgc-${name}`);
     if (values.get('STACK_ROOT') !== `/opt/yzgc/${name}`) problem(`STACK_ROOT 必须是 /opt/yzgc/${name}`);
-    for (const field of ['WEB_BIND', 'SERVER_BIND']) {
-      const value = values.get(field) ?? '';
-      if (!LOOPBACK_BIND_RE.test(value)) problem(`${field} 必须是 127.0.0.1:<端口>（禁止 0.0.0.0 暴露）：${value}`);
+    const webBind = values.get('WEB_BIND') ?? '';
+    const expectedWebPort = name === 'production' ? '18100' : '18200';
+    const webBindMatch = /^([^:]+):([0-9]+)$/.exec(webBind);
+    if (!webBindMatch) {
+      problem(`WEB_BIND 格式非法（期望 <IP>:<端口>）：${webBind}`);
+    } else {
+      const [, host, port] = webBindMatch;
+      if (host === '0.0.0.0') {
+        problem(`WEB_BIND 禁止绑定 0.0.0.0：${webBind}`);
+      } else if (host !== '10.66.0.2' && host !== '127.0.0.1') {
+        problem(`WEB_BIND 只能是 Arch tun0 (10.66.0.2) 或回环 (127.0.0.1)，禁止公网或未知网卡：${webBind}`);
+      }
+      if (port !== expectedWebPort) {
+        problem(`WEB_BIND 端口非法：${name} 环境必须是 ${expectedWebPort}，收到 ${port}`);
+      }
+    }
+
+    const serverBind = values.get('SERVER_BIND') ?? '';
+    const expectedServerPort = name === 'production' ? '18101' : '18201';
+    const serverBindMatch = /^([^:]+):([0-9]+)$/.exec(serverBind);
+    if (!serverBindMatch) {
+      problem(`SERVER_BIND 格式非法（期望 127.0.0.1:<端口>）：${serverBind}`);
+    } else {
+      const [, host, port] = serverBindMatch;
+      if (host !== '127.0.0.1') {
+        problem(`SERVER_BIND 必须保持回环 (127.0.0.1)，禁止外部暴露：${serverBind}`);
+      }
+      if (port !== expectedServerPort) {
+        problem(`SERVER_BIND 端口非法：${name} 环境必须是 ${expectedServerPort}，收到 ${port}`);
+      }
+    }
+
+    if (values.has('DEPLOY_PROXY_JUMP')) {
+      const proxyJump = values.get('DEPLOY_PROXY_JUMP');
+      if (proxyJump) {
+        try {
+          parseProxyJump(proxyJump);
+        } catch (error) {
+          problem(error.message);
+        }
+      }
     }
     for (const field of ['SERVER_PORT', 'FORUM_PORT', 'PORT', 'DEPLOY_PORT']) {
       const value = Number(values.get(field));
@@ -428,7 +532,7 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
     if (ignored.status === 0) problem('模板文件必须是提交入库的：当前被 .gitignore 忽略');
     else if (ignored.status !== 1) warn('无法通过 git check-ignore 判定该文件是否入库');
     if (text.includes('0.0.0.0') && !/^HOST=0\.0\.0\.0$/m.test(text)) {
-      problem('模板里出现 0.0.0.0：只允许容器内 HOST=0.0.0.0，宿主侧端口必须绑回环');
+      problem('模板里出现 0.0.0.0：只允许容器内 HOST=0.0.0.0，宿主侧端口必须绑回环或 Arch tun0 10.66.0.2');
     }
     environments.push({ name, label, relativePath, values, origin: expectedOrigin });
   }
@@ -443,7 +547,7 @@ export function validateEnvironmentFiles({ root = repositoryRoot(), checkCompose
       }
     }
     if (production.origin === preview.origin) problems.push('两套环境的入口域名必须不同');
-    for (const field of ['DEPLOY_HOST', 'DEPLOY_PORT', 'DEPLOY_USER']) {
+    for (const field of ['DEPLOY_HOST', 'DEPLOY_PORT', 'DEPLOY_USER', 'DEPLOY_PROXY_JUMP']) {
       if (production.values.get(field) !== preview.values.get(field)) {
         warnings.push(`production 与 preview 的 ${field} 不同（契约要求同机双栈）：${production.values.get(field)} vs ${preview.values.get(field)}`);
       }
@@ -581,6 +685,7 @@ export function renderRuntimeEnv({ root = repositoryRoot(), environment, out, im
 const USAGE = `环境契约校验与运行时环境文件渲染：
   node scripts/deployment-environment.mjs --check [--root <仓库根>]
   node scripts/deployment-environment.mjs render --environment <preview|production> --out <路径> --image-tag <12位SHA>
+  node scripts/deployment-environment.mjs ssh-config --environment <preview|production> --out <路径> --key-file <私钥路径> --known-hosts-file <主机公钥路径>
 
 密钥值只从进程环境读取，永不接受命令行参数，也永不回显。`;
 
@@ -602,15 +707,22 @@ function main(argv) {
     );
     return;
   }
-  if (command === 'render') {
+  if (command === 'render' || command === 'ssh-config') {
     const options = { root: repositoryRoot() };
+    const allowed = command === 'render' ? ['--environment', '--out', '--image-tag', '--root']
+      : ['--environment', '--out', '--key-file', '--known-hosts-file', '--root'];
     for (let index = 0; index < rest.length; index += 2) {
       const key = rest[index];
       const value = rest[index + 1];
-      if (!['--environment', '--out', '--image-tag', '--root'].includes(key) || !value || value.startsWith('--')) {
+      if (!allowed.includes(key) || !value || value.startsWith('--')) {
         throw new Error(`未知或缺失的选项：${key ?? ''}`);
       }
       options[key.slice(2).replace(/-([a-z])/g, (_, char) => char.toUpperCase())] = value;
+    }
+    if (command === 'ssh-config') {
+      const result = renderSshConfig(options);
+      console.log(`SSH 环境与模板目标核对通过：${result.environment}；配置 ${result.out}。未连接目标机。`);
+      return;
     }
     const result = renderRuntimeEnv(options);
     console.log(

@@ -347,7 +347,17 @@ require_match "$IMAGE_TAG" '^[0-9a-f]{12}$' IMAGE_TAG
 [ -n "$STACK_ROOT_ARG" ] && [ "$STACK_ROOT_ARG" != "$FILE_STACK_ROOT" ] && die "--stack-root 与 env 文件的 STACK_ROOT 不一致"
 [ -n "$IMAGE_TAG_ARG" ] && [ "$IMAGE_TAG_ARG" != "$IMAGE_TAG" ] && die "--image-tag 与 env 文件的 IMAGE_TAG 不一致"
 require_match "$SERVER_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' SERVER_BIND
-require_match "$WEB_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' WEB_BIND
+require_match "$WEB_BIND" '^(127\.0\.0\.1|10\.66\.0\.2):[0-9]{2,5}$' WEB_BIND
+case "$ENVIRONMENT" in
+  production)
+    [ "$WEB_BIND" = "10.66.0.2:18100" ] || [ "$WEB_BIND" = "127.0.0.1:18100" ] || die "WEB_BIND 端口非法：production 必须使用 18100（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18101" ] || die "SERVER_BIND 非法：production 必须使用 127.0.0.1:18101（${SERVER_BIND}）"
+    ;;
+  preview)
+    [ "$WEB_BIND" = "10.66.0.2:18200" ] || [ "$WEB_BIND" = "127.0.0.1:18200" ] || die "WEB_BIND 端口非法：preview 必须使用 18200（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18201" ] || die "SERVER_BIND 非法：preview 必须使用 127.0.0.1:18201（${SERVER_BIND}）"
+    ;;
+esac
 require_match "$SERVER_PORT" '^[0-9]{2,5}$' SERVER_PORT
 EXPECTED_REFS=("$IMAGE_REPO/server:$IMAGE_TAG" "$IMAGE_REPO/web:$IMAGE_TAG" "$IMAGE_REPO/forum:$IMAGE_TAG")
 

@@ -22,15 +22,17 @@ macOS 二进制未签名：curl 下载的文件没有 Gatekeeper 隔离属性，
 ## 上手
 
 ```bash
-geek login --env preview   # 设备码登录（动画 + 用户码），浏览器确认后显示头像、昵称、部门
-geek status --json         # 本机登录状态：令牌来自哪一层、服务端连不连得上、令牌是否有效（不要求已登录）
-geek whoami --json         # 看登录信息
-geek forum list --json     # 板块与话题摘要
-geek comp list --json      # 公开比赛列表
-geek logout                # 撤销令牌、清掉本机凭据
+geek --env preview login              # 设备码登录（动画 + 用户码），浏览器确认后显示头像、昵称、部门
+geek --env preview status --json      # 本机登录状态：令牌来自哪一层、服务端连不连得上、令牌是否有效（不要求已登录）
+geek --env preview whoami --json      # 看登录信息
+geek --env preview forum list --json  # 板块与话题摘要
+geek --env preview comp list --json   # 公开比赛列表
+geek --env preview logout             # 撤销令牌、清掉本机凭据
 ```
 
-默认源站生产 `https://yangtzeu.work`；`--env preview` 或 `GEEK_ORIGIN=https://prev.yangtzeu.work` 切到预发布。令牌存进系统钥匙串，没有钥匙串时退到 `~/.config/geek/credentials`（0600）。
+源站优先级：`--env production|preview` > `GEEK_ORIGIN` > 默认生产 `https://yangtzeu.work`。每次调用独立选择环境，不会记住上一次 `login` 的选择；上述预发布命令每次都要带 `--env preview`。
+
+令牌存进系统钥匙串，不可用时退到系统配置目录下的 `geek/credentials`（Unix 权限 0600）。macOS 为 `~/Library/Application Support/geek/credentials`；Linux 为 `$XDG_CONFIG_HOME/geek/credentials`（未设置时为 `~/.config/geek/credentials`）。
 
 ## 命令一览
 
@@ -93,7 +95,7 @@ geek skill install --target all      # 三个都装
 
 | 变量 | 作用 |
 |---|---|
-| `GEEK_ORIGIN` | 覆盖源站（优先于 `--env`） |
+| `GEEK_ORIGIN` | 未指定 `--env` 时覆盖默认源站，优先级低于 `--env` |
 | `GEEK_TOKEN` | 跳过本地存储，临时用指定令牌（CI/agent 友好，不落盘） |
 | `GEEK_NO_KEYRING` | 设为任意非空值时跳过系统钥匙串，只用文件存储（无图形会话的环境） |
 | `NO_COLOR` | 设置后登录动画不画，输出不带颜色 |

@@ -2,16 +2,16 @@
 
 > 极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
 
-状态：`current` · 更新：2026-10-25 · 源码：`app/cli/` · 产物：`dist/cli/`（随 `yzgc/web` 镜像的 `/cli/` 路径分发）
+状态：`current` · 更新：2026-10-27 · 源码：`app/cli/` · 产物：`dist/cli/`（随环境镜像 `yzgc-production/web` 或 `yzgc-preview/web` 的 `/cli/` 路径分发）；本合同不证明某个已发布镜像实际含 CLI。
 
 ## 源码地图
 
 | 路径 | 职责 |
 |---|---|
-| `app/cli/Cargo.toml` | 依赖与 5 个发布目标；`release` profile 用 `opt-level="z"`、`lto`、`strip`、`panic="abort"` 压体积 |
+| `app/cli/Cargo.toml` | Rust 包名/版本、依赖及 release profile；5 个发布目标由 `scripts/cli-dist.mjs` 定义，不进入 Node/pnpm 工作区 |
 | `app/cli/build.rs` | 编译期把极客娘抠图（`app/web/sites/portal/assets/mascot/geek-girl.webp`，缺失时退到 `app/cli/assets/boot-mascot.webp`）转成盲文点阵常量，写进 `$OUT_DIR/mascot_braille.rs`；源图缺失或读不出时输出空数组，不让构建失败 |
-| `app/cli/src/config.rs` | 源站解析：`--env production\|preview` 或 `GEEK_ORIGIN`，默认生产 `https://yangtzeu.work`，预发布 `https://prev.yangtzeu.work` |
-| `app/cli/src/token_store.rs` | 令牌存取：系统钥匙串（`keyring` crate，macOS/Windows 原生，Linux 用内核 `linux-native`，不用要 D-Bus 的 `secret-service`，交叉编译到 musl 没有对应 sysroot）优先，没有就退到 `~/.config/geek/credentials`（0600）；`GEEK_TOKEN` 环境变量最优先，不落盘；`GEEK_NO_KEYRING=1` 强制只用文件（CI、容器、无图形会话） |
+| `app/cli/src/config.rs` | 源站优先级 `--env production\|preview` > `GEEK_ORIGIN` > 默认正式 `https://yangtzeu.work`；预发布为 `https://prev.yangtzeu.work`，每次调用独立选择 |
+| `app/cli/src/token_store.rs` | `GEEK_TOKEN` 优先、不落盘；其次系统 keyring，失败退 `dirs::config_dir()/geek/credentials`（Unix 0600）。macOS 实际路径为 `~/Library/Application Support/geek/credentials`，Linux 为 `$XDG_CONFIG_HOME/geek/credentials`（未设时 `~/.config/geek/credentials`）；`GEEK_NO_KEYRING=1` 跳过 keyring |
 | `app/cli/src/api.rs` | HTTP 封装：状态码 → 退出码映射，`email_required`/`profile_required` 的提示语 |
 | `app/cli/src/output.rs` | `--json` 与人读两种输出的统一出口（`{ ok, data }` / `{ ok:false, error:{code,message,retry_after?} }`） |
 | `app/cli/src/commands/` | `login`（RFC 8628 设备码）、`logout`（调 `/auth/device/revoke`）、`whoami`、`status`（本机登录状态）、`forum`（list/show/post/reply）、`comp`（list/show/mine/signup/ladder/plaza；给人看的输出里状态换成中文，含 #278 的「规划中」，`--json` 仍是接口原值）、`team`（create/apply）、`repo`（list）、`apply`（status）、`skill`（install） |
@@ -20,6 +20,14 @@
 | `app/cli/skills/geek/SKILL.md` | 内嵌进二进制（`include_str!`）；`geek skill install` 写到 `~/.claude/skills/geek`、`~/.codex/skills/geek`、`~/.omp/skills/geek` |
 
 模块与服务端的桥接在 `app/server`：`app/server/src/middleware/bearer-auth.ts`（见 [server 合同](../server/README.md)）。
+
+## 迁移与包元数据
+
+- 现行 CLI 是 `app/cli` 的 RFC 8628 设备授权实现，Rust/Cargo 与核心 Node22/pnpm9、论坛 Node26/pnpm11 分开；不要拿旧 `../geek_cli` 的 GitHub Device OAuth 实现或锁文件覆盖它。
+- 当前 Cargo 包 `geek-cli` 的版本为 `0.1.0`，分发器读取该字段，不从根应用发布版本推算；迁移不自行升号。Cargo `repository` 已对齐实际 GitLab 路径 `https://git.yangtzeu.work/geek/admin`，仅改元数据，不改变 CLI 行为或依赖。
+- token 按 origin 分开存，网页域名未变不等于设备授权已验；用预发布 token 不代表后续无 `--env` 的命令仍选预发布。迁移验收所有命令都显式 `--env preview`，不读取/复制个人凭据文件，也不把 token 写进命令行或报告。
+- 同版本镜像的 `/cli/install.sh`、`latest.json`、目标二进制和 `.sha256` 必须相互对应；CLI 版本号不是二进制缓存键，同一 `0.1.0` 重新构建时内容不同就必须得到不同的摘要文件名，不能覆盖旧文件或继续复用已缓存一年的旧 URL。先核对已发布物料再验安装、允许/拒绝/过期/撤销及真实 harness 技能加载。Arch 迁移不改变 CLI 服务端权限或自动补齐 CI 缺少的跨平台产物。
+
 
 ## 契约：身份与权限
 
@@ -63,16 +71,17 @@
 
 ## 分发
 
-- **交叉编译在宿主机做**：`node scripts/cli-dist.mjs` 用 `cargo zigbuild`（zig 当交叉链接器）把 5 个目标（`aarch64-apple-darwin`、`x86_64-apple-darwin`、`x86_64-unknown-linux-musl`、`aarch64-unknown-linux-musl`、`x86_64-pc-windows-gnu`）编译、算 sha256，产出 `dist/cli/<version>/geek-<target>[.exe]`、`dist/cli/{install.sh,install.ps1,latest.json}`。`dist/` 已被 `.gitignore` 覆盖，产物不进仓库。
-- **zig 与 cargo-zigbuild 是开发机工具，不是生产依赖**：按约定路径 `.tools/zig/zig-macos-aarch64-0.13.0/zig`、`.tools/cargo/bin/cargo-zigbuild`（装法：下载 zig 0.13.0 macOS aarch64 解到前者；`CARGO_INSTALL_ROOT=$(pwd)/.tools/cargo cargo install cargo-zigbuild --locked`），两者都在 `.gitignore` 的 `.tools/` 里，不进仓库也不进镜像。
-- 进镜像：`app/web/Dockerfile` 有一个空的 `cli` 阶段（`FROM scratch AS cli`），运行阶段 `COPY --from=cli / /usr/share/nginx/html/cli/`。发版构建先跑 `node scripts/cli-dist.mjs`，再用 `docker build --build-context cli=dist/cli …` 把产物换进这个阶段；不传时（CI 的镜像构建验证）镜像照样能建，`/cli/` 下没有文件，访问是 404。仓库根的 `.dockerignore` 排除 `**/dist`，所以不从普通构建上下文复制。GitHub 的两条部署工作流还没有产出 `dist/cli/` 的步骤（Linux runner 交叉编译 macOS 目标缺 SDK），用它们发版时 `/cli/` 是空的。镜像内 nginx 的 `/cli/` 路径与缓存策略见 [web 合同](../web/README.md)。
-- **安装脚本**：`dist/cli/install.sh`、`install.ps1` 默认源站生产 `https://yangtzeu.work`，`GEEK_ORIGIN` 环境变量覆盖（和 `geek` 自己的源站解析一致），镜像内 nginx 在 `/cli/` 下把脚本里的生产域名换成请求的域名（`sub_filter`，见 [web 合同](../web/README.md)），所以预发布直接 `curl -fsSL https://prev.yangtzeu.work/cli/install.sh | sh` 就从预发布装，`GEEK_ORIGIN` 仍然优先（#289）。生产安装命令（acceptance #1）：`curl -fsSL https://yangtzeu.work/cli/install.sh | sh`。两个脚本都先下 `.sha256` 校验、不匹配就失败，不执行除了这个仓库自己产出的任何远端内容。
+- **五目标分发器**：`node scripts/cli-dist.mjs` 用本机 `cargo zigbuild`，`node scripts/cli-dist.mjs --container` 用固定 digest 的 `ghcr.io/rust-cross/cargo-zigbuild` 构建容器；两条路径都以 `--locked --jobs 2` 把 5 个目标（`aarch64-apple-darwin`、`x86_64-apple-darwin`、`x86_64-unknown-linux-musl`、`aarch64-unknown-linux-musl`、`x86_64-pc-windows-gnu`）编译、算 sha256，产出 `dist/cli/<version>/geek-<target>-<sha256>[.exe]` 及同名 `.sha256`、`dist/cli/{install.sh,install.ps1,latest.json}`。文件名使用完整摘要：相同内容重建 URL 稳定，不同内容 URL 必然变化；目标路径已经存在时只复用摘要一致的文件，字节不同就失败，不覆盖、不删除旧产物。`dist/` 已被 `.gitignore` 覆盖，产物不进仓库。
+- **工具链只是构建依赖**：本机模式仍按约定路径读取 `.tools/zig/zig-macos-aarch64-0.13.0/zig`、`.tools/cargo/bin/cargo-zigbuild`；CI/发版模式的固定容器同时提供 Rust、Zig、cargo-zigbuild 与 macOS SDK。两者都不进入 web 运行镜像，也不新增生产依赖。`node scripts/check-cli-dist.mjs` 独立核对版本、五目标清单、内容寻址文件名、非空资产、manifest/sidecar/实际字节三方 sha256 与两个安装脚本。
+- **进入 web 镜像**：`app/web/Dockerfile` 的 `cli` 阶段为 `FROM scratch AS cli`，运行阶段 `COPY --from=cli / /usr/share/nginx/html/cli/`。`ci.yml` 的 docker job 和两条部署工作流都先执行 `node scripts/cli-dist.mjs --container`、`node scripts/check-cli-dist.mjs`，再只给 web 构建传 `--build-context cli=dist/cli`；server/forum 不接收该 context。仓库根 `.dockerignore` 排除 `**/dist`，因此物料只经显式 named context 进入镜像。不传 context 的普通本机镜像构建仍可得到空 `/cli/`，不能作为发布物料验收。镜像内 nginx 的 `/cli/` 路径与缓存策略见 [web 合同](../web/README.md)。
+- **安装脚本**：`dist/cli/install.sh`、`install.ps1` 默认源站生产 `https://yangtzeu.work`，`GEEK_ORIGIN` 环境变量覆盖（和 `geek` 自己的源站解析一致），镜像内 nginx 在 `/cli/` 下把脚本里的生产域名换成请求的域名（`sub_filter`，见 [web 合同](../web/README.md)），所以预发布直接 `curl -fsSL https://prev.yangtzeu.work/cli/install.sh | sh` 就从预发布装，`GEEK_ORIGIN` 仍然优先（#289）。生产安装命令（acceptance #1）：`curl -fsSL https://yangtzeu.work/cli/install.sh | sh`。两个脚本从 `latest.json` 的当前目标条目读取文件名和摘要，只接受 `geek-<当前target>-<同一sha256>[.exe]` 或旧 manifest 的精确旧文件名；版本、目标、路径、URL、文件摘要任一不合规就停止，不让 manifest 注入目录逃逸或任意下载地址。随后下载同名 `.sha256`，核对 manifest、sidecar 与实际字节一致并先试运行 `--version`，成功后才覆盖安装位置；只含 `version` 的最早 manifest 仍回退到当前目标的精确旧文件名。
 - **macOS 二进制未签名**：curl 下载的文件没有 Gatekeeper 的隔离属性（quarantine，只有浏览器直接下载才会打），可以直接执行，不会跳 Gatekeeper 的「打不开」提示。
 
 ## CI 与本机检查
 
 - `pnpm check:cli`（`scripts/check-cli.mjs`，已经在 `pnpm check` 链里）：只在这个 task 相对 base 真的改了 `app/cli` 时才跑 `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test`；没改动直接跳过，没装 cargo 的人跑一次 `pnpm check` 不会因为 Rust 工具链报错。task 分支按 `origin/stage` 判断改没改，判断不出 base（不是 task 分支、本机没有 `stage`）时保守地当作「改了」。
 - GitHub Actions 的 `ci.yml` 不另开一个 job：`core` job 本来就跑 `pnpm check`，ubuntu-latest 自带 Rust 工具链，`check:cli` 顺带被执行（见 [CICD](../../ops/CICD.md)）。
+- `ci.yml` 的 docker job 与两条发布工作流使用同一个 `--container` 分发入口和同一个物料核对器，避免普通 Rust 单测通过但发布镜像仍缺少 `/cli/`。
 
 ## 运行
 
@@ -82,6 +91,7 @@ cargo build                      # 本机目标，调试用
 cargo test                       # 单元测试
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
 node ../../scripts/cli-dist.mjs  # 全量交叉编译 + 产出 dist/cli/（先装好 zig / cargo-zigbuild，见上文「分发」）
+node ../../scripts/cli-dist.mjs --container && node ../../scripts/check-cli-dist.mjs  # Docker 可用时复现 CI/发版物料
 ```
 
 ## 验证命令
@@ -91,12 +101,23 @@ pnpm check:cli                   # 按改动路径决定要不要跑 cargo 检�
 cd app/cli && cargo test
 ```
 
-真机登录验收：`geek login --env preview`，浏览器确认后终端显示头像、昵称、部门；`geek whoami --json`/`geek comp list --json`/`geek forum list --json` 核对结构化输出；`geek logout` 后同一个令牌调 `GET /auth/device/userinfo` 应为 401，控制台「操作记录」能看到这次登录与调用。
+真机登录验收（本次文档任务未执行）：所有调用均显式选预发布，`--env` 优先于 `GEEK_ORIGIN`，不会记住上一次 login 的选择：
+
+```bash
+geek --env preview login
+geek --env preview status --json
+geek --env preview whoami --json
+geek --env preview comp list --json
+geek --env preview forum list --json
+geek --env preview logout
+```
+
+只在获批隔离账号/环境验证允许、拒绝、过期与撤销；logout 后同一令牌访问 `GET /auth/device/userinfo` 应为 401，控制台能查到 CLI 来源记录。`status`/`whoami` 也会调用服务端，不是纯本地只读检查；测试登录/发帖/技能安装不在本次文档任务执行范围内。
 
 ## 已知限制
 
 - 没有 `geek self update`：这是旧仓库（`~/work_file/geek_cli`）设计过但本次没有实现的功能，不依赖 GitHub Releases；升级就是重新跑一次安装脚本。
 - Linux 的 `aarch64`/`x86_64` 都发 musl 静态二进制，没有单独的 glibc 构建；多数发行版能直接跑 musl 二进制，个别极旧的发行版未测试。
-- `install.ps1` 只在本次开发中做了语法审阅，没有真实 Windows/PowerShell 环境跑过，标记未验证。
+- `install.ps1` 的 manifest 选择规则与 Shell/分发核验器共用同一行为回归；当前开发机没有 `pwsh`，未在真实 Windows/PowerShell 运行下载、校验和替换流程，仍标记未验证。
 - 比赛、论坛、投递相关命令只接入现状端点（`GET /api/me/applications` 除外，是这次新开的）；以后这些业务扩展了新的接口，CLI 对应的子命令需要跟着扩展，不在这次范围内。
 - `geek status` 的 `server_reachable`/`token_valid` 各自独立发一次 `GET /healthz`/`GET /auth/device/userinfo`，不共用缓存；高频轮询（例如 CI 里每次调用前都先跑一次 `geek status`）会在这两个接口上多打一次请求，目前没有限流以外的额外保护。

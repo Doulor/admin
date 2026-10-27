@@ -190,7 +190,17 @@ require_match "$FILE_STACK_ROOT" '^/[A-Za-z0-9._/-]{1,200}$' STACK_ROOT
 require_match "$COMPOSE_PROJECT_NAME" '^[a-z0-9][a-z0-9_-]{0,62}$' COMPOSE_PROJECT_NAME
 require_match "$CURRENT_TAG" '^[0-9a-f]{12}$' IMAGE_TAG
 require_match "$SERVER_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' SERVER_BIND
-require_match "$WEB_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' WEB_BIND
+require_match "$WEB_BIND" '^(127\.0\.0\.1|10\.66\.0\.2):[0-9]{2,5}$' WEB_BIND
+case "$ENVIRONMENT" in
+  production)
+    [ "$WEB_BIND" = "10.66.0.2:18100" ] || [ "$WEB_BIND" = "127.0.0.1:18100" ] || die "WEB_BIND 端口非法：production 必须使用 18100（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18101" ] || die "SERVER_BIND 非法：production 必须使用 127.0.0.1:18101（${SERVER_BIND}）"
+    ;;
+  preview)
+    [ "$WEB_BIND" = "10.66.0.2:18200" ] || [ "$WEB_BIND" = "127.0.0.1:18200" ] || die "WEB_BIND 端口非法：preview 必须使用 18200（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18201" ] || die "SERVER_BIND 非法：preview 必须使用 127.0.0.1:18201（${SERVER_BIND}）"
+    ;;
+esac
 [ -n "$STACK_ROOT_ARG" ] && [ "$STACK_ROOT_ARG" != "$FILE_STACK_ROOT" ] && die "--stack-root 与 env 文件的 STACK_ROOT 不一致"
 
 STACK_ROOT="$FILE_STACK_ROOT"
