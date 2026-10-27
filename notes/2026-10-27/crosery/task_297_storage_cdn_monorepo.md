@@ -43,3 +43,10 @@
 - 做了什么：两轮返工后结论：通过，无阻塞、无未决应修；审查意见贴在 MR !34 评论（yzgc:track kind=review）
 - 结果：脱敏 5 类形状零命中（含带引号值）、Caddy 缺失变量失败关闭、handle 顺序有断言、501 用例红绿对照成立；check-secrets/docs/doc-sync/catalog/architecture 全绿，storage-cdn-config 11/11
 - 下一步：等所有者确认是否与 !33 一起进 stage
+
+## 15:35:00 +08:00 · 提交 · #297 · 公共直链补 CORS 头（跨域字体与 HLS 分片）
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：在 `deploy/storage-cdn/Caddyfile` 的公共对象段加 `Access-Control-Allow-Origin: *`、暴露 `ETag/Content-Length/Content-Range/Accept-Ranges`，`OPTIONS` 由 Caddy 直接 204 不转 s3_web；合同文档补 CORS 段；`storage-cdn-config` 新增断言（CORS 只出现在公共对象段，全文 ACAO 恰好 2 处）；297.json 变更登记补一条
+- 结果：触发原因是实测：七牛的 woff2 带 `access-control-allow-origin: *`，新 CDN 的同一文件没有——站点切过来字体与 hls.js 取分片会被浏览器 CORS 拦掉。验证：香港机上 `caddy validate` = Valid configuration、`caddy adapt` 里两处 ACAO 都落位；`storage-cdn-config` 12/12；`check-secrets`/`check-docs`/`check-doc-sync` 全绿
+- 下一步：推送更新 MR !34，被审 SHA 变化，请审查者复核这一条

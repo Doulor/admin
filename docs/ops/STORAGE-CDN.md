@@ -45,6 +45,8 @@ Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接
 
 公共直链：`https://cdn.yangtzeu.work/{bucket}/{key}`。私有桶只能用控制台生成的带签名外链，过期即失效。
 
+**公共直链带 CORS**（`Access-Control-Allow-Origin: *`、暴露 `ETag/Content-Length/Content-Range/Accept-Ranges`，`OPTIONS` 由 Caddy 直接 204）。Garage 的 s3_web 自己不回这些头，而站点要跨域取的两类东西缺它就废：`@font-face` 字体（`static/site/assets/*.woff2`）与宣传片的 HLS 播放列表/分片（hls.js 用 XHR）。七牛那边这些头是默认带的，换到这台必须显式写；拦在 CORS 那一层时，CSP 放行也救不回来。CORS 只加在公共对象段，控制台与 S3 签名路由不带。
+
 切换权限走控制台 **Bucket Policy**：Bridge 收到后执行 `garage bucket website --allow|--deny {bucket}`。命令行等价操作见下节；不要绕过 Bridge 直接改 Garage 内部状态。
 
 ## 凭据（本仓库不含任何真实值）

@@ -73,11 +73,28 @@ cdn.yangtzeu.work {
     }
 
     # 4. 公共对象的静态直链（/{bucket}/{key}），交 Garage 的 s3_web 出口
+    #
+    #    CORS 由 Caddy 补齐：s3_web 只回对象本身，不带 Access-Control-* 头。而站点要跨域取的两类东西
+    #    都必须有它——@font-face 字体（nunito 等 45 个 woff2）和宣传片的 HLS 播放列表/分片（hls.js 用 XHR）。
+    #    七牛那边这些头是默认带的（access-control-allow-origin: *），换到这台必须显式写上，否则字体被浏览器拒绝、
+    #    宣传片直接放不出来（CSP 放行也救不了，拦在 CORS 那一层）。
     @public_objects {
         path_regexp obj ^/(cdn|geek-public)/(.*)$
     }
     handle @public_objects {
+        @preflight method OPTIONS
+        header @preflight {
+            Access-Control-Allow-Origin "*"
+            Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+            Access-Control-Allow-Headers "Range, If-None-Match, If-Modified-Since"
+            Access-Control-Max-Age "86400"
+        }
+        respond @preflight 204
         rewrite * /{re.obj.2}
+        header {
+            Access-Control-Allow-Origin "*"
+            Access-Control-Expose-Headers "ETag, Content-Length, Content-Range, Accept-Ranges"
+        }
         reverse_proxy 127.0.0.1:3902 {
             header_up Host {re.obj.1}.cdn.yangtzeu.work
             header_up X-Real-IP {remote_host}

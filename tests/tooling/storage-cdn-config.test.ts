@@ -90,6 +90,22 @@ describe('Caddy 拓扑与 Garage 的声明一致，顺序不被悄悄调换', ()
     expect(caddy).toContain('path_regexp obj ^/(cdn|geek-public)/(.*)$');
   });
 
+  it('公共直链补了 CORS：跨域字体与 HLS 分片缺它就会被浏览器拦下', () => {
+    // s3_web 不回 Access-Control-*；站点从 yangtzeu.work 取 @font-face 与 hls.js 的 XHR 时必须有。
+    // 七牛那边是默认带的（access-control-allow-origin: *），换到这台要显式写，写在公共对象段里，
+    // 不能漏到控制台或 S3 签名路由上（那两条不该对外开 CORS）。
+    const caddy = read(`${MODULE_DIR}/Caddyfile`);
+    const publicBlock = caddy.slice(caddy.indexOf('handle @public_objects'), caddy.indexOf('# 5. 兜底进控制台'));
+    expect(publicBlock).toContain('Access-Control-Allow-Origin "*"');
+    expect(publicBlock).toContain('Access-Control-Expose-Headers "ETag, Content-Length, Content-Range, Accept-Ranges"');
+    // 预检由 Caddy 直接 204，不转给 s3_web（它不处理 OPTIONS）
+    expect(publicBlock).toMatch(/@preflight method OPTIONS/);
+    expect(publicBlock).toMatch(/respond @preflight 204/);
+    expect(publicBlock).toContain('Access-Control-Allow-Headers "Range, If-None-Match, If-Modified-Since"');
+    // 全文里只有这两处（预检一份、正常响应一份）
+    expect(caddy.match(/Access-Control-Allow-Origin/g)?.length, 'ACAO 出现次数').toBe(2);
+  });
+
   it('handle 块按文件顺序生效：S3 → 桶策略 → 控制台 → 公共对象 → 兜底', () => {
     // Caddy 的 handle 组按配置里的先后匹配（caddy adapt 实测），顺序被调换就能让 /Default 落进存储路由。
     const caddy = read(`${MODULE_DIR}/Caddyfile`);
