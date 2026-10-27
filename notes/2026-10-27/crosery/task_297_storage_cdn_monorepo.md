@@ -22,3 +22,10 @@
 - 做了什么：git push gitlab task/297/storage_cdn_monorepo；MR !34 → stage，正文按九段契约，审查结论标为待审查
 - 结果：推送成功：https://git.yangtzeu.work/geek/admin/-/merge_requests/34
 - 下一步：收审查结论后回填 MR 并补审查记录
+
+## 13:36:16 +08:00 · 返工 · #297 · 按 MR !34 审查返工：扫描器覆盖、脚本退出码、文档过度声明
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：check-secrets 补 .py/无扩展名/自建服务模板 env 与 Garage 键、bcrypt、S3 密钥赋值三类形状（三种形状贴进模块均能被拦下，已做红测）；upload_demo.py 上传失败改非零退出；garage.toml 去掉非配置项的 index；Caddyfile 统一三个 basic_auth 块的 header、公共对象正则收窄到 cdn|geek-public；合同文档改正「备份桶已有代码写入」的过度声明并新增「仓库里没有这些东西」清单；回归改为递归扫描模块 + handle 顺序与端口来源断言
+- 结果：通过：check:secrets/docs/doc-sync/boundaries/catalog/runtime 全绿；architecture --base gitlab/stage 19 文件1节点；storage-cdn-config 11/11；红测：AK/bcrypt/S3 密钥三种形状贴进模块分别命中 2/1/1 条
+- 下一步：推送到 MR !34 并请审查者复核

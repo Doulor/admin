@@ -2,7 +2,9 @@
 # 安装位置：/etc/caddy/Caddyfile（root 0644）。TLS 由 Caddy 自动申请并续期。
 #
 # 控制台三处 basic_auth 的用户名固定 admin，口令哈希**不入库**：
-# 由 systemd 环境文件提供 S3MANAGER_ADMIN_HASH（bcrypt，`caddy hash-password --plaintext …` 生成），
+# 由 systemd 环境文件提供 S3MANAGER_ADMIN_HASH（bcrypt，`caddy hash-password --plaintext …` 生成）。
+# 注意：缺失或空值时 Caddy 拒绝启动（失败关闭），但 `caddy validate` 拦不住「不是 bcrypt 的字符串」——
+# 那种情况会静默通过校验然后让控制台永远 401，部署前用 [[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] 自检。
 # Caddy 启动时用 {$S3MANAGER_ADMIN_HASH} 展开。没有该变量时 Caddy 会拒绝启动，这是期望的失败关闭。
 
 cdn.yangtzeu.work {
@@ -50,7 +52,10 @@ cdn.yangtzeu.work {
         basic_auth {
             admin {$S3MANAGER_ADMIN_HASH}
         }
-        reverse_proxy 127.0.0.1:8081
+        reverse_proxy 127.0.0.1:8081 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
     }
 
     # 3. Web 控制台资源与内部页面（S3 Manager）
@@ -70,7 +75,7 @@ cdn.yangtzeu.work {
 
     # 4. 公共对象的静态直链（/{bucket}/{key}），交 Garage 的 s3_web 出口
     @public_objects {
-        path_regexp obj ^/([^/]+)/(.*)$
+        path_regexp obj ^/(cdn|geek-public)/(.*)$
     }
     handle @public_objects {
         rewrite * /{re.obj.2}

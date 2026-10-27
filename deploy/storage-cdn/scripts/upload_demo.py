@@ -83,6 +83,8 @@ def upload_file(local_path, object_name=None, bucket=BUCKET):
     except urllib.error.HTTPError as error:
         print(f'[FAILED] 上传失败：{error.code} {error.reason}')
         print(error.read().decode('utf-8', errors='replace'))
+        # 调用方（自动化、CI、幂等重跑）要能看出失败：打印完错误体就以非零退出。
+        sys.exit(1)
 
 
 if __name__ == '__main__':

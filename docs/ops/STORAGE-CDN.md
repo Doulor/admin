@@ -41,7 +41,7 @@ Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接
 | `geek-public` | 公共 | 图床与开放文档 |
 | `geek-production-private` | 私有 | 正式站私密资源（匿名 404） |
 | `geek-preview-private` | 私有 | 预发布私密资源 |
-| `geek-backup` | 私有 | 平台与 GitLab 备份归档（唯一由代码写入的桶，供平台备份归档，见 [BACKUP](BACKUP.md)；GitLab 侧的备份链合同随 `deploy/gitlab/` 一起落地） |
+| `geek-backup` | 私有 | 备份归档桶。**目前没有任何代码写它**：归档器 `deploy/remote/garage-archive.mjs` 随 Arch 迁移分支（!33）合入后才生效；平台侧的一键备份仍走浏览器下载（[BACKUP](BACKUP.md)），不写这里 |
 
 公共直链：`https://cdn.yangtzeu.work/{bucket}/{key}`。私有桶只能用控制台生成的带签名外链，过期即失效。
 
@@ -57,6 +57,19 @@ Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接
 
 轮换顺序：先在 Garage 生成新 key（`garage key new --name …`），把新值写进 `/etc/s3manager.env` 并 `systemctl restart s3manager`，确认控制台能列出桶，再停用旧 key（`garage key deny/delete`）。导入/导出凭据走 `crosery-ct cred` 注入进程环境，不写文件、不进 shell 历史、不进日志；示例脚本 [`upload_demo.py`](../../deploy/storage-cdn/scripts/upload_demo.py) 只从 `S3_ACCESS_KEY_ID` / `S3_SECRET_KEY` 读。
 
+## 仓库里没有这些东西
+
+以下组件/配置只存在于目标机，本仓库没有源码或版本记录，改它们必须先自行取证、再人工复核；本节列出是为了让人知道**照这份合同并不能从头重建**：
+
+| 不在仓库 | 位置 | 影响 |
+|---|---|---|
+| S3 Policy Bridge | `/opt/s3-policy-bridge/bridge.py`（无来源、无版本、无摘要） | 控制台「设为公共桶」能生效全靠它，改它无从评审 |
+| 四个 systemd unit | `caddy.service`、`garage.service`、`s3manager.service`、`s3-policy-bridge.service` | 内存上限、EnvironmentFile（含 `S3MANAGER_ADMIN_HASH`）都写在这里 |
+| 防火墙与封禁规则 | UFW、`/etc/fail2ban/jail.local` | 端口暴露面与暴力破解防护 |
+| 系统调优 | `/etc/sysctl.d/99-custom.conf`、`/etc/fstab`、swap | 1 GiB 内存下的稳定性 |
+
+要收进来按普通 task 走：只读导出 → 脱敏 → 加回归，不在本分支顺手改。
+
 ## 日常运维
 
 ```bash
@@ -70,7 +83,10 @@ journalctl -u garage -n 50 -f      # 存储日志
 ufw status verbose; fail2ban-client status sshd
 ```
 
-改 Caddyfile 的顺序固定：先 `caddy validate --config /etc/caddy/Caddyfile`，通过再 `systemctl reload caddy`；**不要 restart**，避免中断进行中的上传。改 garage.toml 必须 restart `garage`，且先在本地 `garage server --config` 试跑一份副本。
+改 Caddyfile 的顺序固定：先 `caddy validate --config /etc/caddy/Caddyfile`，通过再 `systemctl reload caddy`；**不要 restart**，避免中断进行中的上传。
+
+- `validate` 通过不等于口令可用：`S3MANAGER_ADMIN_HASH` 缺失或为空时 Caddy 会拒绝启动（失败关闭），但填一个**不是 bcrypt 的字符串**照样能过校验，上线后控制台永远 401。部署前自检 `[[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] || exit 1`。
+- **handle 块按文件顺序生效**（`caddy adapt` 实测：把公共对象块前移，路由顺序真的变了）。所以「S3 签名 → 桶策略 → 控制台 → 公共对象 → 兜底」这个顺序是合同的一部分，`tests/tooling/storage-cdn-config.test.ts` 里有断言守着，不要为了可读性调换。改 garage.toml 必须 restart `garage`，且先在本地 `garage server --config` 试跑一份副本。
 
 容量与内存：`garage` 的 cgroup 上限 250M、`caddy` 120M、`s3manager` 80M、bridge 50M；常驻约 309 MB，另配 2.5 GB swap。不要把大文件反复拖进控制台预览（会走内存缓冲）。
 

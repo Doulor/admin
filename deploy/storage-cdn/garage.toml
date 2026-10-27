@@ -22,10 +22,11 @@ s3_region = "garage"
 api_bind_addr = "127.0.0.1:3900"
 root_domain = ".cdn.yangtzeu.work"
 
+# [s3_web] 的索引页固定为 index.html（Garage v2.4.1 里是硬编码，WebConfig 没有 index 字段），
+# 写在这里会被静默忽略，所以不要加。
 [s3_web]
 bind_addr = "127.0.0.1:3902"
 root_domain = ".cdn.yangtzeu.work"
-index = "index.html"
 
 [admin]
 api_bind_addr = "127.0.0.1:3903"

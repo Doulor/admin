@@ -24,8 +24,8 @@
       ]
     },
     "permissions": {
-      "status": "unchanged",
-      "reason": "不改变站内权限模型；桶的公共/私有语义与既有 Garage 行为一致，控制台口令仍由目标机环境变量提供。",
+      "status": "changed",
+      "reason": "控制台唯一的鉴权执行点（Caddy 的 basic_auth + 口令哈希变量）第一次进入仓库评审：口令哈希走 systemd 变量、缺失或空值时 Caddy 拒绝启动；公共桶直链正则收窄为 cdn/geek-public 两个桶，避免把控制台路径改写成存储请求。",
       "evidence": [
         "deploy/storage-cdn/Caddyfile"
       ]
@@ -55,7 +55,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增回归：模板与合同文档不得出现密钥形状的值，Caddy 反代端口必须等于 Garage 声明的回环端口，示例脚本缺凭据时失败。",
+      "reason": "新增回归：模块内每个文件与合同文档都不得出现密钥形状（AK、64 位十六进制、44 位 base64、bcrypt、私钥）；Caddy 每个反代端口都能在 garage.toml 或合同服务表里找到；handle 块顺序固定为 S3→桶策略→控制台→公共对象→兜底；示例脚本缺凭据或上传失败都非零退出。",
       "evidence": [
         "tests/tooling/storage-cdn-config.test.ts"
       ]
@@ -65,7 +65,9 @@
       "reason": "新增 deploy/storage-cdn/ 的四个配置模板与系统服务边界说明；不在目标机上执行任何变更，不切 CDN 流量。",
       "evidence": [
         "deploy/storage-cdn/Caddyfile",
-        "deploy/storage-cdn/s3manager.env"
+        "deploy/storage-cdn/s3manager.env",
+        "deploy/storage-cdn/garage.toml",
+        "deploy/storage-cdn/scripts/upload_demo.py"
       ]
     }
   },
@@ -128,6 +130,18 @@
         "domain:platform"
       ],
       "reason": "新增模块后重新生成的项目目录（生成物，由 catalog:generate 产出，不手工编辑）。"
+    },
+    {
+      "paths": [
+        "scripts/check-secrets.mjs"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "密钥扫描器补上 .py、无扩展名 Caddyfile 与自建服务模板 env，并新增 Garage 访问键、bcrypt、S3 密钥赋值三类形状。"
     }
   ],
   "documents": [

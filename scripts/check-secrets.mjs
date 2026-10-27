@@ -16,12 +16,12 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, extname, resolve } from 'node:path';
+import { basename, dirname, extname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-/** 允许入库的模板 env：deploy/env/.env.<environment> 与根 .env.example。 */
-const TEMPLATE_ENV_RE = /^(?:deploy\/env\/\.env\.[a-z]+|\.env\.example)$/;
+/** 允许入库的模板 env：deploy/env/.env.<environment>、根 .env.example，以及自建服务（GitLab/CDN）的模板 env。 */
+const TEMPLATE_ENV_RE = /^(?:deploy\/env\/\.env\.[a-z]+|deploy\/storage-cdn\/[A-Za-z0-9._-]+\.env|\.env\.example)$/;
 /** 明确禁止入库的私有 env 形态。 */
 const FORBIDDEN_ENV_RES = [
   /(?:^|\/)\.env$/,
@@ -29,12 +29,18 @@ const FORBIDDEN_ENV_RES = [
   /(?:^|\/)\.env\.[a-z0-9-]+\.local$/,
 ];
 /** 键名长得像密钥：一旦有非空值即失败（SITE_KEY 之类的公开键不在列表里）。 */
-const SECRET_KEY_RE = /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?|ENCRYPTION_KEY|SSH_KEY|PRIVATE_KEY)(?:_|$)/i;
-const TEXT_EXTENSIONS = new Set(['.md', '.mdc', '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.yaml', '.yml', '.sh', '.bash', '.conf', '.toml', '.env', '.example']);
+const SECRET_KEY_RE = /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?|ENCRYPTION_KEY|SSH_KEY|PRIVATE_KEY|ACCESS_KEY_ID)(?:_|$)/i;
+const TEXT_EXTENSIONS = new Set(['.md', '.mdc', '.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.yaml', '.yml', '.sh', '.bash', '.py', '.conf', '.toml', '.env', '.example']);
+/** 没有扩展名但确实是文本配置的文件名（Caddy 等）。 */
+const TEXT_FILENAMES = new Set(['Caddyfile']);
 const PATTERN_RULES = [
   { name: 'inline SSH password', pattern: /sshpass\s+-p\s+(?:'[^']+'|"[^"]+")/ },
   { name: 'private key material', pattern: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/ },
   { name: 'GitHub token', pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{50,})\b/ },
+  // 自建对象存储（Garage）：访问键固定 GK + 24 位十六进制，S3 密钥是 64 位十六进制
+  { name: 'Garage S3 access key', pattern: /\bGK[0-9a-f]{20,}\b/ },
+  { name: 'bcrypt password hash', pattern: /\$2[aby]\$\d{2}\$[./A-Za-z0-9]{50,}/ },
+  { name: 'S3 secret assigned inline', pattern: /(?:secret_access_key|SECRET_ACCESS_KEY|rpc_secret|admin_token|metrics_token)\s*[=:]\s*[A-Za-z0-9+/]{20,}/ },
 ];
 
 /** 逐行解析 KEY=VALUE，返回 [行号, 键, 值]；注释与空行跳过。 */
@@ -99,7 +105,7 @@ export function auditRepository({ repoRoot = root } = {}) {
       continue;
     }
     const isEnvFile = /(?:^|\/)\.env/.test(file) || file.endsWith('.example');
-    if (!isEnvFile && !TEXT_EXTENSIONS.has(extname(file))) continue;
+    if (!isEnvFile && !TEXT_EXTENSIONS.has(extname(file)) && !TEXT_FILENAMES.has(basename(file))) continue;
     const path = resolve(repoRoot, file);
     if (!existsSync(path)) continue;
     checked += 1;
