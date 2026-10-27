@@ -177,6 +177,8 @@ fi
 [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ] || die "找不到 env 文件（用 --env-file 指定，或确认 <STACK_ROOT>/.env.$ENVIRONMENT 存在）"
 
 FILE_ENVIRONMENT=$(env_value GEEK_DEPLOYMENT_ENVIRONMENT "$ENV_FILE")
+duplicate_keys=$(grep -Eo '^[A-Z][A-Z0-9_]*=' "$ENV_FILE" | sed 's/=$//' | sort | uniq -d | tr '\n' ' ')
+[ -z "${duplicate_keys// /}" ] || die "env 文件里这些键出现了多次：${duplicate_keys}（$ENV_FILE）"
 FILE_STACK_ROOT=$(env_value STACK_ROOT "$ENV_FILE")
 COMPOSE_PROJECT_NAME=$(env_value COMPOSE_PROJECT_NAME "$ENV_FILE")
 CURRENT_TAG=$(env_value IMAGE_TAG "$ENV_FILE")
@@ -188,9 +190,22 @@ WEB_BIND=$(env_value WEB_BIND "$ENV_FILE")
 require_match "$FILE_STACK_ROOT" '^/[A-Za-z0-9._/-]{1,200}$' STACK_ROOT
 [ -n "$COMPOSE_PROJECT_NAME" ] || die "env 文件缺少 COMPOSE_PROJECT_NAME"
 require_match "$COMPOSE_PROJECT_NAME" '^[a-z0-9][a-z0-9_-]{0,62}$' COMPOSE_PROJECT_NAME
+# 与 deploy-stack.sh 同一条边界：env 文件只能操作自己环境的栈。
+[ "${FILE_STACK_ROOT##*/}" = "$ENVIRONMENT" ] || die "STACK_ROOT 必须指向名为 ${ENVIRONMENT} 的栈根（${FILE_STACK_ROOT}）"
+[ "$COMPOSE_PROJECT_NAME" = "$IMAGE_REPO" ] || die "COMPOSE_PROJECT_NAME 必须是 ${IMAGE_REPO}（${COMPOSE_PROJECT_NAME}）"
 require_match "$CURRENT_TAG" '^[0-9a-f]{12}$' IMAGE_TAG
 require_match "$SERVER_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' SERVER_BIND
-require_match "$WEB_BIND" '^127\.0\.0\.1:[0-9]{2,5}$' WEB_BIND
+require_match "$WEB_BIND" '^(127\.0\.0\.1|10\.66\.0\.2):[0-9]{2,5}$' WEB_BIND
+case "$ENVIRONMENT" in
+  production)
+    [ "$WEB_BIND" = "10.66.0.2:18100" ] || [ "$WEB_BIND" = "127.0.0.1:18100" ] || die "WEB_BIND 端口非法：production 必须使用 18100（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18101" ] || die "SERVER_BIND 非法：production 必须使用 127.0.0.1:18101（${SERVER_BIND}）"
+    ;;
+  preview)
+    [ "$WEB_BIND" = "10.66.0.2:18200" ] || [ "$WEB_BIND" = "127.0.0.1:18200" ] || die "WEB_BIND 端口非法：preview 必须使用 18200（${WEB_BIND}）"
+    [ "$SERVER_BIND" = "127.0.0.1:18201" ] || die "SERVER_BIND 非法：preview 必须使用 127.0.0.1:18201（${SERVER_BIND}）"
+    ;;
+esac
 [ -n "$STACK_ROOT_ARG" ] && [ "$STACK_ROOT_ARG" != "$FILE_STACK_ROOT" ] && die "--stack-root 与 env 文件的 STACK_ROOT 不一致"
 
 STACK_ROOT="$FILE_STACK_ROOT"

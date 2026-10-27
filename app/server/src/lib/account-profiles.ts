@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { GRADE_LABELS, gradeOf, type Grade } from "./grade.js";
+import type { PublicAccountProfile } from "./public-profile.js";
 
 /**
  * 账号资料（#274 CONTRACT §2）：论坛、控制台、GitLab 同步、OIDC userinfo、命令行统一读这里。
@@ -30,6 +31,7 @@ export const avatarPath = (hash: string) => `/api/identity/avatar/${hash}.webp`;
 export function createAccountProfiles(db: Database.Database, deps: { clock?: () => number } = {}) {
   const clock = deps.clock ?? Date.now;
   const selectRow = db.prepare("SELECT username, display_name, bio, avatar_hash, prefs FROM account_profiles WHERE account_id = ?");
+  const selectPublicRows = db.prepare("SELECT account_id, username, display_name, bio, avatar_hash FROM account_profiles WHERE account_id IN (SELECT value FROM json_each(?))");
   const usernameTaken = db.prepare("SELECT 1 FROM account_profiles WHERE username = ? COLLATE NOCASE AND account_id <> ?");
   const updateStmt = db.prepare("UPDATE account_profiles SET username = ?, display_name = ?, bio = ?, prefs = ?, updated_at = ? WHERE account_id = ?");
   const insertIfMissing = db.prepare("INSERT OR IGNORE INTO account_profiles(account_id, username, display_name, bio, prefs, updated_at) VALUES (?, ?, ?, '', '{}', ?)");
@@ -55,6 +57,17 @@ export function createAccountProfiles(db: Database.Database, deps: { clock?: () 
     return { username: row.username, display_name: row.display_name, bio: row.bio, avatar_url: avatarUrl(row.avatar_hash), prefs: JSON.parse(row.prefs || "{}") };
   }
 
+  /** 历史作者投影只批量读已存在的公开字段；缺行不建档，也不逐账号触发 get()/ensure()。 */
+  function findMany(accountIds: string[]): Map<string, PublicAccountProfile> {
+    if (!accountIds.length) return new Map();
+    const rows = selectPublicRows.all(JSON.stringify([...new Set(accountIds)])) as {
+      account_id: string; username: string; display_name: string; bio: string; avatar_hash: string | null;
+    }[];
+    return new Map(rows.map(row => [row.account_id, {
+      username: row.username, display_name: row.display_name, bio: row.bio, avatar_url: avatarUrl(row.avatar_hash),
+    }]));
+  }
+
   /** `prefs` 是合并写，不是整份替换（CONTRACT §2）；`username` 唯一性不分大小写，自己原来的名字不算占用。 */
   function update(accountId: string, patch: ProfilePatch): ProfileUpdateResult {
     ensure(accountId);
@@ -74,6 +87,15 @@ export function createAccountProfiles(db: Database.Database, deps: { clock?: () 
     ensure(accountId);
     insertAvatarData.run(hash, data, clock());
     setAvatarStmt.run(hash, clock(), accountId);
+  }
+
+  function clearAvatar(accountId: string): void {
+    const previous = selectRow.get(accountId) as { avatar_hash: string | null } | undefined;
+    setAvatarStmt.run(null, clock(), accountId);
+    if (previous?.avatar_hash) {
+      db.prepare("DELETE FROM account_avatars WHERE hash = ? AND NOT EXISTS (SELECT 1 FROM account_profiles WHERE avatar_hash = ?)")
+        .run(previous.avatar_hash, previous.avatar_hash);
+    }
   }
 
   function avatar(hash: string): Buffer | null {
@@ -98,6 +120,6 @@ export function createAccountProfiles(db: Database.Database, deps: { clock?: () 
     setRealStmt.run(realName, enrollmentYear, clock(), accountId);
   }
 
-  return { get, update, setAvatar, avatar, avatarUrl, realInfo, profileRequired, setRealInfo };
+  return { get, findMany, update, setAvatar, clearAvatar, avatar, avatarUrl, realInfo, profileRequired, setRealInfo };
 }
 export type AccountProfileStore = ReturnType<typeof createAccountProfiles>;

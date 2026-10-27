@@ -51,6 +51,7 @@
 
 | 文档 | 说明 | EN |
 |---|---|---|
+| [`competition-rehearsal.md`](./services/server/competition-rehearsal.md) | GitHub #276 的有限后台验收矩阵、真实路由闭环和浏览器接力入口；测试通过不等于未知组合、真实 GitLab 或浏览器已验收。 | — |
 | [`contest-site-quickstart.md`](./services/server/contest-site-quickstart.md) | 给要给自己的内部比赛做一个官网的组织者看：从建比赛到发布官网的完整步骤，接口清单，以及几条容易踩的坑。这份文档本身是给论坛「举办内部比赛指南」（t910）直接引用的材料，写法上不假设读者先看过别的文档。 | — |
 | [`data-model.md`](./services/server/data-model.md) | data.db 每张表的用途、写入方、读取方和个人信息字段，以及当前没有消费者的表、列和索引；表结构以 `app/server/src/lib/db.ts` 为唯一来源。 | — |
 | [`endpoint-contracts.md`](./services/server/endpoint-contracts.md) | 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。 | — |
@@ -132,14 +133,17 @@
 
 | 文档 | 说明 | EN |
 |---|---|---|
-| [`BACKUP.md`](./ops/BACKUP.md) | 控制台「备份」页一键导出整个系统的数据快照，方便服务挂了重建，或者搬到新机器。 | — |
+| [`BACKUP.md`](./ops/BACKUP.md) | 平台沿用 `yzgc-system-backup@1` 系统归档恢复到独立空卷；数据、配置、身份映射和外发隔离分别验收，不把 GitLab 备份或文件 hash 当完整迁移。 | — |
+| [`CDN.md`](./ops/CDN.md) | #295：公开静态资源迁到 path-style S3；对象内容、发布来源和私有运维索引分别追溯。 | — |
 | [`CICD.md`](./ops/CICD.md) | 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。 | — |
-| [`DEPLOY.md`](./ops/DEPLOY.md) | 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。 | [EN](./ops/DEPLOY.en.md) |
+| [`DEPLOY.md`](./ops/DEPLOY.md) | 两套隔离 Linux Docker 栈运行于 Arch，香港 Caddy 提供 HTTPS 入口；DNS 过渡期间旧 VPS 仅转发，不再运行应用或写库。 | [EN](./ops/DEPLOY.en.md) |
 | [`ENVIRONMENT.md`](./ops/ENVIRONMENT.md) | 仅包含占位符；已有环境文件不由代码规范化任务读取或覆盖。 | — |
-| [`ENVIRONMENTS.md`](./ops/ENVIRONMENTS.md) | 两份入库 `.env` 的字段契约与可见性规则；地址端口直接写，密钥留空由 CI/CD 注入。 | — |
+| [`ENVIRONMENTS.md`](./ops/ENVIRONMENTS.md) | 两份仓库环境模板、Arch/HK 发布目标与副本外发门禁；已接管的权威源保持原行为，模板、运行配置和数据库有效设置分别核对。 | — |
 | [`FORUM-DATA-CAPTURE.md`](./ops/FORUM-DATA-CAPTURE.md) | 已通过 Mac SSH 获取三份 SQLite 在线备份及两代附件；本机论坛可只读显示由此生成的投影，未导入可写库或切换线上服务。 | — |
+| [`GITLAB.md`](./ops/GITLAB.md) | `deploy/gitlab/` 的来源、安装映射、OIDC 与头像边界、私有备份及恢复验收门禁；源码纳管不代表重新部署或统一登录恢复。 | — |
 | [`LOCAL-PREVIEW.md`](./ops/LOCAL-PREVIEW.md) | 本机起官网、核心后端与论坛；启动时给出 GitHub OAuth 应用的两项凭据就走真实 GitHub 登录（数据留在 `.tools/local-preview/`），不给就是隔离的内存模式。 | — |
 | [`RELEASE-ACCEPTANCE-TEMPLATE.md`](./ops/RELEASE-ACCEPTANCE-TEMPLATE.md) | 空白模板，供验收人逐字段手工填写；不是流水线自动生成的通过证明。 | — |
+| [`STORAGE-CDN.md`](./ops/STORAGE-CDN.md) | 一台守在香港的 1 vCPU / 1 GiB 小机器：Garage 提供 S3 兼容对象存储，Caddy 做网关与自动 TLS，S3 Manager 提供可视控制台，Policy Bridge 把控制台里的「设为公共桶」翻译成 Garage 的 website 开关。本文件是这套系统的**唯一现行合同**，配置模板在 `deploy/storage-cdn/`。 | — |
 | [`TUFF-FORUM.md`](./ops/TUFF-FORUM.md) | 独立启动直接引入的 Nuxt/TuffEx 原仓；本机有私有快照时显示极客班论坛内容，登录只走全站统一登录页（GitHub 是目前唯一的登录方式），不将其冒充生产论坛。 | — |
 | [`USAGE.md`](./ops/USAGE.md) | 公开访问说明：全站 GitHub 登录、加入我们、核心 GitHub 管理和新论坛浏览器演示分别怎么用；不包含内部凭据。 | [EN](./ops/USAGE.en.md) |
 
@@ -182,8 +186,12 @@
 
 ## history/changes/gitlab/
 
+保存跨仓同号 issue 的原始声明；本目录不是当前 GitHub 任务的实施依据。
+
 | 文档 | 说明 | EN |
 |---|---|---|
+| [`270.md`](./history/changes/gitlab/270.md) |  | — |
+| [`271.md`](./history/changes/gitlab/271.md) | 保全旧 GitLab 同号声明的原始字节及来源，不将旧业务批准转移给当前 GitHub 任务。 | — |
 | [`272.md`](./history/changes/gitlab/272.md) | 保全旧 GitLab 同号声明的原始字节及来源，不将旧业务批准转移给当前 GitHub 任务。 | — |
 
 ## history/portal-contest-night/
@@ -220,4 +228,4 @@ iPhone 15 Pro Max model attribution
 
 ---
 
-共 73 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 79 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。

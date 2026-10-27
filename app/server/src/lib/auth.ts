@@ -63,7 +63,7 @@ function createSession(input: NewSession): string {
 function getSession(id: string): Session | null {
   const row = db.prepare("SELECT s.*, u.status AS account_status FROM sessions s LEFT JOIN users u ON u.id = s.openid WHERE s.id = ?").get(id) as SessionRow | undefined;
   if (!row) return null;
-  if (row.expires_at < clock() || row.openid === null || row.account_status !== "active") {
+  if (row.expires_at <= clock() || row.openid === null || row.account_status !== "active") {
     db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
     return null;
   }
@@ -97,7 +97,7 @@ function destroySession(id: string): boolean {
  * 所以每趟都截，登出、读到过期、GitHub 拒绝令牌（#164）时删掉的会话也一起清掉。
  */
 function cleanupExpiredSessions(): { deleted: number; walTruncated: boolean } {
-  const deleted = db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(clock()).changes;
+  const deleted = db.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(clock()).changes;
   // 邮箱验证码的挑战（#262）随这一趟一起清：过期一小时以上的删掉（限流按一小时窗口从这张表计数），里面有收件地址
   db.prepare("DELETE FROM email_challenges WHERE expires_at < ?").run(clock() - CHALLENGE_RETENTION_MS);
   return { deleted, walTruncated: truncateWal(db) };

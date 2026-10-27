@@ -8,6 +8,9 @@ import {
   VISIBILITY_LEVELS, type CounterName, type RateBucket, type ViewerLevel,
 } from "./forum-rules.js";
 import { stickerSameOriginUrl } from "./sticker-manifest.js";
+import type { AccountProfileStore } from "./account-profiles.js";
+import type { IdentityStore, PublicIdentityFallback } from "./identity-store.js";
+import { publicProfile, type PublicAccountProfile } from "./public-profile.js";
 
 /**
  * 论坛的持久化与业务规则（#57）：forum_* 表的全部 SQL、编号、通知规则和整份 `ForumState` 的组装。
@@ -148,12 +151,13 @@ const DEFAULT_NOTIFY_PREFS: Record<ForumUserKind, NotifyPrefs> = {
   official: { reply: false, like: false, follow: false },
 };
 
-function toUser(row: UserRow, ownPrefs = true): ForumUser {
-  const avatarUrl = row.avatar_hash ? avatarPath(row.avatar_hash) : row.kind === "member" && row.github_avatar_url ? row.github_avatar_url : undefined;
+function toUser(row: UserRow, ownPrefs = true, profile?: PublicAccountProfile, fallback?: PublicIdentityFallback): ForumUser {
+  const visible = profile ? publicProfile(profile, fallback ?? { login: row.username, avatarUrl: row.github_avatar_url }) : null;
+  const avatarUrl = visible ? visible.avatar_url : row.avatar_hash ? avatarPath(row.avatar_hash) : row.kind === "member" && row.github_avatar_url ? row.github_avatar_url : undefined;
   const title = row.title ? JSON.parse(row.title) as ForumTitle : undefined;
   const accountTitles = row.account_titles ? JSON.parse(row.account_titles) as { department: AccountDepartmentView; titles: AccountTitleView[] } : null;
   return {
-    id: row.id, username: row.username, displayName: row.display_name, bio: row.bio, location: row.location, website: row.website,
+    id: row.id, username: visible?.username ?? row.username, displayName: visible?.display_name ?? row.display_name, bio: visible?.bio ?? row.bio, location: row.location, website: row.website,
     avatarColor: row.avatar_color, ...(avatarUrl ? { avatarUrl } : {}), joinedAt: row.joined_at, role: row.role,
     ...(title ? { title } : {}),
     department: accountTitles?.department ?? null, titles: accountTitles?.titles ?? [],
@@ -219,6 +223,8 @@ export type ForumStoreOptions = {
   orgLogins?: () => string[];
   /** 表情图片的地址（#286）：按图片内容哈希，开关打开时内置素材是 CDN 地址（lib/sticker-manifest.ts 的 createStickerUrl）；不传都是同源地址。 */
   stickerUrl?: (hash: string) => string;
+  profiles?: Pick<AccountProfileStore, "findMany" | "update" | "setAvatar" | "clearAvatar">;
+  identity?: Pick<IdentityStore, "publicFallbacks">;
 };
 
 export function createForumStore(db: Database.Database, content: ForumContent, options: ForumStoreOptions = {}) {
@@ -226,6 +232,71 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
   const stickerFileUrl = options.stickerUrl ?? stickerSameOriginUrl;
   const categoryIds = new Set(content.categories.map(item => item.id));
   const curatedTags = new Map(content.tags.map(tag => [tag.id, tag]));
+
+  function profilesFor(rows: UserRow[]) {
+    const profiles = options.profiles?.findMany(rows.flatMap(row => row.kind === "member" && row.account_id ? [row.account_id] : []));
+    const fallbackIds = profiles
+      ? [...profiles].flatMap(([accountId, profile]) => !profile.display_name.trim() || !profile.avatar_url ? [accountId] : [])
+      : [];
+    const fallbacks = fallbackIds.length ? options.identity?.publicFallbacks(fallbackIds) : undefined;
+    return { profiles, fallbacks };
+  }
+
+  function projectUsers(rows: UserRow[], viewerId?: string | null): ForumUser[] {
+    const { profiles, fallbacks } = profilesFor(rows);
+    return rows.map(row => toUser(
+      row,
+      viewerId === undefined || row.id === viewerId,
+      row.account_id ? profiles?.get(row.account_id) : undefined,
+      row.account_id ? fallbacks?.get(row.account_id) : undefined,
+    ));
+  }
+
+  type UserCandidate = { row: UserRow & { sort_id: number }; profile?: PublicAccountProfile; fallback?: PublicIdentityFallback };
+  /**
+   * 名字查找按有界批次只读 canonical，不全表生成 DTO，也不逐作者 get()/ensure()。
+   * 顺序扫描只走一趟：按 joined_at 分页却没有对应索引，会让每批重新扫表、排序。
+   */
+  function* userCandidates(activeOnly = false): Generator<UserCandidate> {
+    const statement = db.prepare(`SELECT fu.*, fu.rowid AS sort_id FROM forum_users fu
+      ${activeOnly ? "JOIN users u ON u.id = fu.account_id WHERE u.status = 'active' AND fu.kind = 'member'" : ""}`);
+    const batch: UserCandidate["row"][] = [];
+    function* flush() {
+      const { profiles, fallbacks } = profilesFor(batch);
+      for (const row of batch) yield {
+        row,
+        profile: row.account_id ? profiles?.get(row.account_id) : undefined,
+        fallback: row.account_id ? fallbacks?.get(row.account_id) : undefined,
+      };
+      batch.length = 0;
+    }
+    for (const row of statement.iterate() as IterableIterator<UserCandidate["row"]>) {
+      batch.push(row);
+      if (batch.length === 128) yield* flush();
+    }
+    if (batch.length) yield* flush();
+  }
+
+  const candidateName = ({ row, profile, fallback }: UserCandidate) =>
+    profile ? publicProfile(profile, fallback ?? { login: row.username, avatarUrl: row.github_avatar_url }) : { username: row.username, display_name: row.display_name };
+
+  function findUsers(viewerId: string | null, query: string, prefix: boolean, limit: number, activeOnly = false): ForumUser[] {
+    const needle = query.toLowerCase();
+    const matches = (value: string) => prefix ? value.toLowerCase().startsWith(needle) : value.toLowerCase().includes(needle);
+    const selected: UserCandidate[] = [];
+    const compare = (a: UserCandidate, b: UserCandidate) => a.row.joined_at - b.row.joined_at || a.row.sort_id - b.row.sort_id;
+    const cap = Math.min(SEARCH_LIMIT, Math.max(0, limit));
+    if (!cap) return [];
+    for (const candidate of userCandidates(activeOnly)) {
+      const name = candidateName(candidate);
+      if (!matches(name.username) && !matches(name.display_name)) continue;
+      if (selected.length === cap && compare(candidate, selected[cap - 1]!) >= 0) continue;
+      selected.push(candidate);
+      selected.sort(compare);
+      if (selected.length > cap) selected.pop();
+    }
+    return selected.map(({ row, profile, fallback }) => toUser(row, row.id === viewerId, profile, fallback));
+  }
 
   /**
    * 分级可见（#276 CONTRACT §1）：生效可见范围的 SQL 表达式与 JOIN，列表、搜索、通知、话题/帖子查询
@@ -284,10 +355,20 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
 
   /** 帖子里的 @用户名：每人一次，不给自己，已经因为回复收到通知的不重复；一帖最多通知 mentionNotifyMax 人，按出现顺序。 */
   function notifyMentions(postId: string, text: string, authorId: string, topicId: string, at: number) {
+    const handles = extractMentions(text);
+    if (!handles.length) return;
+    const wanted = new Set(handles.map(handle => handle.toLowerCase()));
+    const mentionedUsers = new Map<string, UserRow>();
+    for (const candidate of userCandidates()) {
+      if (candidate.row.kind !== "member") continue;
+      const handle = candidateName(candidate).username.toLowerCase();
+      if (wanted.has(handle)) mentionedUsers.set(handle, candidate.row);
+      if (mentionedUsers.size === wanted.size) break;
+    }
     let sent = 0;
-    for (const handle of extractMentions(text)) {
+    for (const handle of handles) {
       if (sent >= FORUM_LIMITS.mentionNotifyMax) break;
-      const mentioned = selectUserByName.get(handle) as UserRow | undefined;
+      const mentioned = mentionedUsers.get(handle.toLowerCase());
       if (!mentioned || mentioned.id === authorId || mentioned.kind !== "member") continue;
       if (hasNotification(mentioned.id, "reply", null, postId) || hasNotification(mentioned.id, "mention", null, postId)) continue;
       notify(mentioned.id, "mention", authorId, at, topicId, postId);
@@ -413,8 +494,7 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
         ORDER BY p.created_at DESC, p.rowid DESC LIMIT ?
       `).all(like, ...visible.params, SEARCH_LIMIT) as (PostRow & { effective_visibility: ViewerLevel })[])
       .map(row => toPostHit(row, likes.get(row.id) ?? [], query, row.effective_visibility, reactions.get(row.id) ?? []));
-    const users = (db.prepare("SELECT * FROM forum_users WHERE username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\' ORDER BY joined_at, rowid LIMIT ?")
-      .all(like, like, SEARCH_LIMIT) as UserRow[]).map(row => toUser(row, row.id === viewerId));
+    const users = findUsers(viewerId, query, false, SEARCH_LIMIT);
     return { topics, posts, users };
   }
 
@@ -448,7 +528,7 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
   return {
     content,
     hasCategory: (id: string) => categoryIds.has(id),
-    user: (id: string) => { const row = user(id); return row ? toUser(row) : undefined; },
+    user: (id: string) => { const row = user(id); return row ? projectUsers([row])[0] : undefined; },
     /**
      * 单条话题查询不按身份过滤（#276 CONTRACT §1）：直接取看不到的话题要能区分「不存在」（404）和「存在但
      * 看不到」（401/403），过滤掉的话两者都会查不到。路由层拿到 `visibility` 字段后自己用 `assertVisible()` 判。
@@ -592,9 +672,12 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
       const ownLogin = self.login.toLowerCase();
       if (name.toLowerCase() === ownLogin) return false;
       const key = nameKey(name);
-      return (db.prepare("SELECT kind, display_name, username FROM forum_users WHERE id <> ? AND kind <> 'guest'").all(self.userId) as Pick<UserRow, "kind" | "display_name" | "username">[])
-        .some(row => nameKey(row.username) === key || (row.kind === "official" && nameKey(row.display_name) === key))
-        || orgLogins().some(login => login.toLowerCase() !== ownLogin && nameKey(login) === key);
+      for (const candidate of userCandidates()) {
+        if (candidate.row.id === self.userId || candidate.row.kind === "guest") continue;
+        const name = candidateName(candidate);
+        if (nameKey(name.username) === key || (candidate.row.kind === "official" && nameKey(name.display_name) === key)) return true;
+      }
+      return orgLogins().some(login => login.toLowerCase() !== ownLogin && nameKey(login) === key);
     },
 
     createTopic(input: { authorId: string; title: string; categoryId: string; tags: string[]; content: string }, now = Date.now()): { topicId: string; postId: string } {
@@ -676,24 +759,36 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
       (db.prepare("UPDATE forum_notifications SET read = 1 WHERE recipient_id = ? AND read = 0 RETURNING id").all(userId) as { id: string }[]).map(row => row.id),
 
     updateProfile(userId: string, patch: ProfilePatch, now = Date.now()) {
-      const columns: [string, string | number][] = [];
-      if (patch.displayName !== undefined) columns.push(["display_name", patch.displayName]);
-      if (patch.bio !== undefined) columns.push(["bio", patch.bio]);
-      if (patch.location !== undefined) columns.push(["location", patch.location]);
-      if (patch.website !== undefined) columns.push(["website", patch.website]);
-      const prefs = patch.notifyPrefs ?? {};
-      if (prefs.reply !== undefined) columns.push(["notify_reply", prefs.reply ? 1 : 0]);
-      if (prefs.like !== undefined) columns.push(["notify_like", prefs.like ? 1 : 0]);
-      if (prefs.follow !== undefined) columns.push(["notify_follow", prefs.follow ? 1 : 0]);
-      // 列名只来自上面的固定清单，值一律参数化。
-      db.prepare(`UPDATE forum_users SET ${[...columns.map(([column]) => `${column} = ?`), "updated_at = ?"].join(", ")} WHERE id = ?`)
-        .run(...columns.map(([, value]) => value), now, userId);
+      db.transaction(() => {
+        const row = user(userId);
+        // 缺 canonical 行的历史作者沿用旧写口；局部修改不能 ensure 出空资料，反而隐藏未修改的旧字段/头像。
+        if (row?.account_id && options.profiles?.findMany([row.account_id]).has(row.account_id) && (patch.displayName !== undefined || patch.bio !== undefined)) {
+          options.profiles.update(row.account_id, {
+            ...(patch.displayName !== undefined ? { display_name: patch.displayName } : {}),
+            ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
+          });
+        }
+        const columns: [string, string | number][] = [];
+        if (patch.displayName !== undefined) columns.push(["display_name", patch.displayName]);
+        if (patch.bio !== undefined) columns.push(["bio", patch.bio]);
+        if (patch.location !== undefined) columns.push(["location", patch.location]);
+        if (patch.website !== undefined) columns.push(["website", patch.website]);
+        const prefs = patch.notifyPrefs ?? {};
+        if (prefs.reply !== undefined) columns.push(["notify_reply", prefs.reply ? 1 : 0]);
+        if (prefs.like !== undefined) columns.push(["notify_like", prefs.like ? 1 : 0]);
+        if (prefs.follow !== undefined) columns.push(["notify_follow", prefs.follow ? 1 : 0]);
+        // 列名只来自上面的固定清单，值一律参数化。
+        db.prepare(`UPDATE forum_users SET ${[...columns.map(([column]) => `${column} = ?`), "updated_at = ?"].join(", ")} WHERE id = ?`)
+          .run(...columns.map(([, value]) => value), now, userId);
+      })();
     },
 
     /** 头像按内容哈希存一份；换掉或删掉之后，没人再用的旧图一起删。 */
     setAvatar(userId: string, hash: string, data: Buffer, now = Date.now()) {
       db.transaction(() => {
-        const previous = user(userId)?.avatar_hash ?? null;
+        const row = user(userId);
+        const previous = row?.avatar_hash ?? null;
+        if (row?.account_id && options.profiles?.findMany([row.account_id]).has(row.account_id)) options.profiles.setAvatar(row.account_id, hash, data);
         db.prepare("INSERT OR IGNORE INTO forum_avatars(hash, data, created_at) VALUES(?, ?, ?)").run(hash, data, now);
         db.prepare("UPDATE forum_users SET avatar_hash = ?, updated_at = ? WHERE id = ?").run(hash, now, userId);
         if (previous !== hash) deleteAvatarIfUnused(previous);
@@ -701,7 +796,9 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     },
     clearAvatar(userId: string, now = Date.now()) {
       db.transaction(() => {
-        const previous = user(userId)?.avatar_hash ?? null;
+        const row = user(userId);
+        const previous = row?.avatar_hash ?? null;
+        if (row?.account_id) options.profiles?.clearAvatar(row.account_id);
         db.prepare("UPDATE forum_users SET avatar_hash = NULL, updated_at = ? WHERE id = ?").run(now, userId);
         deleteAvatarIfUnused(previous);
       })();
@@ -748,7 +845,7 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
         version: 1,
         seededAt: 0,
         counters: { topic: counters.topic ?? 0, post: counters.post ?? 0, notification: counters.notification ?? 0, tag: counters.tag ?? 0 },
-        users: (db.prepare("SELECT * FROM forum_users ORDER BY joined_at, rowid").all() as UserRow[]).map(row => toUser(row, row.id === viewerId)),
+        users: projectUsers(db.prepare("SELECT * FROM forum_users ORDER BY joined_at, rowid").all() as UserRow[], viewerId),
         categories: content.categories.filter(category =>
           allowed.includes(categorySettings.get(category.id) ?? "public") || referencedCategories.has(category.id)),
         tags: [...content.tags, ...(db.prepare("SELECT id, slug, name, color FROM forum_tags ORDER BY created_at, rowid").all() as TagRow[])
@@ -792,7 +889,7 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
     changes(viewerId: string | null, keys: ChangeKeys, options: ChangeOptions = {}): ForumChanges {
       const unique = (list: string[] | undefined) => [...new Set(list ?? [])];
       const out: ForumChanges = {};
-      const users = unique(keys.users).map(user).filter(row => row !== undefined).map(row => toUser(row, row.id === viewerId));
+      const users = projectUsers(unique(keys.users).map(user).filter(row => row !== undefined), viewerId);
       if (users.length) out.users = users;
       const tags = unique(keys.tags)
         .map(id => curatedTags.get(id) ?? db.prepare("SELECT id, slug, name, color FROM forum_tags WHERE id = ?").get(id) as TagRow | undefined)
@@ -959,18 +1056,8 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
 
     /** `GET /api/forum/users/suggest`（CONTRACT §6）：按 username、displayName 前缀匹配，不分大小写，只回在用账号。 */
     suggestUsers(query: string, limit: number): { username: string; displayName: string; avatarUrl: string | null }[] {
-      const like = `${escapeLike(query)}%`;
-      const rows = db.prepare(`
-        SELECT fu.username AS username, fu.display_name AS display_name, fu.avatar_hash AS avatar_hash, fu.github_avatar_url AS github_avatar_url
-        FROM forum_users fu JOIN users u ON u.id = fu.account_id
-        WHERE u.status = 'active' AND fu.kind = 'member'
-          AND (fu.username LIKE ? ESCAPE '\\' COLLATE NOCASE OR fu.display_name LIKE ? ESCAPE '\\' COLLATE NOCASE)
-        ORDER BY fu.joined_at, fu.rowid LIMIT ?
-      `).all(like, like, limit) as { username: string; display_name: string; avatar_hash: string | null; github_avatar_url: string | null }[];
-      return rows.map(row => ({
-        username: row.username, displayName: row.display_name,
-        avatarUrl: row.avatar_hash ? avatarPath(row.avatar_hash) : row.github_avatar_url ?? null,
-      }));
+      return findUsers(null, query, true, limit, true)
+        .map(user => ({ username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null }));
     },
   };
 }

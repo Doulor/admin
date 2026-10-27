@@ -190,8 +190,9 @@ describe('device authorization (#262, RFC 8628)', () => {
 
     const info = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: `Bearer ${token.access_token}` } });
     expect(info.statusCode).toBe(200);
-    expect(info.json()).toEqual({
+    expect(info.json()).toMatchObject({
       sub: accountId, account_id: accountId, login: 'octocat',
+      username: expect.any(String), display_name: expect.any(String), bio: expect.any(String),
       avatar_url: 'https://avatars.test/octocat.png', scope: 'openid profile', email_required: false, profile_required: false,
       // signIn() 新建的测试账号默认补过资料（helpers.ts 的 completeProfile）；它传的默认年级是 2，但
       // enrollmentYearFor() 没有接这个文件的 `clock`、按真实当前时间算入学年份，年级又按这里固定的
@@ -199,6 +200,10 @@ describe('device authorization (#262, RFC 8628)', () => {
       // #277 范围内，已向负责 #280 的一方报告）。
       grade: 1, grade_label: '大一',
     });
+    expect(Object.keys(info.json()).sort()).toEqual([
+      'account_id', 'avatar_url', 'bio', 'display_name', 'email_required',
+      'grade', 'grade_label', 'login', 'profile_required', 'scope', 'sub', 'username',
+    ].sort());
     const rejected = await app.inject({ url: '/auth/device/userinfo', headers: { authorization: 'Bearer gk_wrong' } });
     expect(rejected.statusCode).toBe(401);
     expect(rejected.json().error).toBe('invalid_token');

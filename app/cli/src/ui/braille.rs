@@ -55,14 +55,13 @@ pub fn render(img: &RgbaImage, cols: usize) -> Vec<Vec<Cell>> {
                 }
             }
             let ch = char::from_u32(0x2800 + mask as u32).unwrap_or(' ');
-            let rgb = if sum.3 > 0 {
-                Some((
-                    (sum.0 / sum.3) as u8,
-                    (sum.1 / sum.3) as u8,
-                    (sum.2 / sum.3) as u8,
-                ))
-            } else {
-                None
+            let rgb = match (
+                sum.0.checked_div(sum.3),
+                sum.1.checked_div(sum.3),
+                sum.2.checked_div(sum.3),
+            ) {
+                (Some(r), Some(g), Some(b)) => Some((r as u8, g as u8, b as u8)),
+                _ => None,
             };
             line.push(Cell { ch, rgb });
         }

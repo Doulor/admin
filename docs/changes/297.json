@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "issue": 297,
+  "kind": "engineering",
+  "summary": "把香港对象存储与静态 CDN（Garage + Caddy + S3 Manager）的配置与运维合同收进 monorepo 并脱敏：模板里所有密钥字段留空，真实值只存在于目标机与凭据库。",
+  "applications": [],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不触碰站内身份、投递、论坛或比赛的任何规则与数据；这台机器只做对象存储与备份归档，不被应用服务 import。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不新增应用 HTTP 接口、数据库表或服务端代码；S3 兼容接口由既有 Garage 提供，仓库只保存配置模板。",
+      "evidence": [
+        "deploy/storage-cdn/garage.toml"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "控制台唯一的鉴权执行点（Caddy 的 basic_auth + 口令哈希变量）第一次进入仓库评审：口令哈希走 systemd 变量、缺失或空值时 Caddy 拒绝启动；公共桶直链正则收窄为 cdn/geek-public 两个桶，避免把控制台路径改写成存储请求。",
+      "evidence": [
+        "deploy/storage-cdn/Caddyfile"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不迁移、不删除任何对象或桶；本改动只增加可复核的配置来源与合同文档。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增 npm、Rust 或 Python 依赖；示例脚本只用标准库，凭据改从环境变量读取。",
+      "evidence": [
+        "deploy/storage-cdn/scripts/upload_demo.py"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "新增 STORAGE-CDN 合同，并在 DEPLOY、docs/README 的模块对照与阅读地图里登记这个模块。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md",
+        "docs/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增回归：模块内每个文件与合同文档都不得出现密钥形状（Garage GK 键、64 位十六进制、44 位 base64、bcrypt、私钥；带引号的值同样命中）；Caddy 每个反代端口都能在 garage.toml 或合同服务表里找到；handle 块顺序固定；示例脚本缺凭据、以及端点返回 501 时都非零退出（后者用本地 501 服务钉住，不靠「连不上」）。",
+      "evidence": [
+        "tests/tooling/storage-cdn-config.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "新增 deploy/storage-cdn/ 的四个配置模板与系统服务边界说明；不在目标机上执行任何变更，不切 CDN 流量。",
+      "evidence": [
+        "deploy/storage-cdn/Caddyfile",
+        "deploy/storage-cdn/s3manager.env",
+        "deploy/storage-cdn/garage.toml",
+        "deploy/storage-cdn/scripts/upload_demo.py"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "deploy/storage-cdn/garage.toml",
+        "deploy/storage-cdn/s3manager.env",
+        "deploy/storage-cdn/Caddyfile",
+        "deploy/storage-cdn/scripts/upload_demo.py"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "这套对象存储只服务平台自身的备份归档与图床，配置是部署物料而不是应用代码。"
+    },
+    {
+      "paths": [
+        "tests/tooling/storage-cdn-config.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "用回归守住「模板不含凭据」和「反代端口与 Garage 声明一致」两条不变量。"
+    },
+    {
+      "paths": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md",
+        "docs/README.md",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "合同文档与模块对照入口，索引由 docs-index 生成。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "新增模块后重新生成的项目目录（生成物，由 catalog:generate 产出，不手工编辑）。"
+    },
+    {
+      "paths": [
+        "scripts/check-secrets.mjs"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "密钥扫描器补上 .py、无扩展名 Caddyfile 与自建服务模板 env，并新增 Garage 访问键、bcrypt、S3 密钥赋值三类形状。"
+    }
+  ],
+  "documents": [
+    "docs/ops/STORAGE-CDN.md",
+    "docs/ops/DEPLOY.md",
+    "docs/README.md"
+  ],
+  "tests": [
+    "tests/tooling/storage-cdn-config.test.ts"
+  ],
+  "compatibility": "纯新增文件与文档登记；既有应用、部署脚本与两套 Docker 栈不受影响，服务器上的运行状态不被触碰。",
+  "migration": "没有数据或接口迁移：只是把家里那台 Mac 上的 8 个文件脱敏后收进仓库，真实密钥继续留在目标机 /etc 下。",
+  "rollback": "回滚本次改动即可（删除 deploy/storage-cdn/ 与合同文档、撤回对照表与索引），不需要回滚服务器或数据。"
+}

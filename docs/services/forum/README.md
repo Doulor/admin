@@ -24,9 +24,9 @@
 
 ## 静态资源 CDN 开关（#146）
 
-构建参数 `STATIC_CDN_BASE` 为空时与原来一样，`/forum/_nuxt/` 同源加载。等于 `https://cdn.crosery.com/yzgc/static/site/` 时（规则在仓库根的 `scripts/static-cdn-base.mjs`，别的非空值让构建失败），`nuxt.config.ts` 做三件事：
+构建参数 `STATIC_CDN_BASE` 为空时与原来一样，`/forum/_nuxt/` 同源加载。等于 `https://cdn.yangtzeu.work/geek-public/static/site/` 时（规则在仓库根的 `scripts/static-cdn-base.mjs`，别的非空值让构建失败），`nuxt.config.ts` 做三件事：
 
-- `app.cdnURL` 设为 `<base>forum/`，`_nuxt/` 下的文件从 `https://cdn.crosery.com/yzgc/static/site/forum/_nuxt/…` 加载，页面、`/api/forum/*`、公开旧帖图片与 `llms.txt` 仍走源站；
+- `app.cdnURL` 设为 `<base>forum/`，`_nuxt/` 下的文件从 `https://cdn.yangtzeu.work/geek-public/static/site/forum/_nuxt/…` 加载，页面、`/api/forum/*`、公开旧帖图片与 `llms.txt` 仍走源站；
 - `cdnURL` 也会改写代码里写的 `public/` 地址（如顶栏的 `/logo.png`），那是不带哈希的固定文件名，不上传。所以开关打开时加一个 Vite 插件 `hashPublicImports`：代码引用的 `public/` 文件按普通构建资源处理，带上内容哈希进 `_nuxt/`，和其它产物一起上传；
 - 关掉 Nuxt 的新版本检查（`experimental.checkOutdatedBuildInterval: false`）：它读 `_nuxt/builds/latest.json`，文件名固定、每次内容都变，上传只增不改，不传它。旧版本的哈希文件一直留在 CDN 上，开着的旧页面照样能加载自己的分块，刷新即拿到新版本。
 
@@ -75,7 +75,7 @@ app/server/assets/stickers/
 
 服务启动时 `lib/migrations/2026-10-sticker-packs.ts` 照清单把库里没有的包、表情和图片补进去，只增不改，可以重复执行：库里已有的包和表情整行不碰（站长改过的名字、排序、停用、换过的图都保留）；新包排在现有的包后面、启用；老包里新增的表情排在那个包的最后；图片按内容 sha256 去重，哈希按文件真实内容现算；清单里列了而目录里没有的图片跳过，记在迁移报告的 `stickers_missing_files` 里，不让启动失败。清单文件不存在算没有内置表情包，存在但读不出来或形状不对，服务拒绝启动。回滚就是部署上一个镜像，迁移只加行、不删行。`tests/server/sticker-packs-migration.test.ts` 用临时目录里的两个包跑：第一次启动建出两个包，站长改名、停用之后重启不被覆盖，第二次启动行数不变；另外拿仓库里的真实目录跑两遍：新库一次建出三个包、56 张表情，库里存的图片字节就是文件内容；只有极客娘的旧库升级后多出极客日常和聊天回应两个包、32 张表情，极客娘的包和 24 行表情（含站长改过的名字、排序、停用）一行不动，再启动一次行数不变。
 
-图片地址由服务端决定：`GET /api/forum/stickers`、控制台列表和表情回应里每个表情的 `url`。CDN 开关（`STATIC_CDN_BASE`，见上节与 [CICD](../../ops/CICD.md)）关闭时全是同源的 `/api/forum/stickers/<哈希>.webp`，按内容哈希，响应头一年 `immutable`，不压缩（WebP 本身已经压缩，宿主与两个容器的 `gzip_types` 都不含它）；打开时清单里的内置表情是 `https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp`，站长在控制台上传的、不在清单里的仍是同源地址（`tests/server/forum-sticker-cdn.test.ts`）。前端只认这两种写法（`shared/sticker-url.ts`，表情面板、编辑器、帖子正文和回应都从它取）：别的域名、`http`、路径穿越、`javascript:`、`data:`、带查询串或片段的都不进 `src`。同一张图的两种地址哈希相同，编辑器把图片存回短码时按哈希认，开关在两次页面加载之间变了，也不会把表情存成一条地址。
+图片地址由服务端决定：`GET /api/forum/stickers`、控制台列表和表情回应里每个表情的 `url`。CDN 开关（`STATIC_CDN_BASE`，见上节与 [CICD](../../ops/CICD.md)）关闭时全是同源的 `/api/forum/stickers/<哈希>.webp`，按内容哈希，响应头一年 `immutable`，不压缩（WebP 本身已经压缩，宿主与两个容器的 `gzip_types` 都不含它）；打开时清单里的内置表情是 `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/<哈希>.webp`，站长在控制台上传的、不在清单里的仍是同源地址（`tests/server/forum-sticker-cdn.test.ts`）。前端只认这两种写法（`shared/sticker-url.ts`，表情面板、编辑器、帖子正文和回应都从它取）：别的域名、`http`、路径穿越、`javascript:`、`data:`、带查询串或片段的都不进 `src`。同一张图的两种地址哈希相同，编辑器把图片存回短码时按哈希认，开关在两次页面加载之间变了，也不会把表情存成一条地址。
 
 新增一个包：
 
@@ -83,6 +83,8 @@ app/server/assets/stickers/
 2. 运行 `node scripts/sticker-manifest.mjs write`，再用 `report` 看字节数；
 3. 提交目录和 `manifest.json`，`tests/tooling/sticker-manifest.test.ts` 核对两者一致；
 4. 部署后服务启动时补进库里；开关打开时图片由部署的 `cdn-upload` 一起上传，想提前上传见 [CICD](../../ops/CICD.md)「静态资源 CDN」。
+
+新存储路径、S3 上传与回滚边界见 [CDN 合同](../../ops/CDN.md)。新端点的 CORS/Range/MIME 需要真实验收，不沿用旧供应商的结果。
 
 ## 所有权与来源
 

@@ -729,3 +729,6 @@ console（`app/console`）：`pages/Competitions.vue` 每行加「名单」；�
 - 后端草稿：fork `Yuminghuang738/admin` 分支 `task/239/competition_signup` 的提交 `90fc376`（基于 `a42272d6`；2026-10-19 重构后开 [PR #261](https://github.com/Yangtze-University-Geek-Class/admin/pull/261)）：`app/server/src/lib/competition-signup-store.ts`、`app/server/src/routes/portal/competition-signups.ts`、`app/server/src/routes/console/competition-roster.ts`。
 - 身份：[ADR-0005](../decisions/0005-sso-extend-core-server.md)（`accepted`，未实施；PR #242）；所有者 2026-10-19：「我们的登录不再是github登录了，是长江大学极客班统一登录的」，GitHub、Google、邮箱验证码都绑定到同一个极客班账号；跨业务口径见[统一登录实施规格](./UNIFIED-LOGIN.md)（`accepted`，未实施）；统一资料来自所有者同日的「全局的头像还有相关的信息比赛，首页，管理后端，论坛都是用一套的，而且可以同步的更改」。
 - 草图：`docs/assets/competition-app/*.webp`，由静态 HTML 渲染，数据虚构。
+## 演练结论（GitHub #276，2026-10-27）
+
+首场按个人赛演练，后台/CLI有限矩阵、已验证与身份集成失败项见[competition-rehearsal](../services/server/competition-rehearsal.md)。这不是变更计分规则的授权：两档查表、年级系数、每周低质量限分与可选奖项不变。新增隔离OAuth→报名→GitLab候选→审核→定榜→本人领奖→核销→重启fixture，真实网络与桌面/手机由父级另验。修复收集不完整误撤分/竞态、自审、门户审计回滚与缓存、定榜报名设置冻结、两榜名次与游标隐私。旧方案中的“不写审计”不再是现行合同：门户写activity_events且与业务同事务；定榜后名单/设置冻结。不能把本节作为身份三项已修复或首场已可发布的凭据。

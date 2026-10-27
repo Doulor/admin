@@ -2,110 +2,138 @@
   "version": 1,
   "issue": 271,
   "kind": "business",
-  "summary": "同步到 GitLab 的账号补上头像（#271，#270 的续作，所有者 2026-10-23 16:54「我最烦的就是交付一半然后来问我了」）：头像改成同步里单独的一步 set_avatar，论坛头像优先，没有时下载 256 像素的 GitHub 头像，200 KiB 以内才传；拿不到能传的图或 GitLab 没收都记错误、下一轮再试；gitlab_accounts 新增 avatar_source 记下 GitLab 收下的来源，已经建好的账号补传，来源变了再传。",
+  "summary": "GitHub #271：接手A1/A2，统一有效成员/站长与到期缓存、canonical公开资料覆盖forum/device/CLI；canonical空昵称/头像批量回退当前身份绑定，避免历史论坛缓存漂移；修复GitLab缓存身份、分页与资格竞态造成的误封风险，同时保留明确停用的安全撤权，并修复贡献采集HTTP失败误撤积分与停用审核人误加分。",
   "applications": [
     "server",
-    "console"
+    "cli"
   ],
   "domains": [
-    "gitlab",
     "identity",
-    "forum",
-    "audit",
+    "permissions",
     "organization",
+    "forum",
+    "gitlab",
     "competitions",
-    "platform",
-    "feedback",
-    "github",
-    "invitations",
-    "recruitment",
-    "mail"
+    "audit",
+    "platform"
   ],
   "flows": [
+    "flow:identity.current",
+    "flow:identity.oidc.protocol",
+    "flow:identity.oidc.interaction",
+    "flow:identity.device.userinfo",
+    "flow:identity.profile.view",
+    "flow:identity.profile.update",
+    "flow:console.identity",
+    "flow:permissions.groups.update",
+    "flow:permissions.groups.members.add",
+    "flow:permissions.groups.members.remove",
+    "flow:users.list",
+    "flow:users.update",
+    "flow:forum.state",
+    "flow:forum.profile.update",
     "flow:gitlab.accounts.list",
     "flow:gitlab.accounts.sync",
-    "flow:competition.public.list",
-    "flow:feedback.public.list",
-    "flow:github.organizations.list",
-    "flow:invitation.public.inspect",
-    "flow:application.submit"
+    "flow:competition.candidates.collect",
+    "flow:forum.search",
+    "flow:forum.topics.create",
+    "flow:forum.topics.pin",
+    "flow:forum.topics.close",
+    "flow:forum.posts.reply",
+    "flow:forum.posts.edit",
+    "flow:forum.posts.delete",
+    "flow:forum.posts.like",
+    "flow:forum.posts.bookmark",
+    "flow:forum.users.follow",
+    "flow:forum.notifications.read",
+    "flow:forum.notifications.read_all",
+    "flow:forum.avatar.upload",
+    "flow:forum.avatar.clear",
+    "flow:forum.users.suggest",
+    "flow:forum.topics.visibility"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "#270 要求头像在建号时带到 GitLab，但 GitHub 原图常常超过 GitLab 200 KiB 的上限，上传被拒后同步不看结果，也不再传，预发布上的两个 GitLab 账号都没有头像。现在每个是成员、有论坛头像或 GitHub 账号的人，GitLab 上都有头像：论坛头像优先，没有时用 GitHub 头像；传不上去的在控制台成员页写明原因、下一轮接着传，已经建好的账号补传（会盖掉成员之前在 GitLab 自己换的头像一次），在论坛上换了头像下一轮同步过去。",
+      "reason": "active且有效直接member/alumni是唯一成员口径；有效直接owner单独判定，未知上游状态不是离开证据，明确失去资格的受管账号仍封禁。",
       "evidence": [
-        "app/server/src/lib/gitlab-sync.ts",
-        "docs/services/server/oidc.md"
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/gitlab-sync.ts"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "lib/gitlab-sync.ts：plan() 在是成员、有头像来源、来源和 avatar_source 不同时加动作 set_avatar（建号的账号排在 create 后面）；建号不再顺带传头像。setAvatar 取论坛头像（forum_avatars）或下载 GitHub 头像（地址加 s=256，没记下地址的按 GitHub 数字 id 拼），按类型取文件名（png、jpg、gif、webp），GitLab 回 200 才写 avatar_source。拿不到能传的图都抛错：GitHub 连不上 github_avatar_unreachable、不是 200 时 github_avatar 加状态码、不是图片 github_avatar_not_image、超过 200 KiB avatar_too_large、论坛图不在了 forum_avatar_missing；GitLab 不是 200 时 gitlab_avatar 加状态码（例如 gitlab_avatar_400）。都写进 last_error，下一轮再试。控制台接口的响应合同（routes/console/contracts.ts）允许 pending 与 actions 里出现 set_avatar；路径、权限、状态码不变。",
+      "reason": "既有identity/permission/store实现与真实路由保持模块边界；GitLab写前核验远端OIDC与本地快照，单实例同锁重算；贡献反向映射变异步且调用方完整await。",
       "evidence": [
         "app/server/src/lib/gitlab-sync.ts",
-        "app/server/src/routes/console/contracts.ts"
-      ]
-    },
-    "frontend": {
-      "status": "changed",
-      "reason": "控制台成员页 GitLab 列：还要做的事多一种「传头像」，错误多「头像被拒（状态码）」「GitHub 头像下载失败（状态码）」「连不上 GitHub 头像」「GitHub 头像不是图片」「头像超过 200 KiB」「论坛头像找不到了」；样板数据里 fang-lin 显示头像被拒、待同步传头像，预演时有 GitHub 的成员多「传头像」。页面结构不变。",
-      "evidence": [
-        "app/console/src/lib/gitlab.ts",
-        "app/console/src/lib/types.ts",
-        "app/console/src/mock/console.ts"
+        "app/server/src/lib/competition-candidates.ts",
+        "app/server/src/routes/identity/contracts.ts"
       ]
     },
     "permissions": {
-      "status": "unchanged",
-      "reason": "谁能看同步状态、谁能立即同步不变（roles.manage 或 roles.department.manage 看，roles.manage 点），响应合同只在动作种类里加了 set_avatar；GitLab 管理接口仍只用服务端的 GITLAB_API_TOKEN，GitHub 头像匿名下载，不带任何令牌。",
+      "status": "changed",
+      "reason": "直接owner、active和到期判断阻止越权及暖缓存续权；最后有效owner与根条目保护保留。贡献审核人所有HTTP等待后再次查active与权限，未绕过GitLab撤权。",
       "evidence": [
-        "app/server/src/routes/console/contracts.ts",
-        "app/server/src/lib/gitlab-sync.ts",
-        "docs/services/server/endpoint-contracts.md"
+        "app/server/src/lib/permissions.ts",
+        "app/server/src/routes/console/permission-groups.ts",
+        "app/server/src/routes/console/users.ts",
+        "app/server/src/services.ts"
       ]
     },
     "data": {
       "status": "changed",
-      "reason": "gitlab_accounts 加可空列 avatar_source（addColumn，先查 PRAGMA table_info，可以重跑）：论坛头像写 forum: 加论坛头像的散列，GitHub 头像写下载地址；已有的行是空，下一轮对账补传。db.ts 只多这一列，其它表不动。回滚换回旧镜像即可，旧代码不读这一列。",
+      "reason": "不改物理Schema、不迁移业务库；forum公开投影批量只读既有canonical及当前身份login与avatar fallback，缺档不ensure、不按邮箱合并；旧写口兼容同事务更新头像/公开字段，保留历史作者id。GitLab缓存状态按远端核验刷新，不补造既有sub/key。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "docs/services/server/data-model.md",
-        "docs/architecture/catalog/ownership.json"
+        "app/server/src/lib/account-profiles.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/lib/gitlab-sync.ts"
       ]
     },
     "dependencies": {
       "status": "changed",
-      "reason": "不加依赖。外部调用：GitHub 头像下载改成要 s=256 的版本，没记下地址时按 GitHub 数字 id 拼 avatars.githubusercontent.com/u/ 加 id；GitLab PUT /users/:id 现在检查返回码。失败照旧写 gitlab.sync 审计（audit 域）。",
+      "reason": "不加依赖。GitLab额外GET核验管理绑定与完整分页，贡献请求预算覆盖身份核验；失败只记机器码。头像不带设备令牌；隔离测试不发真实邮件或GitLab写入。",
       "evidence": [
         "app/server/src/lib/gitlab-sync.ts",
-        "docs/services/server/oidc.md"
+        "app/server/src/lib/competition-candidates.ts",
+        "app/cli/src/commands/login.rs"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "对外授权与 GitLab 同步（头像一段与失败代码）、数据模型（变更记录与 gitlab_accounts 一行）、接口合同（立即同步会传头像）、控制台服务契约（「待同步：传头像」「头像被拒（400）」）、流程登记（表说明与立即同步的副作用）跟着改，项目目录重新生成。",
+      "reason": "服务、安全、OIDC、API、CLI与测试矩阵同步真实业务语义，目录按来源重建；GitLab历史同号声明另存归档不覆盖。",
       "evidence": [
-        "docs/services/server/oidc.md",
-        "docs/services/server/data-model.md",
+        "docs/services/server/README.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/console/README.md",
-        "docs/architecture/catalog/ownership.json"
+        "docs/services/server/oidc.md",
+        "docs/services/cli/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/conventions/TESTING.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "服务端新增三条：要 256 像素的 GitHub 头像、按类型取文件名；超过 200 KiB、GitHub 404、回的不是图片、论坛图不在了都记错误并在下一轮重试，头像小下来后传上去；GitLab 400、GitHub 503、429 和连不上都记错误并在下一轮传上去；上一个版本建的号（avatar_source 为空）补传一次、只发一个 PUT，论坛换了头像再传。原有用例跟着改：建号后多一步 set_avatar，假 GitLab 按 200 KiB 和图片类型拒收并记下文件名。控制台测试核对新的动作与错误文字，样板数据含头像被拒的一行。故意把上限改回 1 MB、去掉 PUT 返回码检查、去掉建号时的 set_avatar，对应用例都会失败。",
+      "reason": "新增资格/到期/回拨/直接owner与公开资料回归；公开资料11条覆盖空canonical字段在身份改名换头像后的当前fallback及历史兼容。GitLab和贡献失败均先红后绿，HTTP全模拟，Vitest限定maxWorkers=2。TCP监听受当前环境限制，Rust集成与真实OAuth/GitLab/预发布未验证。",
       "evidence": [
+        "tests/server/identity-eligibility.test.ts",
+        "tests/server/permission-expiry.test.ts",
+        "tests/server/console-owner-eligibility.test.ts",
+        "tests/server/oidc-eligibility.test.ts",
+        "tests/server/public-profile-consumers.test.ts",
         "tests/server/gitlab-sync.test.ts",
-        "tests/console/gitlab.test.ts"
+        "tests/server/competition-candidates.test.ts",
+        "tests/server/device-flow.test.ts",
+        "tests/server/signin-methods.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/forum-v2-endpoints.test.ts"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "随 server 与 web（控制台）镜像发布，不改环境变量和部署配置。预发布（GITLAB_SYNC=on）部署后的第一轮对账给已有的两个 GitLab 账号补传头像。正式 GITLAB_SYNC=off，不受影响。",
+      "status": "unchanged",
+      "reason": "只交付当前worktree的server与CLI源码、测试、文档；不改部署、版本、配置或凭据。父级负责提交发布与外部双环境权威切换，本任务不把隔离验证等同预发布验收。",
       "evidence": [
         "app/server/src/lib/gitlab-sync.ts",
+        "app/cli/src/commands/login.rs",
         "docs/services/server/oidc.md"
       ]
     }
@@ -113,106 +141,320 @@
   "coverage": [
     {
       "paths": [
-        "app/server/src/lib/gitlab-sync.ts",
-        "app/server/src/lib/db.ts",
-        "app/server/src/routes/console/contracts.ts"
+        "app/server/src/lib/auth.ts",
+        "tests/server/session-cleanup.test.ts"
       ],
       "domains": [
-        "gitlab",
+        "identity"
+      ],
+      "nodes": [
+        "flow:identity.current"
+      ],
+      "reason": "七天会话到期等值即失效，请求鉴权与主动清理统一使用expires_at <= now；真实身份路由覆盖到期前1ms、到期401、批量清理保留较新会话，保留原字节清理回归。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/identity-store.ts",
+        "app/server/src/lib/access.ts",
+        "app/server/src/lib/account-directory.ts"
+      ],
+      "domains": [
         "identity",
-        "forum",
-        "audit",
         "organization",
-        "competitions",
-        "platform",
-        "feedback",
-        "invitations",
-        "recruitment",
-        "mail"
+        "forum"
       ],
       "nodes": [
-        "domain:gitlab",
-        "table:gitlab_accounts",
-        "table:forum_avatars",
-        "route:GET /api/console/gitlab/accounts",
-        "route:POST /api/console/gitlab/accounts/:account_id/sync",
-        "flow:gitlab.accounts.list",
-        "flow:gitlab.accounts.sync"
+        "flow:identity.current",
+        "flow:identity.oidc.protocol"
       ],
-      "reason": "同步多一步 set_avatar：头像来源、256 像素与 200 KiB 上限、PUT 返回码、失败重试与 avatar_source；控制台接口的响应合同允许这一步。db.ts 与 contracts.ts 是各业务域共用的文件，这次只改 gitlab_accounts 一列和 GitLab 动作的枚举，其它业务域的表和接口不变。"
+      "reason": "资格统一为active且有效直接member/alumni，owner只认有效直接资格；公开声明复用canonical资料，不重生成SSO主体。"
     },
     {
       "paths": [
-        "app/console/src/lib/gitlab.ts",
-        "app/console/src/lib/types.ts",
-        "app/console/src/mock/console.ts"
+        "app/server/src/lib/permissions.ts",
+        "app/server/src/routes/console/users.ts",
+        "app/server/src/routes/console/permission-groups.ts"
+      ],
+      "domains": [
+        "permissions",
+        "identity",
+        "audit"
+      ],
+      "nodes": [
+        "flow:console.identity",
+        "flow:users.update",
+        "flow:permissions.groups.update",
+        "flow:permissions.groups.members.add",
+        "flow:permissions.groups.members.remove"
+      ],
+      "reason": "到期与时钟回退缓存失效，保护最后有效直接站长与根条目，临时资格不被非站长借全量替换延为永久。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/public-profile.ts",
+        "app/server/src/lib/account-profiles.ts",
+        "app/server/src/lib/forum-store.ts",
+        "app/server/src/routes/identity/device.ts",
+        "app/server/src/routes/identity/contracts.ts",
+        "app/server/src/services.ts"
+      ],
+      "domains": [
+        "identity",
+        "forum"
+      ],
+      "nodes": [
+        "flow:identity.profile.view",
+        "flow:identity.profile.update",
+        "flow:identity.device.userinfo",
+        "flow:forum.state",
+        "flow:forum.profile.update",
+        "flow:forum.search",
+        "flow:forum.topics.create",
+        "flow:forum.topics.pin",
+        "flow:forum.topics.close",
+        "flow:forum.posts.reply",
+        "flow:forum.posts.edit",
+        "flow:forum.posts.delete",
+        "flow:forum.posts.like",
+        "flow:forum.posts.bookmark",
+        "flow:forum.users.follow",
+        "flow:forum.notifications.read",
+        "flow:forum.notifications.read_all",
+        "flow:forum.avatar.upload",
+        "flow:forum.avatar.clear",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility"
+      ],
+      "reason": "canonical公开字段覆盖论坛历史作者与设备userinfo；canonical空昵称与空头像通过identity-store批量只读当前login与avatar fallback，不按邮箱合并、不泄露私有字段、不逐账号ensure或getAccountClaims。无canonical仍保留旧作者投影与id。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/gitlab-sync.ts"
       ],
       "domains": [
         "gitlab",
-        "audit",
-        "organization",
+        "identity"
+      ],
+      "nodes": [
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync",
+        "flow:competition.candidates.collect"
+      ],
+      "reason": "缓存数字id必须用既有sub核验，保护管理员/服务账号并完整读分页；每写前重读权威资格与同锁重算，HTTP未知不误封，明确撤权仍执行。贡献归属接口改为异步核验。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/competition-candidates.ts",
+        "app/server/src/services.ts"
+      ],
+      "domains": [
         "competitions",
-        "feedback",
-        "github",
-        "recruitment"
+        "platform"
       ],
       "nodes": [
-        "domain:gitlab",
-        "flow:gitlab.accounts.list",
-        "flow:gitlab.accounts.sync"
+        "flow:competition.candidates.collect"
       ],
-      "reason": "成员页 GitLab 列把 set_avatar 和头像相关的错误写成中文，样板数据含这两种样子。types.ts 与样板数据是控制台各页共用的文件，这次只改 GitLab 的动作类型和 GitLab 样板，其它页面的数据不变。"
+      "reason": "现有收集器完整读标签事件，只有明确最新remove撤分；HTTP失败保分。services只改审核人当前active检查，其余组装不变。异步等待后再次核对审核权限。"
     },
     {
       "paths": [
-        "docs/services/server/oidc.md",
-        "docs/services/server/data-model.md",
+        "app/cli/src/commands/login.rs",
+        "app/cli/src/commands/whoami.rs",
+        "app/cli/tests/profile_consumers.rs"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "flow:identity.device.userinfo"
+      ],
+      "reason": "CLI优先公开userinfo，缺字段兼容console昵称和login；头像解析相对地址且匿名下载，不把Bearer带到图源。集成测试需本地TCP许可，编译与非网络单测独立验证。"
+    },
+    {
+      "paths": [
+        "docs/services/server/README.md",
         "docs/services/server/endpoint-contracts.md",
-        "docs/services/console/README.md",
-        "docs/architecture/catalog/ownership.json",
-        "docs/architecture/catalog/CATALOG.md",
-        "docs/architecture/catalog/catalog.json",
-        "docs/architecture/catalog/data-model.md",
-        "docs/architecture/catalog/map.html",
-        "docs/architecture/catalog/permissions.md",
-        "docs/architecture/catalog/routes.md"
+        "docs/services/server/oidc.md",
+        "docs/services/cli/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md",
+        "docs/conventions/TESTING.md"
       ],
       "domains": [
-        "gitlab"
+        "identity",
+        "permissions",
+        "organization",
+        "forum",
+        "gitlab",
+        "competitions",
+        "audit",
+        "platform"
       ],
       "nodes": [
-        "domain:gitlab",
-        "table:gitlab_accounts",
-        "flow:gitlab.accounts.sync"
+        "flow:identity.current",
+        "flow:identity.oidc.protocol",
+        "flow:identity.oidc.interaction",
+        "flow:identity.device.userinfo",
+        "flow:identity.profile.view",
+        "flow:identity.profile.update",
+        "flow:console.identity",
+        "flow:permissions.groups.update",
+        "flow:permissions.groups.members.add",
+        "flow:permissions.groups.members.remove",
+        "flow:users.list",
+        "flow:users.update",
+        "flow:forum.state",
+        "flow:forum.profile.update",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync",
+        "flow:competition.candidates.collect",
+        "flow:forum.search",
+        "flow:forum.topics.create",
+        "flow:forum.topics.pin",
+        "flow:forum.topics.close",
+        "flow:forum.posts.reply",
+        "flow:forum.posts.edit",
+        "flow:forum.posts.delete",
+        "flow:forum.posts.like",
+        "flow:forum.posts.bookmark",
+        "flow:forum.users.follow",
+        "flow:forum.notifications.read",
+        "flow:forum.notifications.read_all",
+        "flow:forum.avatar.upload",
+        "flow:forum.avatar.clear",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility"
       ],
-      "reason": "文档与流程登记写明头像怎么同步、新列与新错误代码；项目目录随源码重新生成。"
+      "reason": "更新服务、安全、OIDC、API、CLI与TESTING的真实资格、公开DTO、失败保分和防误封合同；按实际路由修正文档resync/gitlab.view/gitlab.sync，不改路由或授权。"
     },
     {
       "paths": [
-        "tests/server/gitlab-sync.test.ts",
-        "tests/console/gitlab.test.ts"
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/routes.md",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/map.html",
+        "docs/INDEX.md"
+      ],
+      "domains": [
+        "identity",
+        "permissions",
+        "organization",
+        "forum",
+        "gitlab",
+        "competitions",
+        "audit",
+        "platform"
+      ],
+      "nodes": [
+        "flow:identity.current",
+        "flow:identity.oidc.protocol",
+        "flow:identity.oidc.interaction",
+        "flow:identity.device.userinfo",
+        "flow:identity.profile.view",
+        "flow:identity.profile.update",
+        "flow:console.identity",
+        "flow:permissions.groups.update",
+        "flow:permissions.groups.members.add",
+        "flow:permissions.groups.members.remove",
+        "flow:users.list",
+        "flow:users.update",
+        "flow:forum.state",
+        "flow:forum.profile.update",
+        "flow:gitlab.accounts.list",
+        "flow:gitlab.accounts.sync",
+        "flow:competition.candidates.collect",
+        "flow:forum.search",
+        "flow:forum.topics.create",
+        "flow:forum.topics.pin",
+        "flow:forum.topics.close",
+        "flow:forum.posts.reply",
+        "flow:forum.posts.edit",
+        "flow:forum.posts.delete",
+        "flow:forum.posts.like",
+        "flow:forum.posts.bookmark",
+        "flow:forum.users.follow",
+        "flow:forum.notifications.read",
+        "flow:forum.notifications.read_all",
+        "flow:forum.avatar.upload",
+        "flow:forum.avatar.clear",
+        "flow:forum.users.suggest",
+        "flow:forum.topics.visibility"
+      ],
+      "reason": "登记精确源码证据、资格与失败语义，重建目录和索引；结构生成只证明隔离注册与当前源码，不证明业务或部署验收。"
+    },
+    {
+      "paths": [
+        "docs/history/changes/gitlab/271.json",
+        "docs/history/changes/gitlab/271.md"
       ],
       "domains": [
         "gitlab"
       ],
       "nodes": [
-        "flow:gitlab.accounts.list",
         "flow:gitlab.accounts.sync"
       ],
-      "reason": "回归：上限、类型与文件名、失败重试、补传与来源变化。"
+      "reason": "完整保留已继承的GitLab同号历史声明，当前docs/changes/271.json只声明GitHub本任务，不覆盖历史头像任务档案。"
+    },
+    {
+      "paths": [
+        "tests/server/identity-eligibility.test.ts",
+        "tests/server/permission-expiry.test.ts",
+        "tests/server/console-owner-eligibility.test.ts",
+        "tests/server/oidc-eligibility.test.ts",
+        "tests/server/public-profile-consumers.test.ts",
+        "tests/server/gitlab-sync.test.ts",
+        "tests/server/competition-candidates.test.ts",
+        "tests/server/device-flow.test.ts",
+        "tests/server/signin-methods.test.ts",
+        "tests/server/forum.test.ts",
+        "tests/server/forum-v2-endpoints.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "permissions",
+        "gitlab",
+        "competitions",
+        "forum"
+      ],
+      "nodes": [
+        "flow:identity.device.userinfo",
+        "flow:identity.oidc.protocol",
+        "flow:console.identity",
+        "flow:users.update",
+        "flow:gitlab.accounts.sync",
+        "flow:competition.candidates.collect",
+        "flow:forum.state"
+      ],
+      "reason": "复用buildApp/inject与真实identity/permission/GitLab公共Interface，外部HTTP确定性模拟，正常撤权、错误不误封、分页、并发和历史资料均有独立业务期望。 相邻论坛夹具明确公开用户名；历史非法昵称同时验证canonical与无档案路径，精确核对新旧头像地址、字节与清除。"
     }
   ],
   "documents": [
-    "docs/services/server/oidc.md",
-    "docs/services/server/data-model.md",
+    "docs/services/server/README.md",
     "docs/services/server/endpoint-contracts.md",
-    "docs/services/console/README.md"
+    "docs/services/server/oidc.md",
+    "docs/services/cli/README.md",
+    "docs/architecture/API.md",
+    "docs/architecture/SECURITY.md",
+    "docs/conventions/TESTING.md"
   ],
   "tests": [
+    "tests/server/session-cleanup.test.ts",
+    "tests/server/identity-eligibility.test.ts",
+    "tests/server/permission-expiry.test.ts",
+    "tests/server/console-owner-eligibility.test.ts",
+    "tests/server/oidc-eligibility.test.ts",
+    "tests/server/public-profile-consumers.test.ts",
     "tests/server/gitlab-sync.test.ts",
-    "tests/console/gitlab.test.ts"
+    "tests/server/competition-candidates.test.ts",
+    "tests/server/device-flow.test.ts",
+    "tests/server/signin-methods.test.ts",
+    "tests/server/forum.test.ts",
+    "tests/server/forum-v2-endpoints.test.ts"
   ],
-  "compatibility": "接口路径、权限、状态码不变；pending 与 actions 多一种 {kind:\"set_avatar\"}，新版本部署前打开、没刷新的旧控制台页面遇到它会显示成空白的一项，刷新后正常。数据库只加一列，旧镜像照常读写。",
-  "migration": "gitlab_accounts 加可空列 avatar_source，启动时 addColumn 自动加，不改已有数据；已有的行是空，下一轮对账按没传过补传头像。",
-  "rollback": "在 stage 上 git revert -m 1 合并提交并重新发 rc；avatar_source 列留着，旧代码不读它，已经传到 GitLab 的头像保留。"
+  "compatibility": "保留account_id/login/sub与历史论坛作者id；canonical自定义字段、上传头像及无canonical旧作者优先级不变，空字段只改为批量读取当前身份绑定。userinfo新增公开字段，CLI缺字段仍有旧接口回退。反向GitLab归属Interface改Promise，全部仓内调用方已改await；没有新HTTP路径或数据库结构。",
+  "migration": "无需Schema迁移，不对真实数据重建资料、sub或签名key。历史无canonical作者继续旧值。已有GitLab映射下轮增加身份核验，字段不完整会安全拒绝并留错误，需在预发布用真实只读响应验收。",
+  "rollback": "父级以新的修复PR及rc回退代码，不删除既有资料或SSO主体；远端已执行block/unblock不是本地事务，需用同一权威环境对账收敛，不以邮件相同合并账号。"
 }

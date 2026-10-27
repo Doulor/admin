@@ -38,10 +38,12 @@ describe('deploy workflows', () => {
 
   it('keep the upload token out of the build job: it appears only in cdn-plan and cdn-upload, which install nothing', () => {
     for (const [name, text] of Object.entries(workflows)) {
-      expect(text.match(/secrets\.STATIC_CDN_UPLOAD_TOKEN/g), name).toHaveLength(2);
+      expect(text.match(/secrets\.STATIC_CDN_S3_ACCESS_KEY_ID/g), name).toHaveLength(2);
       for (const id of ['cdn-plan', 'cdn-upload']) {
         const block = job(text, id);
-        expect(block, `${name} ${id}`).toContain('          STATIC_CDN_UPLOAD_TOKEN: ${{ secrets.STATIC_CDN_UPLOAD_TOKEN }}\n');
+        expect(block, `${name} ${id}`).toContain('          STATIC_CDN_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_CDN_S3_ACCESS_KEY_ID }}\n');
+        expect(block, `${name} ${id}`).toContain('          STATIC_CDN_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_CDN_S3_SECRET_ACCESS_KEY }}\n');
+        expect(block, `${name} ${id}`).toContain('          STATIC_CDN_S3_REGION: garage\n');
         expect(block, `${name} ${id}`).toContain(ENVIRONMENT);
         expect(block, `${name} ${id}`).not.toMatch(/^ *[^ #\n].*(?:pnpm|npm (?:ci|install)|docker )/m);
       }
@@ -49,7 +51,28 @@ describe('deploy workflows', () => {
     }
     // CI 按开关打开构建（docker-cdn），但不上传：没有 token、没有 secrets、不挂 Environment。
     const ci = read('.github/workflows/ci.yml');
-    expect(ci).not.toMatch(/STATIC_CDN_UPLOAD_TOKEN|secrets\.|environment:|static-cdn\.mjs (?:upload|decide|mint-token)/);
+    expect(ci).not.toMatch(/STATIC_CDN_S3_ACCESS_KEY_ID|secrets\.|environment:|static-cdn\.mjs (?:upload|decide|mint-token)/);
+  });
+
+  it('archives the private content index before deployment without installing tools in a credential job', () => {
+    for (const [name, text] of Object.entries(workflows)) {
+      const build = job(text, 'build');
+      const upload = job(text, 'cdn-upload');
+      const prepare = stepRun(build, '准备私有索引归档工具');
+      expect(prepare).toContain('apt-get install -y --no-install-recommends rclone');
+      expect(prepare).toContain('"$RUNNER_TEMP/static-cdn/tools/rclone"');
+      const archive = stepRun(upload, '归档私有内容索引并核验');
+      expect(archive).toContain('set -eu');
+      expect(archive).toContain('sha256sum --check rclone.sha256');
+      expect(archive).toContain(`--role ${name}-content-index`);
+      expect(archive).toContain('--source "$RUNNER_TEMP/cdn-content-index.json"');
+      expect(archive).toContain('--key "indexes/content/${COMMIT}/sha256.json"');
+      expect(upload).toContain(`${name.toUpperCase()}_PRIVATE_INDEX_S3_ACCESS_KEY_ID: `);
+      expect(upload).toContain(`${name.toUpperCase()}_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY: `);
+      expect(upload).not.toMatch(/apt-get|continue-on-error|\|\| true/);
+      expect(upload.indexOf('归档私有内容索引并核验')).toBeGreaterThan(upload.indexOf('--content-index '));
+      expect(job(text, 'deploy')).toContain('needs: [plan, build, cdn-upload]');
+    }
   });
 
   it('build with the decided base, upload, and only then deploy; with the switch off every upload step is skipped', () => {
@@ -62,7 +85,7 @@ describe('deploy workflows', () => {
       expect(build, name).toContain('            cdn_args=(--build-arg STATIC_CDN_BASE="$STATIC_CDN_BASE")\n');
       expect(build, name).not.toMatch(/server\) cdn_args=\(\)/);
       expect(build, name).toContain('              "${mirror_args[@]}" \\\n              "${cdn_args[@]}" \\\n');
-      expect(build.split(GATE), name).toHaveLength(3);
+      expect(build.split(GATE), name).toHaveLength(4);
       const upload = job(text, 'cdn-upload');
       expect(upload, name).toMatch(/\n {4}name: cdn-upload \(/);
       expect(upload, name).toContain('    needs: [plan, cdn-plan, build]\n');
@@ -71,6 +94,10 @@ describe('deploy workflows', () => {
       for (const step of steps.slice(1)) expect(step, `${name}: ${step.split('\n')[0]}`).toContain(GATE.trimStart());
       expect(upload, name).toContain('node scripts/static-cdn.mjs upload --web "$RUNNER_TEMP/static-cdn/web" --forum "$RUNNER_TEMP/static-cdn/forum"');
       expect(upload, name).toContain('--referer "${ORIGIN}/"');
+      expect(upload, name).toContain(`--environment ${name}`);
+      expect(upload, name).toContain('--commit "$(git rev-parse HEAD)" --generated-at "$(git show -s --format=%cI HEAD)"');
+      expect(upload, name).toContain('--content-index "$RUNNER_TEMP/cdn-content-index.json"');
+      expect(text, name).not.toMatch(/STATIC_CDN_UPLOAD_TOKEN|mint-token|qetag/);
       expect(job(text, 'deploy'), name).toContain('    needs: [plan, build, cdn-upload]\n');
     }
   });

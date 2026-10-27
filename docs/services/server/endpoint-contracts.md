@@ -122,11 +122,11 @@
 
 权限与资源：只认Authorization: Bearer <access_token>（geek login换到的gk_…令牌），不读cookie、不要会话；#277起这个令牌不止在这个接口有效，`middleware/bearer-auth.ts`把它接到了`geek-cli`申请过scope（`forum apply competition repo`）的那些业务接口上，响应形状不变。
 
-响应与错误：200 {sub,account_id,login,avatar_url,scope,grade,grade_label,email_required,profile_required}，sub与account_id都是极客班账号；email_required、profile_required 同 /auth/me，命令行读到 true 就提示先到网页上绑邮箱、补姓名和年级（#280）；grade/grade_label 是年级展示用（按入学年份现算），不回真实姓名——命令行在这个接口和它接到的任何业务接口上都拿不到任何账号的 real_name，哪怕是本人（#277 的硬约束）；令牌缺失、不存在、过期或账号不是active时401 invalid_token，并带WWW-Authenticate: Bearer error="invalid_token"。
+响应与错误：200 {sub,account_id,login,username,display_name,bio,avatar_url,scope,grade,grade_label,email_required,profile_required}，sub与account_id都是极客班账号；email_required、profile_required 同 /auth/me，命令行读到 true 就提示先到网页上绑邮箱、补姓名和年级（#280）；grade/grade_label 是年级展示用（按入学年份现算），不回真实姓名——命令行在这个接口和它接到的任何业务接口上都拿不到任何账号的 real_name，哪怕是本人（#277 的硬约束）；令牌缺失、不存在、过期或账号不是active时401 invalid_token，并带WWW-Authenticate: Bearer error="invalid_token"。
 
-数据与副作用：只读；按令牌的sha256查行，联查users与GitHub身份的登录名、头像；不记录令牌明文。
+数据与副作用：按令牌的 sha256 查行、读 users/identities 保留 login；公开字段来自 account_profiles 经 public-profile 映射，空昵称回退 login，上传头像优先且可为本站相对路径。当前账号的 profiles.get() 可能兜底建档，不能称绝对只读；批量历史作者投影另走只查已有行的 findMany。不记录令牌明文。
 
-本地表读取：device_grants、users、identities。本地表写入：无。
+本地表读取：device_grants、users、identities、account_profiles。本地表写入：account_profiles（仅本人缺行时兜底建档）。
 
 源码：[app/server/src/routes/identity/device.ts:125](../../../app/server/src/routes/identity/device.ts#L125)、[app/server/src/lib/device-store.ts](../../../app/server/src/lib/device-store.ts)（`authenticate`）。验证入口：[tests/server/device-flow.test.ts](../../../tests/server/device-flow.test.ts)。
 
@@ -192,7 +192,11 @@
 
 源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/identity/profile.ts](../../../app/server/src/routes/identity/profile.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)、[lib/account-profiles.ts](../../../app/server/src/lib/account-profiles.ts)、[lib/account-avatar.ts](../../../app/server/src/lib/account-avatar.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)、[tests/server/profile.test.ts](../../../tests/server/profile.test.ts)。
 
-## 对外授权（OIDC）与 GitLab 账号同步（#270）
+## 对外授权（OIDC）与 GitLab 账号同步（GitLab 历史 #270）
+
+GitHub #271 回归后的成员口径：active 账号的当前有效直接 level.member/level.alumni（NULL 或 expires_at > now）；owner-only 不代替该资格，旧 org_state/org_role 不授权。合法 alumni 可登录；其中当前有效直接 owner 为 admin/Owner 50，否则 member/Developer 30，owner 到期但 alumni 仍有效时降权而不封禁。member/alumni 到期或停用时 OIDC userinfo 401，GitLab 由下一轮同步封禁，不重建 sub/provider/GitLab id。name/picture 从统一公开资料映射，preferred_username 仍用 login；本节旧 #271（头像）/#272（邮箱）均为 GitLab 历史任务，不是当前 GitHub 同号范围。
+
+同步防误封：每轮核验已有 sub 的远端受管绑定、管理员/服务账号保护及实际 active/blocked 状态；未知 HTTP/超时/429/5xx、身份失配、详情/分页不完整均不写远端。明确不再有资格的受管账号仍封禁，写前资格变动则同锁重算；详情错误在 200 响应的 error/last_error 返回，见 [OIDC 防误封合同](oidc.md#防误封与失败闭合github-271)。
 
 不同源的应用（第一个是自建 GitLab）用极客班账号登录：核心服务内嵌的 OpenID Connect 签发者挂在 `/oidc/*`，签发者 `<PUBLIC_ORIGIN>/oidc`；没配 `OIDC_JWKS` 时下面 6 个 `/oidc` 操作照样注册，请求一律 404。协议细节、客户端登记和 GitLab 一侧的配置见 [对外授权与 GitLab 账号同步](oidc.md)。交互接口按核心写请求的 Origin 门禁处理；协议端点由下游服务器调用，不带 Origin。
 
@@ -204,10 +208,10 @@
 | `GET /oidc/interaction/:uid/details` · `flow:identity.oidc.details` | 有效会话，且就是发起这次登录的账号；每分钟 30 次 | 200 `{client:{id,name,host},scopes,account:{login,name,picture},expires_at}`；没会话 401，账号还没有登录邮箱 403 `email_required`（#273），还没填真实姓名或年级 403 `profile_required`（#280），交互过期或客户端已停用 404 `interaction_expired`，不是要同意的交互或换了账号 409 `interaction_mismatch`。只读。 |
 | `POST /oidc/interaction/:uid/confirm` · `flow:identity.oidc.confirm` | 同上；每分钟 20 次 | 200 `{redirect_to}`（浏览器去这里，由签发者 303 回下游带 `code`）；错误同 details，含 403 `email_required`、`profile_required`。保存授权（`oidc_payloads`），记进 `oauth_grants`，写审计 `oidc.consent`。 |
 | `POST /oidc/interaction/:uid/abort` · `flow:identity.oidc.abort` | 同上；每分钟 20 次 | 200 `{redirect_to}`，下游收到 `error=access_denied`；错误同 details，但没有登录邮箱也能拒绝。把拒绝结果存进交互（`oidc_payloads`），写审计 `oidc.deny`。 |
-| `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `roles.manage` 或 `roles.department.manage` | 200 `{mode,gitlab_url,group,client_registered,accounts:[…]}`（`client_registered`：`gitlab` 客户端登记了没有），每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
-| `POST /api/console/gitlab/accounts/:account_id/sync` · `flow:gitlab.accounts.sync` | `roles.manage`；每分钟 30 次 | 200 `{mode,…这个账号同步后的状态}`；同步关着 409 `gitlab_sync_off`，没有这个账号 404 `account_not_found`。`on` 时调用 GitLab 管理接口建号、改组权限、封禁或解封、传头像（下载 GitHub 头像，#271）、同步邮箱（#272），写 `gitlab_accounts` 与审计 `gitlab.sync`，账号还没有 GitLab sector 的 `sub` 时写 `oauth_subjects`；`dry-run` 不写表、不调 GitLab。 |
+| `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `gitlab.view` | 200 `{mode,gitlab_url,group,client_registered,accounts:[…]}`（`client_registered`：`gitlab` 客户端登记了没有），每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
+| `POST /api/console/gitlab/accounts/:account_id/resync` · `flow:gitlab.accounts.sync` | `gitlab.sync` 加 step-up；每分钟 30 次 | 200 `{mode,…这个账号同步后的状态}`；同步关着 409 `gitlab_sync_off`，没有这个账号 404 `account_not_found`。`on` 时调用 GitLab 管理接口建号、改组权限、封禁或解封、传头像（下载 GitHub 头像，#271）、同步邮箱（#272），写 `gitlab_accounts` 与审计 `gitlab.sync`，账号还没有 GitLab sector 的 `sub` 时写 `oauth_subjects`；`dry-run` 不写表、不调 GitLab。 |
 
-本地表：签发者读 `oauth_clients`，读写 `oauth_subjects`、`oauth_grants`、`oidc_payloads`，读 `users`、`identities`、`forum_users` 拼声明，同意与拒绝写 `activity_events`；同步读 `users`、`identities`、`forum_users`、`forum_avatars`，读写 `oauth_subjects`、`gitlab_accounts`，写 `activity_events`。各流程的完整读写见[项目目录](../../architecture/catalog/CATALOG.md#业务流程)。
+本地表：签发者读 `oauth_clients`，读写 `oauth_subjects`、`oauth_grants`、`oidc_payloads`，读 `users`、`identities`、`perm_members`、`account_profiles` 拼声明，同意与拒绝写 `activity_events`；同步读 `users`、`identities`、`perm_members`、`account_profiles`、`account_avatars`，读写 `oauth_subjects`、`gitlab_accounts`，写 `activity_events`。各流程的完整读写见[项目目录](../../architecture/catalog/CATALOG.md#业务流程)。
 
 源码：[routes/oidc/index.ts](../../../app/server/src/routes/oidc/index.ts)、[routes/console/gitlab.ts](../../../app/server/src/routes/console/gitlab.ts)、[lib/oidc-provider.ts](../../../app/server/src/lib/oidc-provider.ts)、[lib/oidc-store.ts](../../../app/server/src/lib/oidc-store.ts)、[lib/account-directory.ts](../../../app/server/src/lib/account-directory.ts)、[lib/gitlab-sync.ts](../../../app/server/src/lib/gitlab-sync.ts)。验证入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts)、[tests/server/gitlab-sync.test.ts](../../../tests/server/gitlab-sync.test.ts)、[tests/console/authorize.test.ts](../../../tests/console/authorize.test.ts)。
 
@@ -323,6 +327,8 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 | `GET /api/console/accounts/:id/activity` · `flow:audit.console.activity.account` | 需要节点 `activity.read`；部长按部门 scope 时目标账号不在自己范围内 403 `forbidden` | 200 `{items:[...同 /api/console/activity 的单条形状],next_cursor}`；没有记录是空列表，不是 404。 |
 
 本地表：这批接口都只读写 #274 新权限体系自己的表——`perm_nodes`（只读，代码镜像）、`perm_groups`、`perm_group_parents`、`perm_entries`、`perm_members`；用户列表另外读 `users`、`account_profiles`、`identities`、`gitlab_accounts`，改身份另外写 `users.status`；成员列表再读 `account_profiles` 取用户名/头像；操作记录三个接口读 `activity_events`（JOIN `account_profiles` 取用户名/头像）。所有写操作都调用 `permissions.bump()` 让判定引擎的进程内缓存失效，并写一条 `perm.group.*`/`users.update` 审计。
+
+owner 特殊边界（GitHub #271）：isSiteOwner/siteOwnerCount 只计 active 且直接 owner 资格 NULL 或 expires_at > now，disabled/merged/到期备份不算。users PATCH 任免/停用 owner、恢复带有效 owner 资格的账号、titles 全量保留临时 owner 导致永久化，均要求操作者当前有效 owner；组写口同样检查 actor。删除/停用最后有效 owner，或把唯一有效资格覆盖为过去/当前到期，回 409 last_owner。owner 组条目替换后要有有效无 scope 的根 allow，且无同组有效全局根 deny（含 value=null 的 meta wildcard）；未来临时 root/owner 仍允许，自然到期不自动恢复。引擎缓存只在 revision 未变且 now 位于 [evaluatedAt,minExpiry) 内复用，到期等值或时钟回退重读。
 
 权限范围的实现细节：`requirePermission` 中间件按「不给 scope 就查全局」判定，命中的是全站无限定条目；但部长拿到的条目本身带了 `scope:{department:[...]}}`，用空 scope 去查永远查不到。所以 `GET /api/console/users` 与操作记录三个接口不能只靠 `requirePermission` 当门禁，改用 `lib/console-scope.ts` 的 `requireScopedPermission()`/`departmentScopedAccess()`：先查有没有全站 allow，没有再查有没有按部门限定的 allow，两种都没有才真的是没权限；只处理 `department` 这一个 scope 维度，不是通用的 scope 求交实现。
 
@@ -1040,19 +1046,21 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 源码：[app/server/src/routes/forum-api/people.ts:39](../../../app/server/src/routes/forum-api/people.ts#L39)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
+公开资料投影说明（GitHub #271）：state/changes/user/search/suggest/@提及使用已有 account_profiles 的 username/display_name/bio/avatar_url，经纯 DTO mapper 转换；历史作者不必再次访问。canonical 昵称为空或没有上传头像时，identity-store 按 account_id 批量只读当前 login/avatar 作为 fallback，不读取 forum_users 的旧缓存、不按邮箱合并，也不返回 provider uid、状态、邮箱或实名；findMany 仍按批读取且不 ensure 缺行，legacy/guest/official 保留原投影，不重写作者 id/正文。对应回归为 tests/server/public-profile-consumers.test.ts。
+
 ## 修改本人论坛资料
 
 `PATCH /api/forum/me/profile` · `flow:forum.profile.update`
 
-权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只改本人昵称、简介、所在地、网站与通知设置，不接受客户端授予角色。
+权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。
 
-数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。
+数据与副作用：昵称 NFKC 与冒名检查后保存，检查和 @提及/搜索/建议都使用当前 canonical username。已有 account_profiles 行时，昵称/简介与 forum_users 兼容字段在同一事务写；缺行历史作者保留原字段，不隐式建档。location/website/notifyPrefs 仍只更新论坛字段，不更改 GitHub 资料。
 
 身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-本地表读取：forum_users, role_assignments, sessions, activity_events, departments, titles, forum_likes。本地表写入：forum_users, sessions, activity_events。
+本地表读取：forum_users, account_profiles, sessions, users, perm_members, perm_groups, activity_events, forum_likes。本地表写入：account_profiles, forum_users, sessions, activity_events。
 
 源码：[app/server/src/routes/forum-api/people.ts:45](../../../app/server/src/routes/forum-api/people.ts#L45)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
@@ -1064,11 +1072,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。
 
-数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。
+数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写 forum_avatars 并更新本人旧引用；已有 canonical 档案时同事务写 account_avatars/account_profiles，公开投影优先统一头像路径；同事务按各表引用清理无人引用的旧头像，不做全库搬迁。
 
 身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-本地表读取：forum_avatars, forum_users, forum_rate_events, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_avatars, forum_users, forum_rate_events, sessions, activity_events。
+本地表读取：forum_avatars, forum_users, account_profiles, account_avatars, forum_rate_events, sessions, users, perm_members, perm_groups, forum_likes。本地表写入：account_profiles, account_avatars, forum_avatars, forum_users, forum_rate_events, sessions, activity_events。
 
 源码：[app/server/src/routes/forum-api/people.ts:93](../../../app/server/src/routes/forum-api/people.ts#L93)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
@@ -1080,11 +1088,11 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 响应与错误：200 {changes,viewer}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。
 
-数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。
+数据与副作用：事务清除 forum_users 和已有 account_profiles 的 avatar_hash，各自清理无引用旧图；保留绑定头像字段作为公开 DTO 的回退，不删除用户、不为缺档案作者补建档案。
 
 身份条件副作用：forumViewer按会话的账号（account_id）认人创建/刷新forum_users的角色、称号和头像，不再要求绑定GitHub——没有GitHub id（邮箱、Google登录）不算游客，是真实成员（#274 SPEC §3.6，论坛用户编号改成a<序号>，有GitHub id的仍是m<GitHub id>并保留GitHub头像）；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-本地表读取：forum_users, forum_avatars, sessions, role_assignments, departments, titles, forum_likes。本地表写入：forum_users, forum_avatars, sessions, activity_events。
+本地表读取：forum_users, forum_avatars, account_profiles, account_avatars, sessions, users, perm_members, perm_groups, forum_likes。本地表写入：account_profiles, account_avatars, forum_users, forum_avatars, sessions, activity_events。
 
 源码：[app/server/src/routes/forum-api/people.ts:104](../../../app/server/src/routes/forum-api/people.ts#L104)。验证入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。
 
@@ -1108,7 +1116,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：公开只读，不要求登录，不判身份。
 
-响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。url由服务端按CDN开关决定（#286，STATIC_CDN_BASE）：开关关闭全是同源/api/forum/stickers/<哈希>.webp；开关打开，清单（app/server/assets/stickers/manifest.json）里的内置表情是CDN绝对地址https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp，站长在控制台上传的、不在清单里的仍是同源地址。
+响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。url由服务端按CDN开关决定（#286，STATIC_CDN_BASE）：开关关闭全是同源/api/forum/stickers/<哈希>.webp；开关打开，清单（app/server/assets/stickers/manifest.json）里的内置表情是CDN绝对地址https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/<哈希>.webp，站长在控制台上传的、不在清单里的仍是同源地址。
 
 数据与副作用：纯读，不写任何表；短码即表情id，前端据此渲染正文里的短码。
 
@@ -1336,7 +1344,7 @@ SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/assets/[h
 
 ## 比赛报名、组队与积分（#239）
 
-比赛、队伍、成员与积分的请求体、成功响应和共同 `4xx` / `5xx` 错误体由 [competition-contract.ts](../../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 实际挂载；门户成员接口的响应是我的状态、队伍、找队友、我的参赛或天梯，控制台接口的响应是设置、名单、积分记录或 CSV。所有写操作「不在规划中、已开放报名且在报名中」才可执行：规划中（`planning`，#278 重开）回 409 `competition_planning`，截止后整场只读；写操作在事务里重读状态再写，成功都回最新状态。规则只在 [competition-signup-store.ts](../../../app/server/src/lib/competition-signup-store.ts) 与 [competition-score-store.ts](../../../app/server/src/lib/competition-score-store.ts)，路由只做鉴权、限流与错误码映射。
+比赛、队伍、成员与积分的请求体、成功响应和共同 `4xx` / `5xx` 错误体由 [competition-contract.ts](../../../app/server/src/lib/competition-contract.ts) 与两个 `contracts.ts` 实际挂载；门户成员接口的响应是我的状态、队伍、找队友、我的参赛或天梯，控制台接口的响应是设置、名单、积分记录或 CSV。所有报名/团队写操作「未定榜、不在规划中、已开放报名且在报名中」才可执行：规划中（`planning`，#278 重开）回 409 `competition_planning`，截止后整场只读；写操作在事务里重读状态再写，成功都回最新状态。规则只在 [competition-signup-store.ts](../../../app/server/src/lib/competition-signup-store.ts) 与 [competition-score-store.ts](../../../app/server/src/lib/competition-score-store.ts)，路由只做鉴权、限流与错误码映射。门户成功写操作与 `activity_events` 同事务，操作记录失败回滚；成功立即失效本场公开缓存。定榜后报名及设置拒409 `competition_finalized`，延长日期也不解除冻结；成员榜同用冻结名次。
 
 | 方法与路径 | 谁 | 成功与副作用 |
 |---|---|---|
@@ -1362,7 +1370,7 @@ SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/assets/[h
 | `GET /api/console/competitions/:competition_id/roster` · `flow:competition.roster.read` | 同上 | 200 `{ settings, stats, signups, teams }`；报名含已取消的，队伍含已解散的。 |
 | `GET /api/console/competitions/:competition_id/roster.csv` · `flow:competition.roster.export` | 同上，5 次/分钟 | 200 `text/csv`（BOM、CRLF、北京时间列），写 `competition.roster.export` 审计（`details { rows }`）。 |
 | `GET`、`POST /api/console/competitions/:competition_id/score-events` · `flow:competition.score_events.list`、`flow:competition.score_events.create` | `competition.score.review`；写再要 step-up，30 次/分钟 | 200 `{ events }`；201 `{ event }`，写 `competition.score.add` 审计。#278 起登记不收 `points`：Issue 和 PR 带两档 `importance` / `core`、扣分不带，分值由服务端查表，见下一节。 |
-| `POST /api/console/competitions/:competition_id/score-events/:event_id/revoke` · `flow:competition.score_events.revoke` | 同上，30 次/分钟 | 200 `{ event }`；只改状态并记撤销人与原因，写 `competition.score.revoke` 审计。 |
+| `POST /api/console/competitions/:competition_id/score-events/:event_id/revoke` · `flow:competition.score_events.revoke` | 同上，30 次/分钟 | 200 `{ event }`；只改状态并记撤销人与原因，写 `competition.score.revoke` 审计；审核/撤销本人记录403 `self_review`（包括本人扣分）。 |
 
 错误的形状与其它接口一致（`{ error, message }`）。状态冲突一律 409，输入不合法才 400：
 
@@ -1397,7 +1405,7 @@ SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/assets/[h
 | `DELETE /api/console/competitions/:competition_id/site` · `flow:competition.site.unpublish` | 同上 | 200 发布状态；在线版本置空，版本与 slug 保留；没发布 404 `not_published`。写 `competition.site.unpublish`。 |
 | `GET /api/public/competitions/:id`（扩展）· `flow:competition.public.detail` | 匿名 | 在原字段上加 `site_url`（已发布时 `/c/<slug>/`）、`app_url`（门户比赛窗口深链 `/?open=competitions&competition=<id>`）、`prizes`、`grade_factors`（`[{ grade, label, factor }]`）、`scoring`（`{ importance: [{ key, label }], core: [{ key, label, hint }], points: [{ kind, importance, core, points }]（18 格）, penalty, trivial_per_week, trivial_percent }`）、`finalized_at`；列表接口每场同样带这些字段。 |
 | `GET /api/public/competitions/:id/leaderboard`、`/feed?cursor=&limit=`、`/stats`、`/snapshot` · `flow:competition.public.leaderboard`、`flow:competition.public.feed`、`flow:competition.public.stats`、`flow:competition.public.snapshot` | 匿名，按 IP 每分钟 120 次（四个接口加单场接口、人员、队伍共用一个桶） | 天梯 `{ updated_at, individuals: [{ rank, username, display_name, avatar_url, team_name, score }], teams: [{ rank, name, members, score }] }`；动态 `{ items: [{ id, at, username, display_name, avatar_url, kind, title, url, points, importance, core }], next_cursor }`（有效积分，新的在前，扣分不给标题、链接和原因；两档在扣分和两档评定之前的记录上为 null；被防刷记成 0 分的照样出现）；统计 `{ participants, teams, merged_prs, accepted_issues, total_points, updated_at }`；快照一次给齐四样（SDK 轮询用，CONTRACT 之外加的一条）。分数都是加权后的；定榜后个人名次按定榜快照。服务端缓存 10 秒，加分、撤销、标记有用、改规则、发布官网、定榜时按比赛清掉。成功、404 与 429 都带 `Access-Control-Allow-Origin: *`，不带 `Access-Control-Allow-Credentials`；不读会话。429 `{ error: "rate_limited", bucket: "public.competition.per_minute", retry_after }` 带 `Retry-After`。 |
-| `GET /api/public/competitions/:id/participants?cursor=&limit=` · `flow:competition.public.participants` | 匿名，限流与缓存同上 | 人员（站点包必带，CONTRACT 之外加的一条，和天梯不同：给全部已报名、未取消的人，不是只有拿过分的人）：`{ items: [{ username, display_name, avatar_url, department: { id, name, tone } \| null }], next_cursor }`；`limit` 1–200，默认 100；按报名时间分页，和贡献动态同一套游标编码（但账号 id 不是 UUID，用的是 26 位 Crockford Base32，游标正则不同，见 `lib/competition-public.ts` 的 `decodeParticipantCursor`）；部门字段和 `permissions.accountGroupsView().department` 同一份口径，没分配部门为 `null`。 |
+| `GET /api/public/competitions/:id/participants?cursor=&limit=` · `flow:competition.public.participants` | 匿名，限流与缓存同上 | 人员（站点包必带，CONTRACT 之外加的一条，和天梯不同：给全部已报名、未取消的人，不是只有拿过分的人）：`{ items: [{ username, display_name, avatar_url, department: { id, name, tone } \| null }], next_cursor }`；`limit` 1–200，默认 100；按报名时间与本场隔离SHA-256摘要分页，游标只编码时间与摘要，不含account_id；旧账号ID游标回第一页（见 `lib/competition-public.ts` 的 `decodeParticipantCursor`）；部门字段和 `permissions.accountGroupsView().department` 同一份口径，没分配部门为 `null`。 |
 | `GET /api/public/competitions/:id/teams` · `flow:competition.public.teams` | 匿名，限流与缓存同上 | 队伍（站点包必带，CONTRACT 之外加的一条，和天梯不同：给全部未解散的队，不是只有拿过分的队）：`{ enabled, team_min, team_max, teams: [{ name, slogan, status, member_count, members }] }`；这场比赛是个人赛时 `enabled` 为 `false`、`teams` 为空数组，不是 404 或 409——站点包用了这个接口但比赛是个人赛，调用方据此跳过「队伍」这一段。 |
 | `GET /api/console/competitions/:competition_id/score-preview?account_id=&kind=&importance=&core=&at=` · `flow:competition.score_events.preview` | `competition.score.review` | 200 `{ points, grade, grade_factor, damp_percent, weighted_points }`：和登记同一段算法（两档查表、此刻的年级系数、`at`（贡献时间，缺省为现在）所在那一周的防刷），不写库；控制台的两个下拉框选完就调。扣分不带两档，带了 400 `bad_levels`；没报名 409 `not_signed_up`。 |
 | `GET /api/console/competitions/:competition_id/candidates?status=&cursor=` · `flow:competition.candidates.list` | `competition.score.review` | 200 `{ items, next_cursor, counts, last_run }`，每页 50 条，新的在前；每条带标签上的两档 `importance` / `core`（标签不全时为 null）；`last_run` 是这个进程里最近一次收集（重启后为 null，直到下一轮）。 |
@@ -1409,7 +1417,9 @@ SQLite读写：无。源码：[app/forum/server/routes/api/local-forum/assets/[h
 | `GET /api/me/competition-results` · `flow:competition.me.results` | 登录且是极客班成员 | 200 `{ items: [{ competition_id, name, finalized_at, rank, points, prize: { amount_cny, title, code, redeemed_at } \| null }] }`：本人报名过、已经定榜的比赛；兑奖码明文只在这里给本人看。 |
 | `POST /api/console/prizes/lookup`、`POST /api/console/prizes/redeem` · `flow:competition.prize.lookup`、`flow:competition.prize.redeem` | `competition.prize.redeem`；核销再要 step-up | body `{ code }`（不分大小写，空格与连字符可有可无，I/L 当 1、O 当 0）；200 `{ prize }`：比赛、名次、分数、金额、奖项名、得奖人（昵称与用户名，不含真实姓名，#280）、核销时间与核销人。查不到 404 `code_not_found`；已经核销 409 `already_redeemed`（带上次核销的那张奖）。输错的码每人每小时 20 次（`competition.prize.lookup.fail`），超了 429。核销写 `competition.prize.redeem`，查不到的查找写一条 `denied`，记录里只有末四位。 |
 
-收集任务：`buildApp({ gitlabSync: true })`（只有 `index.ts` 打开）同时启动，GitLab 同步不是 off 时每 10 分钟一轮，每一轮开始时才看模式；只收内部赛、没下线、开了积分、已开始、没定榜、结束后 30 天内、配了 GitLab 项目的比赛；一轮最多 300 个 GitLab 请求。MR 按合并时间、Issue 按创建时间落在比赛窗口内才收，Issue 还要带「有用」标签或已经被合并的 MR 关闭；不看改动行数。两档来自标签：`重要程度::一般|重要|关键`、`核心度::边缘|业务|核心` 各要正好一个，缺或多就是 null；作者经 `gitlab_accounts` 对到账号且已报名，否则记 `skipped`。自动加分要「有用」和两个两档标签都满足：资源标签事件里最后一次是加上、加的人对得上账号、有 `competition.score.review`、不是作者本人，才按两档查表自动加分（贡献时间是合并 / 创建时间，防刷按它所在那一周；操作记录 surface `system`，账号是打标签的人）；否则候选留在待确认，`note` 写原因（例如有「有用」但两档标签不全）。加分之后再改两档标签不重算。标签被拿掉时只撤销经标签自动加的分并把候选退回待确认，控制台确认的不动；定榜后不再收集。
+收集任务：`buildApp({ gitlabSync: true })`（只有 `index.ts` 打开）同时启动，GitLab 同步不是 off 时每 10 分钟一轮，每一轮开始时才看模式；只收内部赛、没下线、开了积分、已开始、没定榜、结束后 30 天内、配了 GitLab 项目的比赛；一轮最多300个GitLab请求，每类列表最多十页；MR/Issue、标签事件、closed_by均须取全，十页仍有下一页、循环游标、超时/429/HTTP失败或预算耗尽时整轮不写，`last_run.error`说明失败（created/accepted/revoked归0），绝不把失败当作移除标签。HTTP在事务外，应用完整快照时在事务内重查比赛时间/定榜/项目/报名/候选，审计失败整轮回滚。MR 按合并时间、Issue 按创建时间落在比赛窗口内才收，Issue 还要带「有用」标签或已经被合并的 MR 关闭；不看改动行数。两档来自标签：`重要程度::一般|重要|关键`、`核心度::边缘|业务|核心` 各要正好一个，缺或多就是 null；作者经 `gitlab_accounts` 对到账号且已报名，否则记 `skipped`。自动加分要「有用」和两个两档标签都满足：资源标签事件里最后一次是加上、加的人对得上账号、有 `competition.score.review`、不是作者本人，才按两档查表自动加分（贡献时间是合并 / 创建时间，防刷按它所在那一周；操作记录 surface `system`，账号是打标签的人）；否则候选留在待确认，`note` 写原因（例如有「有用」但两档标签不全）。加分之后再改两档标签不重算。标签被拿掉时只撤销经标签自动加的分并把候选退回待确认，控制台确认的不动；定榜后不再收集；等待HTTP时发生定榜也不应用迟到快照。演练矩阵、身份集成前置和网络边界见[首场个人赛演练](competition-rehearsal.md)。
+
+防止错误撤分：列表和标签事件完整连续分页（最多 10 页，跳页/循环/截断失败），labels 必须完整 string[]；HTTP 失败、超时、429/5xx、畸形标签/事件不视为标签移除。事件的 id、时间、标签名和 add/remove 动作必须完整；坏事件不能被忽略后把旧 remove 当成最新。自动撤分须完整事件集明确最新 action=remove；缺证据保分。作者和审核人经异步 accountForGitlabUser 重新核验 OIDC 绑定，身份失配/受保护/无 sub 的不归属；身份核验 HTTP 错误中止本轮。所有等待完成后再次检查三标签审核人当前 active 与审核节点，停用/到期不能自动计分。归属核验也计入每轮最多 300 次请求的预算。
 
 验证入口：[官网托管与站点包](../../../tests/server/competition-site.test.ts)、[两档基础分表](../../../tests/server/competition-rubric.test.ts)、[积分、两档与防刷](../../../tests/server/competition-scores.test.ts)、[公开接口与年级系数](../../../tests/server/competition-public.test.ts)、[贡献收集与「有用」标签](../../../tests/server/competition-candidates.test.ts)、[定榜、兑奖与迁移](../../../tests/server/competition-prizes.test.ts)。
 
