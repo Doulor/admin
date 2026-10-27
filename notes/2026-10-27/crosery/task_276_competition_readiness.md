@@ -64,6 +64,12 @@
 - 做了什么：核对task与integration三文件SHA256逐一一致；integration覆盖前备份已保存到completion/integration-before-276-0334；两方原测试标题均无遗漏；确认#271现有services接线已用active账号且实时permissions.check，无需新增deps或修改身份源码
 - 结果：最终源码仅三文件复制到integration，task另更新competition-rehearsal合同与本链notes/index；无gh、联网、commit、push。剩余仅真实GitLab实例和父级浏览器/UI验收，未标为通过
 
+## 04:13:57 +08:00 · 验收 · #276 · 父级真实HTTP六角色闭环与88项回归通过
+
+- 执行者：agent-claude-completion-5a（Claude Code）
+- 做了什么：整合身份与采集器后复跑6文件含真实TCP站点工具；启动只绑定回环的合成库，按访客、选手两人、审核人、负责人、核销人执行真实HTTP和会话往返，之后停止本次服务
+- 结果：88通过0失败；34次真实HTTP检查，350/18积分、2奖项、1核销；重复审核与核销409、越权403、匿名报名401。Ego原空间417已不存在且列表无原空间，未另建绕过，桌面/手机角色UI未验证；重启持久化由同源码inject套件证明，未称真实浏览器或预发布验收
+
 ## 08:40:12 +08:00 · 返工 · #276 · 核对比赛交付无新增源树返工
 
 - 执行者：agent-sonnet-source-delivery
