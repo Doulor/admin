@@ -405,6 +405,22 @@ describe('CLI release material wiring', () => {
     expect(() => resolveManifestAsset(manifest, 'x86_64-pc-windows-gnu')).toThrow();
   });
 
+  powershellIt('the generated install.ps1 parses and prints a pasteable PATH line (#300)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'cli-installer-ps1-parse-'));
+    const script = join(root, 'install.ps1');
+    put(script, installPs1());
+    const parse = spawnSync(pwshPath, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+      `$errors = $null; [void][System.Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}', [ref]$null, [ref]$errors); $errors | ForEach-Object { $_.ToString() }; exit $errors.Count`,
+    ], { encoding: 'utf8' });
+    expect(parse.status, parse.stdout + parse.stderr).toBe(0);
+    // 提示行是要用户整行粘贴进配置文件的命令：单引号字符串里 $env:Path 是字面量，只有安装目录被替换。
+    const hint = spawnSync(pwshPath, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+      "$InstallDir = 'C:\\Users\\x\\geek'; Write-Host ('  $env:Path = \"{0};$env:Path\"' -f $InstallDir)",
+    ], { encoding: 'utf8' });
+    expect(hint.stdout.trim()).toBe('$env:Path = "C:\\Users\\x\\geek;$env:Path"');
+    expect(installPs1()).toContain(`Write-Host ('  $env:Path = "{0};$env:Path"' -f $InstallDir)`);
+  });
+
   powershellIt('the PowerShell installer rejects malicious manifest paths before any asset request', () => {
     const root = mkdtempSync(join(tmpdir(), 'cli-installer-ps1-'));
     put(join(root, 'install.ps1'), installPs1());
