@@ -220,14 +220,28 @@ export function collectChains(root) {
   return chains;
 }
 
-/** task 链路的规则：第一条是开工；收尾之后不能再有记录。stage、main 等链路只记发布与验收，不要求。 */
+/**
+ * 收尾之后又记了一条的历史例外。原记录保持原字节，所有者 2026-10-28 裁决只放过这一条（GitLab #298）：
+ * 不是通用规则，别的链路、同一链上的别的记录、之后新追加的记录仍然报错。
+ */
+export const CLOSED_CHAIN_EXCEPTIONS = [
+  { user: "crosery", slug: "task_276_forum_image_scan", rel: "notes/2026-10-24/crosery/task_276_forum_image_scan.md", time: "22:03:16", stage: "发布" },
+];
+
+function isClosedChainException(chain, entry) {
+  return CLOSED_CHAIN_EXCEPTIONS.some(item => item.user === chain.user && item.slug === chain.slug
+    && item.rel === entry.rel && item.time === entry.time && item.stage === entry.stage);
+}
+
+/** task 链路的规则：第一条是开工；收尾之后不能再有记录（上面列出的一条历史例外除外）。stage、main 等链路只记发布与验收，不要求。 */
 export function checkChainOrder(chain) {
   const problems = [];
   const all = chain.files.flatMap(file => file.entries.map(entry => ({ ...entry, rel: file.rel })));
   if (!all.length || !TASK_RE.test(chain.chain ?? "")) return problems;
   if (all[0].stage !== "开工") problems.push(`${all[0].rel}:${all[0].line}：链路 ${chain.user}/${chain.slug} 的第一条必须是「开工」（开发前先记），现在是「${all[0].stage}」`);
   const closed = all.findIndex(entry => entry.stage === "收尾");
-  if (closed >= 0 && closed < all.length - 1) problems.push(`${all[closed + 1].rel}:${all[closed + 1].line}：链路 ${chain.user}/${chain.slug} 已经收尾，后面不能再记；重新开始要开新的 task`);
+  const afterClosed = closed >= 0 ? all.slice(closed + 1).filter(entry => !isClosedChainException(chain, entry)) : [];
+  if (afterClosed.length) problems.push(`${afterClosed[0].rel}:${afterClosed[0].line}：链路 ${chain.user}/${chain.slug} 已经收尾，后面不能再记；重新开始要开新的 task`);
   return problems;
 }
 

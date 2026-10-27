@@ -128,6 +128,49 @@ describe("核对", () => {
     expect(checkAll(stale).join()).toMatch(/INDEX\.md 不是最新的/);
   });
 
+  describe("收尾之后又记的历史例外（GitLab #298）", () => {
+    const history = { ...base, user: "crosery", chain: "task/276/forum_image_scan", issues: ["276"] };
+    const seed = (extra?: (root: string) => void) => {
+      const root = temp();
+      addNote(root, { ...history, stage: "开工", title: "开工", now: at("2026-10-24T13:48:13Z") });
+      addNote(root, { ...history, stage: "收尾", title: "收尾", now: at("2026-10-24T13:52:18Z") });
+      addNote(root, { ...history, stage: "发布", title: "发布", now: at("2026-10-24T14:03:16Z") });
+      extra?.(root);
+      return root;
+    };
+
+    it("只放过 crosery/task_276_forum_image_scan 在 2026-10-24 22:03:16 的那一条发布", () => {
+      expect(checkChainOrder(collectChains(seed()).get("crosery/task_276_forum_image_scan"))).toEqual([]);
+    });
+
+    it("同一链上之后再追加任何记录仍然报错", () => {
+      const root = seed(r => addNote(r, { ...history, stage: "验收", title: "验收", now: at("2026-10-24T14:10:00Z") }));
+      expect(checkChainOrder(collectChains(root).get("crosery/task_276_forum_image_scan")).join()).toMatch(/已经收尾/);
+    });
+
+    it("同一链上时间或阶段不同的收尾后记录仍然报错", () => {
+      const root = temp();
+      addNote(root, { ...history, stage: "开工", title: "开工", now: at("2026-10-24T13:48:13Z") });
+      addNote(root, { ...history, stage: "收尾", title: "收尾", now: at("2026-10-24T13:52:18Z") });
+      addNote(root, { ...history, stage: "发布", title: "发布", now: at("2026-10-24T14:03:17Z") });
+      expect(checkChainOrder(collectChains(root).get("crosery/task_276_forum_image_scan")).join()).toMatch(/已经收尾/);
+      const other = temp();
+      addNote(other, { ...history, stage: "开工", title: "开工", now: at("2026-10-24T13:48:13Z") });
+      addNote(other, { ...history, stage: "收尾", title: "收尾", now: at("2026-10-24T13:52:18Z") });
+      addNote(other, { ...history, stage: "验收", title: "验收", now: at("2026-10-24T14:03:16Z") });
+      expect(checkChainOrder(collectChains(other).get("crosery/task_276_forum_image_scan")).join()).toMatch(/已经收尾/);
+    });
+
+    it("别的链路出现同样的收尾后发布仍然报错", () => {
+      const root = temp();
+      const other = { ...history, chain: "task/277/other_task", issues: ["277"] };
+      addNote(root, { ...other, stage: "开工", title: "开工", now: at("2026-10-24T13:48:13Z") });
+      addNote(root, { ...other, stage: "收尾", title: "收尾", now: at("2026-10-24T13:52:18Z") });
+      addNote(root, { ...other, stage: "发布", title: "发布", now: at("2026-10-24T14:03:16Z") });
+      expect(checkChainOrder(collectChains(root).get("crosery/task_277_other_task")).join()).toMatch(/已经收尾/);
+    });
+  });
+
   it("stage、main 上的发布与验收记录不要求以开工开始", () => {
     const root = temp();
     addNote(root, { ...base, chain: "stage", issues: ["87", "91"], stage: "发布", title: "打 v0.1.0-rc.6", now: at("2026-09-25T17:00:00Z") });
