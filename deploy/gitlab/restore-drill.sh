@@ -14,11 +14,21 @@ ARCHIVE_TOOL="${GITLAB_ARCHIVE_TOOL:-/srv/gitlab/garage-archive.mjs}"
 
 WORK_DIR=""
 TARGET_DAY=""
+TARGET_RUN=""
 CLEANUP=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --run)
+            if [[ $# -lt 2 || "$2" =~ ^-- ]]; then
+                echo "Error: --run requires an archive selector <YYYY-MM-DD>/<run>" >&2
+                exit 1
+            fi
+            TARGET_RUN="$2"
+            shift 2
+            ;;
         --day)
+            # 只用于列候选：--day 不会替你选，仍然必须显式给出 --run
             if [[ $# -lt 2 || "$2" =~ ^-- ]]; then
                 echo "Error: --day requires a date argument (YYYY-MM-DD)" >&2
                 exit 1
@@ -31,12 +41,13 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: restore-drill.sh [--day YYYY-MM-DD] [--cleanup]"
+            echo "Usage: restore-drill.sh --run YYYY-MM-DD/<run> [--cleanup]"
+            echo "       restore-drill.sh [--day YYYY-MM-DD]   # list available runs, restore nothing"
             exit 0
             ;;
         *)
             echo "Error: Unknown argument: $1" >&2
-            echo "Usage: restore-drill.sh [--day YYYY-MM-DD] [--cleanup]" >&2
+            echo "Usage: restore-drill.sh --run YYYY-MM-DD/<run> [--cleanup]" >&2
             exit 1
             ;;
     esac
@@ -44,6 +55,11 @@ done
 
 if [[ -n "${TARGET_DAY}" && ! "${TARGET_DAY}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
     echo "Error: --day must be in YYYY-MM-DD format: ${TARGET_DAY}" >&2
+    exit 1
+fi
+
+if [[ -n "${TARGET_RUN}" && ! "${TARGET_RUN}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}/[A-Za-z0-9._-]+$ ]]; then
+    echo "Error: --run must be in YYYY-MM-DD/<run> format: ${TARGET_RUN}" >&2
     exit 1
 fi
 
@@ -88,6 +104,24 @@ if [[ ! -f "${ARCHIVE_TOOL}" || -L "${ARCHIVE_TOOL}" ]]; then
     exit 1
 fi
 
+# 恢复必须点名 run：没有 --run 时只列候选并退出，绝不按时间或字典序替你挑“最新”
+if [[ -z "${TARGET_RUN}" ]]; then
+    if [[ -n "${TARGET_DAY}" ]]; then
+        AVAILABLE_RUNS="$(node "${ARCHIVE_TOOL}" list-gitlab-runs --day "${TARGET_DAY}")"
+    else
+        AVAILABLE_RUNS="$(node "${ARCHIVE_TOOL}" list-gitlab-runs)"
+    fi
+    echo "Error: --run <YYYY-MM-DD>/<run> is required; restore never auto-selects a run" >&2
+    node --input-type=module - "${AVAILABLE_RUNS}" <<'NODE' >&2
+const value = JSON.parse(process.argv[2]);
+const runs = Array.isArray(value?.runs) ? value.runs : [];
+if (runs.length === 0) console.log('No GitLab archive runs are available.');
+for (const run of runs) console.log(`available run: ${run}`);
+NODE
+    echo "Usage: restore-drill.sh --run YYYY-MM-DD/<run> [--cleanup]" >&2
+    exit 1
+fi
+
 # 0. 预检：只接受经审查的 digest 镜像，任何解密/启动之前失败
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
     echo "Error: Compose file ${COMPOSE_FILE} does not exist" >&2
@@ -107,24 +141,32 @@ if [[ "${IMAGE}" != "${EXPECTED_IMAGE}" ]]; then
     echo "Error: Image '${IMAGE}' from ${COMPOSE_FILE} is not the reviewed image; expected ${EXPECTED_IMAGE}" >&2
     exit 1
 fi
-if [[ -n "${TARGET_DAY}" ]]; then
-    RUN_JSON="$(node "${ARCHIVE_TOOL}" resolve-gitlab-run --day "${TARGET_DAY}")"
-else
-    RUN_JSON="$(node "${ARCHIVE_TOOL}" resolve-gitlab-run)"
-fi
+RUN_JSON="$(node "${ARCHIVE_TOOL}" resolve-gitlab-run --run "${TARGET_RUN}")"
 readarray -t RUN_FIELDS < <(node --input-type=module - "${RUN_JSON}" <<'NODE'
 const value = JSON.parse(process.argv[2]);
-if (!/^\d{4}-\d{2}-\d{2}$/.test(value.day ?? '') || !/^gitlab\/[A-Za-z0-9._/-]+\/$/.test(value.prefix ?? '')) process.exit(2);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(value.day ?? '') || !/^gitlab\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/$/.test(value.prefix ?? '')) process.exit(2);
+if (!Array.isArray(value.objects) || value.objects.length === 0) process.exit(3);
+let total = 0;
+for (const item of value.objects) {
+  if (typeof item?.path !== 'string' || item.path === '' || !Number.isSafeInteger(item.bytes) || item.bytes < 0) process.exit(4);
+  total += item.bytes;
+}
+if (!Number.isSafeInteger(total)) process.exit(5);
 console.log(value.day);
 console.log(value.prefix);
+console.log(value.objects.length);
+console.log(total);
 NODE
 )
-if [[ ${#RUN_FIELDS[@]} -ne 2 ]]; then
-    echo "Error: Could not resolve a valid GitLab archive run" >&2
+if [[ ${#RUN_FIELDS[@]} -ne 4 ]]; then
+    echo "Error: Could not resolve the requested GitLab archive run ${TARGET_RUN}" >&2
     exit 1
 fi
 TARGET_DAY="${RUN_FIELDS[0]}"
 REMOTE_PREFIX="${RUN_FIELDS[1]}"
+OBJECT_COUNT="${RUN_FIELDS[2]}"
+OBJECT_BYTES="${RUN_FIELDS[3]}"
+echo "Restoring run: ${REMOTE_PREFIX} (${OBJECT_COUNT} objects, ${OBJECT_BYTES} bytes); no other run will be considered"
 
 STAMP="$(TZ=Asia/Shanghai date +%Y%m%dT%H%M%S)"
 WORK_DIR="${DRILL_ROOT}/${STAMP}"
@@ -173,8 +215,9 @@ trap on_exit EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# 1. 逐对象完整 GET 下载一个不可变运行，再按清单校验 SHA-256
-node "${ARCHIVE_TOOL}" get-tree --role gitlab-backup --prefix "${REMOTE_PREFIX}" --destination "${WORK_DIR}/dl" >/dev/null
+# 1. 逐对象完整 GET 下载被点名的不可变运行；适配器先核对存在与长度，再按 SHA256SUMS 全量校验，
+#    清单缺失、被截断或与对象集合不一致都直接失败（不会退化成只校验部分文件）。摘要打印在 stderr。
+node "${ARCHIVE_TOOL}" get-tree --role gitlab-backup --prefix "${REMOTE_PREFIX}" --destination "${WORK_DIR}/dl" --require-manifest >/dev/null
 
 (
     cd "${WORK_DIR}/dl"

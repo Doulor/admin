@@ -122,16 +122,16 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 ### 恢复前必须满足
 
 1. 先取得恢复目标、日期、资源预算与清理范围的明确批准；本任务不执行脚本、不读取真实备份。新目标与旧实例隔离，不覆盖活机目录，不重启旁路 GitLab。
-2. `restore-drill.sh` 先用共享适配器逐对象完整 GET 到全新目录，再以 `sha256sum -c SHA256SUMS` 核对两份加密归档；之后才解密。核对原 GitLab 备份版本/CE 类型及配置归档里的 Compose 镜像与数据备份对应。脚本实际读取的是**当前** `/srv/gitlab/docker-compose.yml`，不自动从备份选择原版本；不一致时停止，不能换 `latest` 试运气。
+2. `restore-drill.sh` 先用共享适配器逐对象完整 GET 到全新目录，再以 `sha256sum -c SHA256SUMS` 核对两份加密归档；之后才解密。核对原 GitLab 备份版本/CE 类型及配置归档里的 Compose 镜像与数据备份对应。脚本实际读取的是**当前** `/srv/gitlab/docker-compose.yml`，并且只接受逐字等于 `gitlab/gitlab-ce@sha256:bb79dc86…d36fc3`（脚本顶部常量）的镜像串：`:latest`、别的 tag 或未复核的 digest 在任何下载、解密、启动之前就失败；要换版本先改脚本常量走审查。失败或中断时，本轮创建的 `gitlab-drill` 容器与整个演练目录（含明文 `config/gitlab-secrets.json`）由同一个 EXIT 清理路径删除，原始加密归档保留，退出码不变。
 3. 单独保全并验证可用的 GPG 私钥和口令；GitLab 的原 `gitlab-secrets.json`、OIDC client secret 和平台原 `ENCRYPTION_KEY` 分别用于各自系统，不能互相替代。秘密只走受控文件/凭据注入，不放 argv、日志、聊天或源码。
 4. 普通带凭据命令使用 `crosery-ct cred exec --cred NAME=ENV -- 命令` 注入，不引导查看密钥。恢复脚本优先读取 fd 3，再用 `gpg --passphrase-fd 3`；保留的环境变量 fallback 不应成为推荐路径。若工具先注入 `GPG_PASSPHRASE`，应在获批目标上的短生命周期 shell 中转 fd 并取消导出，禁止 `set -x`：
 
    ```bash
    crosery-ct cred exec --cred GITLAB_BACKUP_GPG_PASSPHRASE=GPG_PASSPHRASE -- \
-     bash -c 'exec 3<<<"$GPG_PASSPHRASE"; unset GPG_PASSPHRASE; exec /srv/gitlab/restore-drill.sh "$@"' bash --day YYYY-MM-DD
+     bash -c 'exec 3<<<"$GPG_PASSPHRASE"; unset GPG_PASSPHRASE; exec /srv/gitlab/restore-drill.sh "$@"' bash --run YYYY-MM-DD/<run>
    ```
 
-   此命令只适用于已安装凭据工具、已获恢复授权的目标，日期须替换为核实的备份日期；本轮未执行。`--cleanup` 是**本轮恢复完成后的清理开关**，不是事后再运行一次脚本的清理命令。
+   此命令只适用于已安装凭据工具、已获恢复授权的目标。`--run` 必须是核实过的备份 run（`YYYY-MM-DD/<run>`）：不传时脚本只列出可用 run 并以退出码 1 结束，不再自动挑“最新”那一个；`--day` 只用来过滤列出的候选。`--cleanup` 是**本轮恢复完成后的清理开关**，不是事后再运行一次脚本的清理命令。
 5. [restore-drill.sh](../../deploy/gitlab/restore-drill.sh) 的下载阶段会联网；`garage-archive.mjs` 须和两脚本一起安装到 `/srv/gitlab/`。仅 `gitlab-drill` 容器 `--network none`、不发布端口，限额 `6g/4CPU`。它只从配置包复制 `gitlab-secrets.json`，**不恢复或验证 OIDC、香港头像、Caddy**；末尾还读取既有 `gitlab` 对象计数，因此也不是可直接在空机运行的完整灾备安装器。
 6. `gitlab:check SANITIZE=true`、`gitlab:doctor:secrets` 与备份时点的数据核对均须留真实结果；live/drill 计数不同只提示，并不失败，不能据退出码证明业务一致。默认保留的恢复数据库、配置和日志仍是敏感运行数据，不进入源码；旧数据、演练目录的删除另按批准范围执行。
 7. 完整灾备验收另含原 OIDC 配置/secret、sector/sub/账号关联、真实登录、仓库读取及自定义头像保护，并独立验证香港图片、Caddy 语法/TLS/代理。未满足这些条件只记录隔离数据恢复结果，不能写“SSO 恢复”或“线上 healthy”。

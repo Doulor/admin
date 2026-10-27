@@ -125,3 +125,16 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：发现首个本地提交后 task270 仍有 deploy-stack.sh、rollback-stack.sh、deploy-scripts.test.ts 和 GITLAB.md 尾部空行清理未提交；核对后确认均属于当前 task270 既有交付范围并按原路径保留
 - 结果：tests/tooling/deploy-scripts.test.ts 23/23通过；未改 task295 或其它 source tree
+
+## 09:38:23 +08:00 · 审查 · #270 · 接手复核：门禁实测、三轴审查与越权提交核对
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：按 AGENTS 门禁重读九份规范与交接 PROMPT；实测 check 族、tooling 与全量 vitest、typecheck、build、cargo；对 63 个未提交文件起 Standards/Spec/安全三轴审查；按安全阻塞项补 deploy-stack.sh/rollback-stack.sh 的栈归属与重复键守卫、deployment-environment.mjs 原子 0600 渲染与符号链接拒绝，并加回归
+- 结果：通过：check:runtime/site-config/boundaries/docs/environments/secrets/doc-sync/architecture(cli) 全绿、architecture --base gitlab/stage 94 文件4节点、tooling 23/23 与本类 40/40、全量 vitest 2526 passed/26 skipped、typecheck 与 build 退出0、cargo clippy 无警告与 test 32 passed；未通过：check:notes 因历史 K10（task_276:47）、论坛 typecheck:tests（activity-beacon 基线）。另核对子代理越权产生的 70126021、6aa4abb4 两笔本地提交内容属本任务范围且 check:secrets 通过，未推送
+- 下一步：收取 restore-drill/garage 加固结果，重跑门禁后整理 MR 正文并提供推送授权请求
+
+## 09:44:09 +08:00 · 返工 · #270 · 补回同号历史归档清单与恢复演练收口
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：保留 task270 工作树中新增的显式 GitLab run 选择、SHA256SUMS 完整集合核对、恢复清理和对应 catalog/合同/测试差异；未采用 integration 旧版自动选择实现
+- 结果：单 worker 定向验证：garage-archive 8/8、gitlab-backup-storage 9/9、deploy-scripts 与 deployment-environment 63/63；git diff --check 通过

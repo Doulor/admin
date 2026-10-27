@@ -330,11 +330,9 @@ command -v tar >/dev/null 2>&1 || die "目标机缺少 tar，无法核对镜像�
 
 # ── env 文件是唯一事实来源 ────────────────────────────────────
 # 同一个键出现多次时，env_value 取最后一个、docker compose 也取最后一个，但模板与渲染器都不该产出重复键；
-# 一旦存在，说明这个文件不是本环境该用的那一份，直接失败而不是猜。
-for required_key in GEEK_DEPLOYMENT_ENVIRONMENT STACK_ROOT COMPOSE_PROJECT_NAME IMAGE_TAG SERVER_BIND WEB_BIND SERVER_PORT; do
-  key_count=$(grep -c "^${required_key}=" "$ENV_FILE" 2>/dev/null || true)
-  [ "${key_count:-0}" -le 1 ] || die "env 文件里 ${required_key} 出现了 ${key_count} 次：$ENV_FILE"
-done
+# 一旦存在，这个文件就不是本环境该用的那一份（重复的 SESSION_SECRET / TRUST_PROXY 能悄悄改变行为），直接失败。
+duplicate_keys=$(grep -Eo '^[A-Z][A-Z0-9_]*=' "$ENV_FILE" | sed 's/=$//' | sort | uniq -d | tr '\n' ' ')
+[ -z "${duplicate_keys// /}" ] || die "env 文件里这些键出现了多次：${duplicate_keys}（$ENV_FILE）"
 
 FILE_ENVIRONMENT=$(env_value GEEK_DEPLOYMENT_ENVIRONMENT "$ENV_FILE")
 FILE_STACK_ROOT=$(env_value STACK_ROOT "$ENV_FILE")

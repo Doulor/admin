@@ -72,7 +72,10 @@
       "evidence": [
         "tests/tooling/arch-replica.test.ts",
         "tests/tooling/garage-archive.test.ts",
-        "tests/tooling/cli-release-wiring.test.ts"
+        "tests/tooling/cli-release-wiring.test.ts",
+        "tests/tooling/deploy-scripts.test.ts",
+        "tests/tooling/deployment-environment.test.ts",
+        "tests/tooling/gitlab-backup-storage.test.ts"
       ]
     },
     "delivery": {
@@ -230,6 +233,7 @@
         "tests/tooling/arch-snapshot.test.ts",
         "tests/tooling/arch-target.test.ts",
         "tests/tooling/deploy-manual.test.ts",
+        "tests/tooling/deploy-scripts.test.ts",
         "tests/tooling/deployment-environment.test.ts",
         "tests/tooling/fixtures/fake-garage-rclone.cjs",
         "tests/tooling/garage-archive.test.ts",

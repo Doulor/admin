@@ -177,10 +177,8 @@ fi
 [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ] || die "找不到 env 文件（用 --env-file 指定，或确认 <STACK_ROOT>/.env.$ENVIRONMENT 存在）"
 
 FILE_ENVIRONMENT=$(env_value GEEK_DEPLOYMENT_ENVIRONMENT "$ENV_FILE")
-for required_key in GEEK_DEPLOYMENT_ENVIRONMENT STACK_ROOT COMPOSE_PROJECT_NAME IMAGE_TAG SERVER_BIND WEB_BIND; do
-  key_count=$(grep -c "^${required_key}=" "$ENV_FILE" 2>/dev/null || true)
-  [ "${key_count:-0}" -le 1 ] || die "env 文件里 ${required_key} 出现了 ${key_count} 次：$ENV_FILE"
-done
+duplicate_keys=$(grep -Eo '^[A-Z][A-Z0-9_]*=' "$ENV_FILE" | sed 's/=$//' | sort | uniq -d | tr '\n' ' ')
+[ -z "${duplicate_keys// /}" ] || die "env 文件里这些键出现了多次：${duplicate_keys}（$ENV_FILE）"
 FILE_STACK_ROOT=$(env_value STACK_ROOT "$ENV_FILE")
 COMPOSE_PROJECT_NAME=$(env_value COMPOSE_PROJECT_NAME "$ENV_FILE")
 CURRENT_TAG=$(env_value IMAGE_TAG "$ENV_FILE")

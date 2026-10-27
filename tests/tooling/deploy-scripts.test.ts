@@ -258,7 +258,18 @@ describe('deploy-stack.sh and rollback-stack.sh refuse an env file that belongs 
     writeFileSync(preview.envFile, `${readFileSync(preview.envFile, 'utf8')}COMPOSE_PROJECT_NAME=yzgc-production\n`);
     const result = run(h, 'deploy-stack.sh', ['--environment', 'preview', '--env-file', preview.envFile, '--images', join(preview.stackRoot, 'incoming')]);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('COMPOSE_PROJECT_NAME 出现了 2 次');
+    expect(result.stderr).toContain('这些键出现了多次');
+    expect(result.stderr).toContain('COMPOSE_PROJECT_NAME');
+  });
+
+  it('rejects a duplicated key that is not part of the parsed subset, such as TRUST_PROXY', () => {
+    const h = host();
+    const preview = stack(h.root, 'preview', SHA);
+    // 只校验被读取的那几个键是不够的：重复的 TRUST_PROXY 会改变 server 对代理头的信任，重复的 SESSION_SECRET 会换掉密钥。
+    writeFileSync(preview.envFile, `${readFileSync(preview.envFile, 'utf8')}TRUST_PROXY=1\n`);
+    const result = run(h, 'deploy-stack.sh', ['--environment', 'preview', '--env-file', preview.envFile, '--images', join(preview.stackRoot, 'incoming')]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('TRUST_PROXY');
   });
 
   it('refuses to roll back with an env file that points at the other stack', () => {

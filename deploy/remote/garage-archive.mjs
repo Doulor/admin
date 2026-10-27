@@ -2,7 +2,7 @@
 // Garage 私有归档适配器：复用 rclone 的 S3/SigV4 实现，只新增、完整读回核验，不提供覆盖或删除命令。
 import { createHash } from 'node:crypto';
 import {
-  createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync,
+  createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync,
 } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path';
@@ -48,22 +48,30 @@ function parseArgs(argv) {
     'put-tree': ['--role', '--source', '--prefix'],
     'put-file': ['--role', '--source', '--key'],
     'get-tree': ['--role', '--prefix', '--destination'],
-    'resolve-gitlab-run': ['--day'],
+    'resolve-gitlab-run': ['--run'],
+    'list-gitlab-runs': ['--day'],
   };
-  requireThat(Object.hasOwn(allowedByCommand, command), '用法：garage-archive.mjs put-tree|put-file|get-tree|resolve-gitlab-run');
+  // 无值布尔开关：恢复路径必须显式要求清单校验，缺省下载保持通用
+  const flagsByCommand = { 'get-tree': ['--require-manifest'] };
+  requireThat(Object.hasOwn(allowedByCommand, command), '用法：garage-archive.mjs put-tree|put-file|get-tree|resolve-gitlab-run|list-gitlab-runs');
   const allowed = new Set(allowedByCommand[command]);
+  const flags = new Set(flagsByCommand[command] ?? []);
   const options = Object.create(null);
-  for (let index = 0; index < rest.length; index += 2) {
+  for (let index = 0; index < rest.length; index += 1) {
     const key = rest[index];
+    requireThat(typeof key === 'string' && !Object.hasOwn(options, key), '参数缺失、重复或未知');
+    if (flags.has(key)) { options[key] = true; continue; }
     const value = rest[index + 1];
-    requireThat(allowed.has(key) && value && !Object.hasOwn(options, key), '参数缺失、重复或未知');
+    requireThat(allowed.has(key) && value && !value.startsWith('--'), '参数缺失、重复或未知');
     options[key] = value;
+    index += 1;
   }
   const requiredByCommand = {
     'put-tree': ['--role', '--source', '--prefix'],
     'put-file': ['--role', '--source', '--key'],
     'get-tree': ['--role', '--prefix', '--destination'],
     'resolve-gitlab-run': [],
+    'list-gitlab-runs': [],
   };
   for (const key of requiredByCommand[command]) requireThat(options[key], `缺少 ${key}`);
   return { command, options };
@@ -235,47 +243,130 @@ function listPrefix(role, prefix) {
   }).sort((a, b) => a.path.localeCompare(b.path, 'en'));
 }
 
-async function getTree(role, prefix, destination) {
+const MANIFEST_NAME = 'SHA256SUMS';
+
+// 只接受 `sha256sum -- *.gpg > SHA256SUMS` 产出的严格格式：64 位小写摘要 + 两个空格/星号 + 相对路径
+function parseManifest(text) {
+  const lines = text.split('\n').filter(line => line.trim() !== '');
+  requireThat(lines.length > 0, 'SHA256SUMS 为空');
+  const entries = new Map();
+  for (const line of lines) {
+    const match = /^([0-9a-f]{64}) [ *](.+)$/.exec(line);
+    requireThat(match, 'SHA256SUMS 行格式无效');
+    const name = match[2];
+    requireThat(!name.startsWith('/') && !name.includes('\\') && !name.includes('%')
+      && !name.split('/').some(part => !part || part === '.' || part === '..'), 'SHA256SUMS 含非法路径');
+    requireThat(!entries.has(name), `SHA256SUMS 条目重复：${name}`);
+    entries.set(name, match[1]);
+  }
+  return entries;
+}
+
+async function getTree(role, prefix, destination, { requireManifest = false } = {}) {
   assertObjectPath(role, prefix, 'prefix');
   destination = assertLocalPath(destination, { mustExist: false });
   requireThat(!existsSync(destination), '下载目标已存在，拒绝覆盖');
   const objects = listPrefix(role, prefix);
   requireThat(objects.length > 0, '远端前缀为空');
   mkdirSync(destination, { mode: 0o700 });
-  const downloaded = [];
-  for (const item of objects) {
+  // 顺序固定：先按列举长度核对长度，再由清单确认对象集合，最后才逐个比对 SHA-256；
+  // 任一检查失败都丢弃 .partial，绝不把未通过校验的字节放进恢复目录
+  const fetchObject = async (item, expected) => {
+    requireThat(Number.isSafeInteger(item.bytes) && item.bytes >= 0, `对象长度无效：${item.path}`);
     const path = join(destination, ...item.path.split('/'));
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     const partial = `${path}.partial`;
-    const result = await streamRclone(['cat', remotePath(role, item.key)], role, partial);
+    let result;
+    try { result = await streamRclone(['cat', remotePath(role, item.key)], role, partial); }
+    catch (error) { rmSync(partial, { force: true }); throw error; }
+    const discard = message => { rmSync(partial, { force: true }); throw new ArchiveError(message); };
+    if (result.bytes !== item.bytes) discard(`${item.path}：实际长度与远端列举不一致`);
+    if (expected !== undefined && result.sha256 !== expected) discard(`${item.path}：SHA-256 与 SHA256SUMS 不一致`);
     renameSync(partial, path);
-    downloaded.push({ path: item.path, ...result });
+    return { path: item.path, ...result };
+  };
+  const downloaded = [];
+  let entries = null;
+  if (requireManifest) {
+    const manifest = objects.find(item => item.path === MANIFEST_NAME);
+    requireThat(manifest, `${prefix} 缺少 SHA256SUMS，拒绝恢复`);
+    requireThat(Number.isSafeInteger(manifest.bytes) && manifest.bytes > 0, 'SHA256SUMS 为空或长度无效');
+    const sums = await fetchObject(manifest);
+    downloaded.push(sums);
+    entries = parseManifest(readFileSync(join(destination, MANIFEST_NAME), 'utf8'));
+    const listed = new Map(objects.filter(item => item.path !== MANIFEST_NAME).map(item => [item.path, item]));
+    requireThat(listed.size === objects.length - 1, '远端对象列表含重复路径');
+    requireThat(listed.size > 0, '远端除 SHA256SUMS 外没有对象');
+    for (const name of entries.keys()) {
+      requireThat(listed.has(name), `SHA256SUMS 列出的对象缺失：${name}`);
+    }
+    // 集合必须完全相等：清单被截断或出现未登记对象都直接失败，绝不退化成只校验清单里的子集
+    requireThat(entries.size === listed.size, 'SHA256SUMS 与远端对象列表不一致（清单被截断或存在未登记对象）');
   }
-  return { bucket: role.bucket, prefix, downloaded: downloaded.length, objects: downloaded };
+  for (const item of objects) {
+    if (entries && item.path === MANIFEST_NAME) continue;
+    downloaded.push(await fetchObject(item, entries ? entries.get(item.path) : undefined));
+  }
+  if (entries) {
+    // 恢复前的人工比对依据：只打印 run 标识与对象摘要，不打印任何对象内容
+    const total = downloaded.reduce((sum, item) => sum + item.bytes, 0);
+    process.stderr.write(`[garage-archive] run ${prefix} objects=${downloaded.length} bytes=${total}\n`);
+    for (const item of downloaded) process.stderr.write(`[garage-archive]   ${item.path} ${item.bytes} ${item.sha256}\n`);
+  }
+  return {
+    bucket: role.bucket, prefix, downloaded: downloaded.length, manifestVerified: Boolean(entries), objects: downloaded,
+  };
 }
 
-function resolveGitlabRun(day, env = process.env) {
-  if (day) requireThat(/^\d{4}-\d{2}-\d{2}$/.test(day), '--day 必须是 YYYY-MM-DD');
+const RUN_SELECTOR = /^(\d{4}-\d{2}-\d{2})\/([A-Za-z0-9._-]+)$/;
+
+function gitlabRunTarget(run) {
+  requireThat(typeof run === 'string' && run !== '', '必须显式指定 --run <YYYY-MM-DD>/<run>');
+  const match = RUN_SELECTOR.exec(run);
+  requireThat(match, '--run 必须是 <YYYY-MM-DD>/<run>');
+  return { day: match[1], run: match[2], prefix: `gitlab/${match[1]}/${match[2]}/` };
+}
+
+function listGitlabRuns(day, env = process.env) {
+  if (day !== undefined) requireThat(/^\d{4}-\d{2}-\d{2}$/.test(day), '--day 必须是 YYYY-MM-DD');
   const role = roleConfig('gitlab-backup', env);
-  const objects = listPrefix(role, 'gitlab/');
-  const candidates = [];
-  for (const item of objects) {
-    let match = /^(\d{4}-\d{2}-\d{2})\/([A-Za-z0-9._-]+)\/SHA256SUMS$/.exec(item.path);
-    if (match) candidates.push({ day: match[1], prefix: `gitlab/${match[1]}/${match[2]}/` });
-    else if ((match = /^(\d{4}-\d{2}-\d{2})\/SHA256SUMS$/.exec(item.path))) candidates.push({ day: match[1], prefix: `gitlab/${match[1]}/` });
+  const runs = new Set();
+  for (const item of listPrefix(role, 'gitlab/')) {
+    const match = /^(\d{4}-\d{2}-\d{2})\/([A-Za-z0-9._-]+)\/SHA256SUMS$/.exec(item.path);
+    if (match && (!day || match[1] === day)) runs.add(`${match[1]}/${match[2]}`);
   }
-  const filtered = candidates.filter(item => !day || item.day === day).sort((a, b) => a.prefix.localeCompare(b.prefix, 'en'));
-  requireThat(filtered.length > 0, day ? `没有 ${day} 的 GitLab 归档` : '没有 GitLab 归档');
-  return filtered.at(-1);
+  return [...runs].sort((a, b) => a.localeCompare(b, 'en'));
+}
+
+// 显式选择：只核对调用者点名的 run，绝不按字典序或时间来“猜”要恢复哪一份
+function resolveGitlabRun(run, env = process.env) {
+  const target = gitlabRunTarget(run);
+  const role = roleConfig('gitlab-backup', env);
+  const objects = listPrefix(role, target.prefix);
+  requireThat(objects.length > 0, `远端不存在 ${target.prefix}`);
+  const manifest = objects.find(item => item.path === MANIFEST_NAME);
+  requireThat(manifest, `${target.prefix} 缺少 SHA256SUMS，拒绝恢复`);
+  requireThat(Number.isSafeInteger(manifest.bytes) && manifest.bytes > 0, `${target.prefix} 的 SHA256SUMS 为空或长度无效`);
+  for (const item of objects) {
+    requireThat(Number.isSafeInteger(item.bytes) && item.bytes >= 0, `${target.prefix} 对象长度无效：${item.path}`);
+  }
+  return { day: target.day, run: target.run, prefix: target.prefix, objects: objects.map(({ path, bytes }) => ({ path, bytes })) };
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const { command, options } = parseArgs(argv);
-  if (command === 'resolve-gitlab-run') return resolveGitlabRun(options['--day'], env);
+  if (command === 'list-gitlab-runs') return { runs: listGitlabRuns(options['--day'], env) };
+  if (command === 'resolve-gitlab-run') {
+    if (!options['--run']) {
+      const runs = listGitlabRuns(undefined, env);
+      throw new ArchiveError(`必须显式指定 --run <YYYY-MM-DD>/<run>，不会自动选择最新 run。可用 run：${runs.length > 0 ? runs.join('、') : '（无）'}`);
+    }
+    return resolveGitlabRun(options['--run'], env);
+  }
   const role = roleConfig(options['--role'], env);
   if (command === 'put-file') return { bucket: role.bucket, ...(await putFile(role, options['--source'], options['--key'])) };
   if (command === 'put-tree') return await putTree(role, options['--source'], options['--prefix']);
-  if (command === 'get-tree') return await getTree(role, options['--prefix'], options['--destination']);
+  if (command === 'get-tree') return await getTree(role, options['--prefix'], options['--destination'], { requireManifest: options['--require-manifest'] === true });
   throw new ArchiveError('未知命令');
 }
 

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +12,7 @@ const script = join(root, 'deploy/remote/garage-archive.mjs');
 const roots: string[] = [];
 afterEach(() => { for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true }); });
 
-function fixture() {
+function fixture(): ArchiveFixture {
   const dir = mkdtempSync(join(tmpdir(), 'geek-garage-archive-'));
   roots.push(dir);
   const bin = join(dir, 'bin');
@@ -95,6 +97,37 @@ if (args[0] === 'lsjson' && args.includes('--stat')) {
   return { dir, bin, objects, log, credentials, run, calls };
 }
 
+type ManifestMode = 'full' | 'missing' | 'truncated' | 'forged';
+
+interface ArchiveFixture {
+  dir: string;
+  bin: string;
+  objects: string;
+  log: string;
+  credentials: Record<string, string>;
+  run: (args: string[], extraEnv?: Record<string, string>) => SpawnSyncReturns<string>;
+  calls: () => { args: string[]; config: Record<string, unknown> }[];
+}
+
+// 用真实 SHA-256 造一个 run：manifest 模式覆盖正常、缺清单、被截断、摘要被伪造四种情况
+function writeRun(f: ArchiveFixture, prefix: string, files: Record<string, string>, mode: ManifestMode = 'full') {
+  const source = join(f.dir, 'run-src', prefix.replaceAll('/', '_'));
+  mkdirSync(source, { recursive: true });
+  for (const [name, body] of Object.entries(files)) writeFileSync(join(source, name), body, { mode: 0o600 });
+  if (mode !== 'missing') {
+    const names = Object.keys(files);
+    const listed = mode === 'truncated' ? names.slice(0, 1) : names;
+    const lines = listed.map((name, index) => {
+      const digest = mode === 'forged' && index === 0 ? '0'.repeat(64) : createHash('sha256').update(files[name]).digest('hex');
+      return `${digest}  ${name}`;
+    });
+    writeFileSync(join(source, 'SHA256SUMS'), `${lines.join('\n')}\n`, { mode: 0o600 });
+  }
+  const uploaded = f.run(['put-tree', '--role', 'gitlab-backup', '--source', source, '--prefix', prefix]);
+  expect(uploaded.status, uploaded.stderr).toBe(0);
+  return source;
+}
+
 describe('Garage immutable archive adapter', () => {
   it('uploads a GitLab run additively, reuses byte-identical objects and rejects a conflicting key', () => {
     const f = fixture();
@@ -169,25 +202,152 @@ describe('Garage immutable archive adapter', () => {
     expect(f.run(['put-file', '--role', 'preview-content-index', '--source', index, '--key', 'indexes/content/not-a-commit/sha256.json']).status).toBe(1);
   });
 
-  it('resolves the latest GitLab day/run while preserving an explicit date selector', () => {
+  it('requires an explicit run, lists candidates and never downloads or guesses', () => {
     const f = fixture();
-    for (const prefix of [
-      'gitlab/2026-10-26/20261026T030000/',
-      'gitlab/2026-10-27/20261027T030000/',
-      'gitlab/2026-10-27/20261027T040000/',
-    ]) {
-      const source = join(f.dir, prefix.replaceAll('/', '_'));
-      mkdirSync(source);
-      writeFileSync(join(source, 'SHA256SUMS'), 'fixture\n', { mode: 0o600 });
-      expect(f.run(['put-tree', '--role', 'gitlab-backup', '--source', source, '--prefix', prefix]).status).toBe(0);
-    }
-    const latest = f.run(['resolve-gitlab-run']);
-    expect(latest.status, latest.stderr).toBe(0);
-    expect(JSON.parse(latest.stdout)).toEqual({ day: '2026-10-27', prefix: 'gitlab/2026-10-27/20261027T040000/' });
-    const selected = f.run(['resolve-gitlab-run', '--day', '2026-10-26']);
+    writeRun(f, 'gitlab/2026-10-26/20261026T030000/', { 'a.tar.gpg': 'alpha-one' });
+    writeRun(f, 'gitlab/2026-10-27/20261027T030000/', { 'a.tar.gpg': 'alpha-two' });
+    // 拥有写凭据的人后来追加的“更晚”run：没有 --run 时它绝不能被自动选中
+    writeRun(f, 'gitlab/2026-10-27/20261027T235959/', { 'a.tar.gpg': 'forged-later' });
+    const baseline = f.calls().length;
+
+    const implicit = f.run(['resolve-gitlab-run']);
+    expect(implicit.status).toBe(1);
+    expect(implicit.stdout).toBe('');
+    expect(implicit.stderr).toContain('--run');
+    expect(implicit.stderr).toContain('2026-10-27/20261027T235959');
+    // 没有选中任何 run，因此一个对象都没有下载
+    expect(f.calls().slice(baseline).filter(call => call.args[0] === 'cat')).toHaveLength(0);
+
+    const listed = f.run(['list-gitlab-runs']);
+    expect(listed.status, listed.stderr).toBe(0);
+    expect(JSON.parse(listed.stdout).runs).toEqual([
+      '2026-10-26/20261026T030000',
+      '2026-10-27/20261027T030000',
+      '2026-10-27/20261027T235959',
+    ]);
+    const dayListed = f.run(['list-gitlab-runs', '--day', '2026-10-26']);
+    expect(JSON.parse(dayListed.stdout).runs).toEqual(['2026-10-26/20261026T030000']);
+    expect(f.run(['list-gitlab-runs', '--day', '2026/10/26']).status).toBe(1);
+    expect(f.calls().slice(baseline).filter(call => call.args[0] === 'cat')).toHaveLength(0);
+
+    // 显式点名旧 run 时，后来追加的 run 不影响结果
+    const selected = f.run(['resolve-gitlab-run', '--run', '2026-10-26/20261026T030000']);
     expect(selected.status, selected.stderr).toBe(0);
-    expect(JSON.parse(selected.stdout)).toEqual({ day: '2026-10-26', prefix: 'gitlab/2026-10-26/20261026T030000/' });
-    expect(f.run(['resolve-gitlab-run', '--day', '2026/10/27']).status).toBe(1);
+    expect(JSON.parse(selected.stdout)).toMatchObject({
+      day: '2026-10-26', run: '20261026T030000', prefix: 'gitlab/2026-10-26/20261026T030000/',
+    });
+    expect(JSON.parse(selected.stdout).objects.map((item: { path: string }) => item.path).sort()).toEqual(['SHA256SUMS', 'a.tar.gpg']);
+    expect(selected.stdout).not.toContain('alpha-one');
+
+    for (const run of ['2026-10-26', '2026-10-26/../etc', '../../etc/passwd', '2026-10/26/x', '/abs/2026-10-26/x']) {
+      expect(f.run(['resolve-gitlab-run', '--run', run]).status, run).toBe(1);
+    }
+    const absent = f.run(['resolve-gitlab-run', '--run', '2026-10-27/20261027T999999']);
+    expect(absent.status).toBe(1);
+    expect(absent.stderr).toContain('远端不存在');
+  });
+
+  it('fails closed when SHA256SUMS is missing, truncated or forged', () => {
+    const f = fixture();
+    writeRun(f, 'gitlab/2026-10-27/missing/', { 'a.tar.gpg': 'alpha' }, 'missing');
+    writeRun(f, 'gitlab/2026-10-27/truncated/', { 'a.tar.gpg': 'alpha', 'b.tar.gpg': 'beta' }, 'truncated');
+    writeRun(f, 'gitlab/2026-10-27/forged/', { 'a.tar.gpg': 'alpha', 'b.tar.gpg': 'beta' }, 'forged');
+
+    const missingResolve = f.run(['resolve-gitlab-run', '--run', '2026-10-27/missing']);
+    expect(missingResolve.status).toBe(1);
+    expect(missingResolve.stderr).toContain('SHA256SUMS');
+    const missingListed = f.run(['list-gitlab-runs']);
+    expect(JSON.parse(missingListed.stdout).runs).not.toContain('2026-10-27/missing');
+
+    const missingDestination = join(f.dir, 'dl-missing');
+    const missing = f.run(['get-tree', '--role', 'gitlab-backup', '--prefix', 'gitlab/2026-10-27/missing/', '--destination', missingDestination, '--require-manifest']);
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain('SHA256SUMS');
+    expect(readdirSync(missingDestination)).toEqual([]);
+
+    const truncatedDestination = join(f.dir, 'dl-truncated');
+    const truncated = f.run(['get-tree', '--role', 'gitlab-backup', '--prefix', 'gitlab/2026-10-27/truncated/', '--destination', truncatedDestination, '--require-manifest']);
+    expect(truncated.status).toBe(1);
+    expect(truncated.stderr).toContain('不一致');
+    // 清单只覆盖一个对象时不允许“部分通过”：只有清单本身落盘，归档对象一个字节都没提交
+    expect(readdirSync(truncatedDestination)).toEqual(['SHA256SUMS']);
+
+    const forgedDestination = join(f.dir, 'dl-forged');
+    const forged = f.run(['get-tree', '--role', 'gitlab-backup', '--prefix', 'gitlab/2026-10-27/forged/', '--destination', forgedDestination, '--require-manifest']);
+    expect(forged.status).toBe(1);
+    expect(forged.stderr).toContain('SHA-256');
+    expect(forged.stdout).toBe('');
+    // 摘要不符的对象只存在过 .partial，随后被丢弃
+    expect(readdirSync(forgedDestination)).toEqual(['SHA256SUMS']);
+    expect(existsSync(join(forgedDestination, 'a.tar.gpg'))).toBe(false);
+    expect(existsSync(join(forgedDestination, 'a.tar.gpg.partial'))).toBe(false);
+  });
+
+  it('restores only the explicitly named run after verifying every object and prints a content-free summary', () => {
+    const f = fixture();
+    const files = {
+      '20261027_gitlab_backup.tar.gpg': 'encrypted backup payload',
+      'gitlab_config_20261027.tar.gpg': 'encrypted config payload',
+    };
+    writeRun(f, 'gitlab/2026-10-27/20261027T040500/', files);
+    // 同一阶段追加的第二个 run 不应被“最新”逻辑带进来
+    writeRun(f, 'gitlab/2026-10-27/20261027T050000/', { '20261027_gitlab_backup.tar.gpg': 'later payload' });
+    const baseline = f.calls().length;
+
+    const destination = join(f.dir, 'dl-ok');
+    const result = f.run(['get-tree', '--role', 'gitlab-backup', '--prefix', 'gitlab/2026-10-27/20261027T040500/', '--destination', destination, '--require-manifest']);
+    expect(result.status, result.stderr).toBe(0);
+    const summary = JSON.parse(result.stdout);
+    expect(summary).toMatchObject({ downloaded: 3, manifestVerified: true, prefix: 'gitlab/2026-10-27/20261027T040500/' });
+    expect(summary.objects.map((item: { path: string }) => item.path).sort())
+      .toEqual(['20261027_gitlab_backup.tar.gpg', 'SHA256SUMS', 'gitlab_config_20261027.tar.gpg']);
+
+    for (const [name, body] of Object.entries(files)) {
+      expect(readFileSync(join(destination, name), 'utf8')).toBe(body);
+      expect(statSync(join(destination, name)).mode & 0o777).toBe(0o600);
+    }
+
+    // 摘要包含 run 标识、路径、长度和 SHA-256，但不包含任何对象内容
+    expect(result.stderr).toContain('gitlab/2026-10-27/20261027T040500/');
+    expect(result.stderr).toContain('20261027_gitlab_backup.tar.gpg');
+    expect(result.stderr).toContain(createHash('sha256').update(files['20261027_gitlab_backup.tar.gpg']).digest('hex'));
+    expect(result.stderr).not.toContain('encrypted backup payload');
+
+    const calls = f.calls().slice(baseline);
+    expect(calls.filter(call => call.args[0] === 'cat')).toHaveLength(3);
+    for (const call of calls) {
+      expect(['lsjson', 'cat']).toContain(call.args[0]);
+      expect(call.args).not.toContain('sync');
+      expect(call.args).not.toContain('delete');
+      expect(call.args).not.toContain('purge');
+    }
+  });
+
+  it('makes the restore drill refuse to guess or download without an explicit --run', () => {
+    const f = fixture();
+    writeRun(f, 'gitlab/2026-10-26/20261026T030000/', { 'a.tar.gpg': 'alpha-one' });
+    writeRun(f, 'gitlab/2026-10-27/20261027T040500/', { 'a.tar.gpg': 'alpha-two' });
+    const baseline = f.calls().length;
+    const drill = join(root, 'deploy/gitlab/restore-drill.sh');
+    const drillRoot = join(f.dir, 'drill');
+    const result = spawnSync('bash', [drill], {
+      encoding: 'utf8', timeout: 20000,
+      env: {
+        PATH: `${f.bin}:${dirname(process.execPath)}:/usr/bin:/bin`,
+        HOME: f.dir,
+        ...f.credentials,
+        GPG_PASSPHRASE: 'synthetic-passphrase-never-disclose',
+        GITLAB_ARCHIVE_TOOL: script,
+        GITLAB_DRILL_ROOT: drillRoot,
+      },
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain('--run');
+    expect(result.stderr).toContain('available run: 2026-10-27/20261027T040500');
+    // 未点名 run：既没有下载对象，也没有创建任何工作目录
+    expect(f.calls().slice(baseline).filter(call => call.args[0] === 'cat')).toHaveLength(0);
+    expect(existsSync(drillRoot)).toBe(false);
+    expect(result.stdout).not.toContain('alpha-two');
   });
 
   it('fails closed for missing role credentials or rclone errors without leaking provider output', () => {
