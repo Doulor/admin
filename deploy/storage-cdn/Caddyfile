@@ -1,11 +1,10 @@
 # 香港对象存储/CDN 的 Caddy 网关（cdn.yangtzeu.work）
 # 安装位置：/etc/caddy/Caddyfile（root 0644）。TLS 由 Caddy 自动申请并续期。
 #
-# 控制台三处 basic_auth 的用户名固定 admin，口令哈希**不入库**：
-# 由 systemd 环境文件提供 S3MANAGER_ADMIN_HASH（bcrypt，`caddy hash-password --plaintext …` 生成）。
-# 注意：缺失或空值时 Caddy 拒绝启动（失败关闭），但 `caddy validate` 拦不住「不是 bcrypt 的字符串」——
-# 那种情况会静默通过校验然后让控制台永远 401，部署前用 [[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] 自检。
-# Caddy 启动时用 {$S3MANAGER_ADMIN_HASH} 展开。没有该变量时 Caddy 会拒绝启动，这是期望的失败关闭。
+# 控制台三处 basic_auth 的用户名固定 admin，口令哈希**不入库**：由 systemd 环境文件提供
+# S3MANAGER_ADMIN_HASH（bcrypt，`caddy hash-password --plaintext …`），Caddy 启动时用 {$S3MANAGER_ADMIN_HASH} 展开；
+# 缺失或空值时直接拒绝启动（失败关闭）。注意 validate 拦不住「不是 bcrypt 的字符串」——那种情况会静默通过
+# 校验然后让控制台永远 401，部署前用 [[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] 自检。
 
 cdn.yangtzeu.work {
     encode gzip zstd

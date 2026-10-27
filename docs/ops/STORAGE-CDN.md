@@ -41,7 +41,7 @@ Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接
 | `geek-public` | 公共 | 图床与开放文档 |
 | `geek-production-private` | 私有 | 正式站私密资源（匿名 404） |
 | `geek-preview-private` | 私有 | 预发布私密资源 |
-| `geek-backup` | 私有 | 备份归档桶。**目前没有任何代码写它**：归档器 `deploy/remote/garage-archive.mjs` 随 Arch 迁移分支（!33）合入后才生效；平台侧的一键备份仍走浏览器下载（[BACKUP](BACKUP.md)），不写这里 |
+| `geek-backup` | 私有 | 备份归档桶。**目前没有任何代码写它**：归档器 `deploy/remote/garage-archive.mjs` 随 Arch 迁移分支（!33）合入后才生效；平台侧的一键备份仍走浏览器下载（[BACKUP](BACKUP.md)），不写这里。!33 合入后删掉本句，并同步 `tests/tooling/storage-cdn-config.test.ts` 里对应的断言 |
 
 公共直链：`https://cdn.yangtzeu.work/{bucket}/{key}`。私有桶只能用控制台生成的带签名外链，过期即失效。
 
@@ -86,7 +86,8 @@ ufw status verbose; fail2ban-client status sshd
 改 Caddyfile 的顺序固定：先 `caddy validate --config /etc/caddy/Caddyfile`，通过再 `systemctl reload caddy`；**不要 restart**，避免中断进行中的上传。
 
 - `validate` 通过不等于口令可用：`S3MANAGER_ADMIN_HASH` 缺失或为空时 Caddy 会拒绝启动（失败关闭），但填一个**不是 bcrypt 的字符串**照样能过校验，上线后控制台永远 401。部署前自检 `[[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] || exit 1`。
-- **handle 块按文件顺序生效**（`caddy adapt` 实测：把公共对象块前移，路由顺序真的变了）。所以「S3 签名 → 桶策略 → 控制台 → 公共对象 → 兜底」这个顺序是合同的一部分，`tests/tooling/storage-cdn-config.test.ts` 里有断言守着，不要为了可读性调换。改 garage.toml 必须 restart `garage`，且先在本地 `garage server --config` 试跑一份副本。
+- **handle 块按文件顺序生效**（`caddy adapt` 实测：把公共对象块前移，路由顺序真的变了）。所以「S3 签名 → 桶策略 → 控制台 → 公共对象 → 兜底」这个顺序是合同的一部分，`tests/tooling/storage-cdn-config.test.ts` 里有断言守着，不要为了可读性调换。
+- 改 `garage.toml`（不是 Caddyfile）必须 `systemctl restart garage`：Garage 不热加载，且改之前先用副本 `garage server --config` 试跑一遍。改 garage.toml 必须 restart `garage`，且先在本地 `garage server --config` 试跑一份副本。
 
 容量与内存：`garage` 的 cgroup 上限 250M、`caddy` 120M、`s3manager` 80M、bridge 50M；常驻约 309 MB，另配 2.5 GB swap。不要把大文件反复拖进控制台预览（会走内存缓冲）。
 

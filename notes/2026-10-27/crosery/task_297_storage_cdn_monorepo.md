@@ -29,3 +29,10 @@
 - 做了什么：check-secrets 补 .py/无扩展名/自建服务模板 env 与 Garage 键、bcrypt、S3 密钥赋值三类形状（三种形状贴进模块均能被拦下，已做红测）；upload_demo.py 上传失败改非零退出；garage.toml 去掉非配置项的 index；Caddyfile 统一三个 basic_auth 块的 header、公共对象正则收窄到 cdn|geek-public；合同文档改正「备份桶已有代码写入」的过度声明并新增「仓库里没有这些东西」清单；回归改为递归扫描模块 + handle 顺序与端口来源断言
 - 结果：通过：check:secrets/docs/doc-sync/boundaries/catalog/runtime 全绿；architecture --base gitlab/stage 19 文件1节点；storage-cdn-config 11/11；红测：AK/bcrypt/S3 密钥三种形状贴进模块分别命中 2/1/1 条
 - 下一步：推送到 MR !34 并请审查者复核
+
+## 13:39:49 +08:00 · 返工 · #297 · 第二轮返工：引号内密钥形状与 501 用例
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：check-secrets 的 inline 规则加可选开引号、base64 形状改成前后界断言（带引号的 admin_token 现在命中）；测试把「连不上端点」换成起本地 501 服务，断言非零退出且 stdout 含 [FAILED]；同步 297.json 的 verification 措辞；按建议删掉 Caddyfile 重复注释、把 garage.toml 重启要求拆成独立条目
+- 结果：红测：带引号 token 贴进模块命中 1 条；去掉 sys.exit(1) 后 501 用例失败（1 failed），恢复后 11/11；check:secrets/docs/doc-sync/catalog 全绿，architecture 19 文件1节点
+- 下一步：推送并请审查者复核两条应修

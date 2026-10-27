@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -23,7 +24,7 @@ function moduleFiles(dir = MODULE_DIR): string[] {
 const SECRET_SHAPES: Array<[string, RegExp]> = [
   ['AWS/Garage access key', /\b(AKIA[0-9A-Z]{16}|GK[0-9a-f]{20,})\b/],
   ['64 位十六进制密钥', /\b[0-9a-f]{64}\b/],
-  ['44 字符 base64 令牌', /\b[A-Za-z0-9+/]{43}=\b/],
+  ['44 字符 base64 令牌', /(?:^|[^A-Za-z0-9+/])[A-Za-z0-9+/]{43}=(?![A-Za-z0-9+/])/],
   ['bcrypt 口令哈希', /\$2[aby]\$\d{2}\$[./A-Za-z0-9]{50,}/],
   ['私钥块', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
 ];
@@ -130,17 +131,36 @@ describe('示例上传脚本不保存凭据，失败要能被调用方看见', (
     expect(result.stdout).toContain('用法');
   });
 
-  it('连不上端点时以非零退出，不把失败当成功', () => {
-    const result = spawnSync(python, [script, join(root, 'README.md')], {
-      encoding: 'utf8',
-      env: {
-        PATH: process.env.PATH ?? '',
-        HOME: process.env.HOME ?? '',
-        S3_ACCESS_KEY_ID: 'synthetic',
-        S3_SECRET_KEY: 'synthetic',
-        S3_ENDPOINT: 'http://127.0.0.1:9',
-      },
+  it('端点返回 501 时以非零退出并打印 [FAILED]（修复前这里是 0）', async () => {
+    // 必须是「连得上但被拒」：连不上是 URLError，修复前后都非零，钉不住 sys.exit(1)。
+    const server = createServer((_request, response) => {
+      response.writeHead(501);
+      response.end('not implemented');
     });
-    expect(result.status).not.toBe(0);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('本地 501 服务没有拿到端口');
+
+    const result = await new Promise<{ code: number | null; stdout: string }>((resolve) => {
+      execFile(
+        python,
+        [script, join(root, 'README.md')],
+        {
+          encoding: 'utf8',
+          env: {
+            PATH: process.env.PATH ?? '',
+            HOME: process.env.HOME ?? '',
+            S3_ACCESS_KEY_ID: 'synthetic',
+            S3_SECRET_KEY: 'synthetic',
+            S3_ENDPOINT: `http://127.0.0.1:${address.port}`,
+          },
+        },
+        (error, stdout) => resolve({ code: error ? (typeof error.code === 'number' ? error.code : 1) : 0, stdout }),
+      );
+    });
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    expect(result.code, '上传被拒必须非零退出').not.toBe(0);
+    expect(result.stdout).toContain('[FAILED]');
   });
 });

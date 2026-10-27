@@ -40,7 +40,7 @@ const PATTERN_RULES = [
   // 自建对象存储（Garage）：访问键固定 GK + 24 位十六进制，S3 密钥是 64 位十六进制
   { name: 'Garage S3 access key', pattern: /\bGK[0-9a-f]{20,}\b/ },
   { name: 'bcrypt password hash', pattern: /\$2[aby]\$\d{2}\$[./A-Za-z0-9]{50,}/ },
-  { name: 'S3 secret assigned inline', pattern: /(?:secret_access_key|SECRET_ACCESS_KEY|rpc_secret|admin_token|metrics_token)\s*[=:]\s*[A-Za-z0-9+/]{20,}/ },
+  { name: 'S3 secret assigned inline', pattern: /(?:secret_access_key|SECRET_ACCESS_KEY|rpc_secret|admin_token|metrics_token)\s*[=:]\s*["']?[A-Za-z0-9+/]{20,}/ },
 ];
 
 /** 逐行解析 KEY=VALUE，返回 [行号, 键, 值]；注释与空行跳过。 */
