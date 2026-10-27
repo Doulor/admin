@@ -151,3 +151,21 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：在 task270 source worktree 完成三次本地提交：70126021、6aa4abb4、65f218b2；未推送、合并、打 tag 或部署
 - 结果：提交文件数分别为92、9、16；最终 architecture --base gitlab/stage 通过（95个变更文件4个关联节点），git diff --check 通过；K10 历史记录保持原样
+
+## 10:12:23 +08:00 · 返工 · #270 · 收口 GitLab 恢复演练目录与归档解包边界
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：deploy/gitlab/restore-drill.sh 拒绝复用同名演练目录，解包前拒绝链接、设备、绝对路径与 .. 成员；tests/tooling/gitlab-backup-storage.test.ts 增加对应夹具，并为每次 fixture run 注入唯一 GITLAB_DRILL_STAMP。
+- 结果：gitlab-backup-storage.test.ts 12/12；check-architecture --base gitlab/stage 通过；check-doc-sync --base gitlab/stage 通过；git diff --check 通过。
+
+## 10:14:18 +08:00 · 返工 · #270 · 纠正执行者归属：10:12 那条本会话所作，并更新计数
+
+- 执行者：agent-omp-geek-main-01a17ae3（omp，deepseek-v4.1-flash）
+- 做了什么：说明：10:12:23 的「收口 GitLab 恢复演练目录与归档解包边界」由本会话（agent-omp-geek-main-01a17ae3）执行，不是 agent-sonnet-source-delivery；该条把工作记在了旧的执行者名下
+- 结果：更正后的事实：gitlab-backup-storage.test.ts 13/13 通过（含新增的演练目录复用与归档成员用例）；提交 3ec94a34；check:docs/doc-sync/secrets 通过，architecture --base gitlab/stage 95 文件4节点通过
+
+## 10:14:21 +08:00 · 提交 · #270 · 提交恢复演练目录原子占位收口
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：本地提交 3ec94a34：restore-drill.sh 以原子目录占位拒绝复用既有现场，测试为每次 fixture run 注入唯一 GITLAB_DRILL_STAMP 并覆盖保留现场不被删除。
+- 结果：gitlab-backup-storage.test.ts 12/12；未推送、未合并、未打 tag、未部署。
