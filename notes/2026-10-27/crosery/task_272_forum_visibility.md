@@ -40,3 +40,9 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：运行 forum store、site account、site state、category visibility、server forum 与 CSP/redirect/site-content 定向套件，并复核 catalog 与 architecture
 - 结果：论坛应用94/94通过；根服务与静态合同111/111通过；两个 live nginx 套件因 listen EPERM 未完成；project-catalog 19/19；architecture #272 为52个变更文件24个关联节点通过；git diff --check 通过
+
+## 09:48:14 +08:00 · 提交 · #272 · 记录 task272 本地交付提交
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：完成 task272 source worktree 本地提交 4237c6cf；未推送、合并、打 tag 或部署
+- 结果：提交包含52个文件；论坛应用94/94、根合同111/111、catalog19/19通过，live nginx 受 listen EPERM，architecture 通过，git diff --check 通过
