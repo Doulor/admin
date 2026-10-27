@@ -192,7 +192,7 @@ function setTheme(value: TxSelectModelValue) {
     <SignInState page="preferences" />
   </TxCard>
 
-  <TxStack v-else-if="profile && isSelf" :gap="20" class="preferences-panel [&_.tx-block-input]:gap-4 [&_.tx-block-input__control]:w-full sm:[&_.tx-block-input__control]:w-380px sm:[&_.tx-block-input__control]:shrink-0 max-sm:[&_.tx-block-input]:flex-col max-sm:[&_.tx-block-input]:items-stretch">
+  <TxStack v-else-if="profile && isSelf" :gap="20" class="preferences-panel [&_.tx-block-input]:h-auto [&_.tx-block-input]:min-h-14 [&_.tx-block-input]:gap-4 [&_.tx-block-input]:py-3 [&_.tx-block-input_.tx-block-slot\_\_content]:h-auto [&_.tx-block-input_.tx-block-slot\_\_slot]:w-full sm:[&_.tx-block-input_.tx-block-slot\_\_slot]:w-380px sm:[&_.tx-block-input_.tx-block-slot\_\_slot]:shrink-0 [&_.tx-block-input_.tx-block-slot\_\_slot>*]:w-full max-sm:[&_.tx-block-input]:flex-col max-sm:[&_.tx-block-input]:items-stretch">
     <TxFlex align="center" :gap="8" wrap="wrap">
       <h1 class="text-xl font-semibold">
         {{ serverMode ? '账号资料' : '偏好设置' }}

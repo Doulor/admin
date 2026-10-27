@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { launchChrome, sleep, waitForHttp } from './lib/cdp.mjs'
+import { inspectPreferencesLayout } from './lib/preferences-layout.mjs'
 
 /**
  * Phase G acceptance for the user pages, preferences, the member directory,
@@ -820,6 +821,10 @@ try {
     return { clipped, pageOverflow: document.documentElement.scrollWidth > innerWidth + 1 }
   })()`)
   assert(!narrowPrefs.pageOverflow && narrowPrefs.clipped.length === 0, `preference fields overflow at 390px: ${JSON.stringify(narrowPrefs)}`)
+  const preferenceLayout = await evaluate(`(${inspectPreferencesLayout.toString()})()`)
+  assert(preferenceLayout.rows.length === 4, `the preference form must include exactly four profile fields: ${JSON.stringify(preferenceLayout)}`)
+  assert(preferenceLayout.measurements.length === 8, `the preference form must measure all four labels and controls: ${JSON.stringify(preferenceLayout)}`)
+  assert(preferenceLayout.valid, `preference layout measurement must be complete and non-overlapping: ${JSON.stringify(preferenceLayout)}`)
 
   // The busiest inbox, so "nothing is clipped" is a claim about long sentences
   // rather than about one short row.

@@ -234,6 +234,8 @@ node scripts/check-forum-adoption.mjs   # 上游文件摘要、集成差异与�
 
 CDP 使用独立临时浏览器，只清理本次进程组。原仓单测与旧 Fastify 的历史测试不能混算。`forum:check/generate/verify` 默认以示例种子运行、不转发快照目录；调用方给 `GEEK_FORUM_SOURCE=site` 时 `check`/`generate` 按极客班论坛构建，`verify` 忽略它（上游 CDP 套件断言示例数据）。3456 上若有快照模式或极客班论坛模式的预览，`forum:verify` 拒绝执行并要求先 `forum:stop`。快照文档与资产索引的解析规则由 `app/forum/tests/local-snapshot.test.ts` 用虚构夹具覆盖，测试不读取真实投影。
 
+资料表单的 `TxBlockInput` 行按内容自动撑高，窄屏标签与控件上下排列；控件宽度约束指向实际的 `tx-block-slot__slot`，不依赖不存在的 `tx-block-input__control`。签名的多行输入与长说明不得越出所属行或覆盖下一字段。`scripts/lib/preferences-layout.mjs` 在真实页面量取标签、控件和行的几何，供原 CDP 验证与隔离真实页面验收共用：必须量到昵称、个人签名、所在地、个人网站（示例模式显示「网站」）四行和八个 label/control 矩形；缺元素、零尺寸、非有限数、行外、视口越界、页面横向溢出或相互重叠都失败，不能让空测量冒充通过。无横向溢出不是无重叠的替代证据。本树不改变资料 DTO、保存协议、编辑器或 CLI 行为。
+
 **真实编辑器与保存读回回归**（GitHub #274，不是历史 GitLab 同号事项）：`crepe-editor.ts` 在创建编辑器前移除 Milkdown 的 `remarkPreserveEmptyLinePlugin`。它原先将空段落写成原始 HTML `<br />`，与论坛“原始 HTML 显示为文字”的安全边界冲突。现在空段落输出 Markdown 段落间隔，soft/hard break 仍用原来的节点序列化；首尾和连续空段落重新打开后按 CommonMark 合并，不承诺保留额外空段的个数。不替换用户写出的 `<br />` 或代码中的同名文字，不改旧帖子，不放开 HTML 渲染。本树未修改核心服务端接口、统一资料 DTO 或账号资料布局。
 
 在根目录用已经准备好的两套工具链运行以下**一条命令**（`node` 必须是 Node 22；两个路径分别指向 Node ≥26 原生可执行文件和 pnpm 11.24.0 的 `pnpm.cjs`）：

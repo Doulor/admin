@@ -17004,7 +17004,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "ed5a56040f67f7d69a660d3c970d6db6554ee6daaef1964132fff06452dfa951",
+    "fingerprint": "73ecd6ab188188b305c7387cc6f707a7bd1e5639dd0f84439d393ae86052f28f",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17696,7 +17696,7 @@
       },
       {
         "path": "app/forum/app/pages/u/[username]/preferences.vue",
-        "sha256": "9fe075960624a954fd1ac0065eef81e4cb3d944d08d01e2c0b0d59184fad130b"
+        "sha256": "1a936166c84b4578c077ca38b092c1b8c31ed4488b52db2ff972f41505aaa091"
       },
       {
         "path": "app/forum/app/pages/users.vue",
@@ -18980,7 +18980,7 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "52c8619e1071595f993bff6cfc74cd3b3bd484050c1c20df04975add5e01c5de"
+        "sha256": "12ff3dbfa6a9af6150b24e90b6ab4ba5789d0a8a5ddf352d7652272adf225d6d"
       },
       {
         "path": "docs/services/server/README.md",
