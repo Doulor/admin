@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 // 假 docker / gpg / node / sha256sum + 假 Garage 对象树：不连真实主机，只在临时目录里跑完整演练
-function drillFixture(options: { image?: string; archiveImage?: string; failAt?: 'restore'; removeContainerFails?: boolean } = {}) {
+function drillFixture(options: { image?: string; archiveImage?: string; configArchive?: 'symlink' | 'absolute'; failAt?: 'restore'; removeContainerFails?: boolean } = {}) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'geek-restore-drill-')));
   roots.push(dir);
   const bin = join(dir, 'bin');
@@ -61,7 +61,17 @@ function drillFixture(options: { image?: string; archiveImage?: string; failAt?:
   writeFileSync(join(stage, 'srv/gitlab/config/gitlab-secrets.json'), '{"synthetic":"secret"}\n', { mode: 0o600 });
   writeFileSync(join(stage, 'srv/gitlab/docker-compose.yml'), `services:\n  gitlab:\n    image: ${options.archiveImage ?? PINNED_IMAGE}\n`, { mode: 0o600 });
   const plainConfigTar = join(dir, 'plain-config.tar');
-  execFileSync('/usr/bin/tar', ['-cf', plainConfigTar, '-C', stage, 'srv/gitlab/config/gitlab-secrets.json', 'srv/gitlab/docker-compose.yml']);
+  const configMembers = ['srv/gitlab/config/gitlab-secrets.json', 'srv/gitlab/docker-compose.yml'];
+  if (options.configArchive === 'symlink') {
+    symlinkSync('/etc/passwd', join(stage, 'srv/gitlab/config/evil-link'));
+    configMembers.push('srv/gitlab/config/evil-link');
+  }
+  if (options.configArchive === 'absolute') {
+    // -P 保留绝对路径：解压这类成员会直接写到根文件系统
+    execFileSync('/usr/bin/tar', ['-P', '-cf', plainConfigTar, '-C', stage, ...configMembers, '/etc/hosts']);
+  } else {
+    execFileSync('/usr/bin/tar', ['-cf', plainConfigTar, '-C', stage, ...configMembers]);
+  }
 
   const state = join(dir, 'docker-state.json');
   const dockerCalls = join(dir, 'docker-calls.jsonl');
@@ -258,6 +268,20 @@ describe('GitLab restore drill failure teardown and image pinning', () => {
     expect(result.stderr).toContain('不一致');
     expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill'))).toBe(false);
     expect(f.state().secretsPresentAtStart).toBe(false);
+  });
+
+  it.each([
+    ['symlink', 'symlink 成员'],
+    ['absolute', '绝对路径成员'],
+  ] as const)('refuses to extract a config archive with a %s before starting anything', (configArchive, label) => {
+    // 解包以 root 身份发生在 WORK_DIR 里，紧接着就把其中的 gitlab-secrets.json 复制成运行配置：
+    // 链接或绝对路径能把写入带出目录，必须先逐条核对再解压。
+    const f = drillFixture({ configArchive });
+    const result = f.run();
+
+    expect(result.status, label).not.toBe(0);
+    expect(result.stderr).toContain('拒绝解压');
+    expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill'))).toBe(false);
   });
 
   it('keeps the drill scene on success and only removes it with --cleanup', () => {

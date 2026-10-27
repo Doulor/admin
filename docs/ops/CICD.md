@@ -11,7 +11,7 @@
 2026-10-26 协调者只读 refs 比较：两仓 main 同为 `61da3fea76f6f22aa53e731d98c842ac4a38d54f`；GitHub stage 为 `4beda55e7e6eb2dbd95206484ddaa18a72989ff0`，GitLab stage 为 `02cb751c0b830c0e686a180f6c6c5870c0c055ec`，GitHub 落后 473 提交，两者都包含 main。GitHub/GitLab tag 为 36/41，GitHub 缺 `v0.1.1-rc.21` 至 `rc.25`；共有 tag 对象与 peeled commit 无差。证据为主工作区 `.tools/handoff/2026-10-26-control/evidence/refs-comparison.json` 及风险登记；不是本轮已完成同步。
 
 - task270 相对 GitHub stage 的既有集成基线有 **2363 文件**（459552 新增/113173 删除），不是只含迁移脚本。必须完整覆盖代码审查与 GitHub 必需门禁；局部语法、测试和文档检查不能替整段历史给绿。
-- `docs/changes/270.json` 当前属于历史 **GitLab geek/admin#270 OIDC**，GitHub admin#270 是 Arch 预部署。保留原声明，协调者解决命名空间与实际覆盖，不能覆盖历史文件伪装本迁移已宏观对齐。
+- `docs/changes/270.json` 现在描述 **GitHub admin#270**（Arch 预部署 + GitLab 运维纳管）；历史 **GitLab geek/admin#270 OIDC** 的原影响声明已原样归档在 [history/changes/gitlab/270.json](../history/changes/gitlab/270.json) 与同名 `.md`，逐字保留、不是重写，也不是删除。两个平台的同号 issue 不是同一件事，引用时写全平台与项目。
 - notes 收尾后追加与论坛分类数 6/7 的已知基线失败保留原记录/断言；不重复确认、不放宽校验。全局 notes、索引、影响声明及完整 PR 审查由协调者集成。
 - 旧 tag 执行自己的工作流，不会自动得到 ProxyJump 和新目标校验。GitHub SSH secrets 已指 Arch，旧 tag 缺少跳板能力，应失败关闭，不能靠补推旧 tag 验证新链路；不 force/mirror 或重造 tag 对象。
 - 原版双栈已由 Arch 接管，版本未变，见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。本轮只更新后续发布连接及源码合同，没有新的 rc 或正式版本批准；两个已有 enabled 开关保持不变，没有触发发布工作流。

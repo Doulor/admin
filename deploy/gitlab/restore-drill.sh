@@ -186,14 +186,20 @@ remove_container() {
 }
 
 remove_work_dir() {
-    # 只在演练根目录之下删除，防止误删根或整个演练父目录
-    if [[ -z "${WORK_DIR}" || "${WORK_DIR}" != "${DRILL_ROOT}/"* || "${WORK_DIR}" == "${DRILL_ROOT}/" ]]; then
+    # 只在演练根目录之下删除，防止误删根或整个演练父目录；两边都用 pwd -P 解到真实路径，
+    # 这样 DRILL_ROOT 里的 .. 或符号链接不能把 rm -rf 引到前缀之外（macOS 的 realpath 不支持 -m）。
+    local real_root real_work
+    if [[ -z "${WORK_DIR}" || ! -e "${WORK_DIR}" ]]; then
+        return 0
+    fi
+    real_root="$(cd -- "${DRILL_ROOT}" 2>/dev/null && pwd -P)" || real_root=""
+    real_work="$(cd -- "${WORK_DIR}" 2>/dev/null && pwd -P)" || real_work=""
+    if [[ -z "${real_root}" || -z "${real_work}" \
+          || "${real_root}" == "/" || "${real_work}" != "${real_root}/"* || "${real_work}" == "${real_root}/" ]]; then
         warn "refusing to remove unsafe work directory '${WORK_DIR}'"
         return 0
     fi
-    if [[ -e "${WORK_DIR}" ]]; then
-        rm -rf "${WORK_DIR}" || warn "failed to remove work directory ${WORK_DIR}"
-    fi
+    rm -rf "${WORK_DIR}" || warn "failed to remove work directory ${WORK_DIR}"
 }
 
 DRILL_OK=0
@@ -267,7 +273,21 @@ gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --output "${DECRYPT
 # 4. 解压配置归档，在容器首次启动前复制 gitlab-secrets.json
 EXTRACTED_CONFIG_DIR="${WORK_DIR}/extracted_config"
 mkdir -p "${EXTRACTED_CONFIG_DIR}"
-tar -xf "${DECRYPTED_CONFIG}" -C "${EXTRACTED_CONFIG_DIR}"
+# 归档内容只应是普通文件与目录：符号链接、硬链接、设备文件、绝对路径或 .. 都可能把解包写到 WORK_DIR 之外
+# （那是 root 身份、且紧接着会把其中的 gitlab-secrets.json 复制成运行配置），先逐条核对再解压。
+UNSAFE_MEMBERS="$(tar -tf "${DECRYPTED_CONFIG}" | grep -E '(^/|(^|/)\.\.(/|$))' || true)"
+if [[ -n "${UNSAFE_MEMBERS}" ]]; then
+    echo "Error: 配置归档里有绝对路径或 .. 成员，拒绝解压：" >&2
+    printf '  %s\n' ${UNSAFE_MEMBERS} >&2
+    exit 1
+fi
+UNSAFE_TYPES="$(tar -tvf "${DECRYPTED_CONFIG}" | grep -vE '^[-d]' || true)"
+if [[ -n "${UNSAFE_TYPES}" ]]; then
+    echo "Error: 配置归档里有非普通文件/目录成员（链接、设备等），拒绝解压：" >&2
+    printf '  %s\n' "${UNSAFE_TYPES}" >&2
+    exit 1
+fi
+tar -xf "${DECRYPTED_CONFIG}" -C "${EXTRACTED_CONFIG_DIR}" --no-same-owner --no-same-permissions
 
 SECRETS_SRC="${EXTRACTED_CONFIG_DIR}/srv/gitlab/config/gitlab-secrets.json"
 if [[ ! -f "${SECRETS_SRC}" ]]; then

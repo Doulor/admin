@@ -4,8 +4,8 @@
   "model": "gpt-image-2.5-sunburst",
   "quality": "high",
   "references": [
-    "/Users/crosery/Pictures/nano-ip/persona/nano-character-sheet.png",
-    "/Users/crosery/Pictures/nano-ip/remake-clean-20260928/reference/chibi-style-anchor.png"
+    "nano-ip/persona/nano-character-sheet.png",
+    "nano-ip/remake-clean-20260928/reference/chibi-style-anchor.png"
   ],
   "assignment": "SHA-256 normalized email or username; first hex digit modulo 8; stable across refreshes",
   "uploaded_avatar_precedence": "unchanged",
@@ -14,7 +14,7 @@
       "id": "avatar-01",
       "style": "chibi",
       "expression": "happy",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/chibi/image/images/crapi-20261025-154343-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi/image/images/crapi-20261025-154343-1.png",
       "native_size": [
         1254,
         1254
@@ -34,7 +34,7 @@
       "id": "avatar-02",
       "style": "chibi",
       "expression": "curious",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/chibi-02/image/images/crapi-20261025-154823-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-02/image/images/crapi-20261025-154823-1.png",
       "native_size": [
         1254,
         1254
@@ -54,7 +54,7 @@
       "id": "avatar-03",
       "style": "chibi",
       "expression": "wink",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/chibi-03/image/images/crapi-20261025-155005-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-03/image/images/crapi-20261025-155005-1.png",
       "native_size": [
         1254,
         1254
@@ -74,7 +74,7 @@
       "id": "avatar-04",
       "style": "chibi",
       "expression": "cozy",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/chibi-04/image/images/crapi-20261025-155214-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/chibi-04/image/images/crapi-20261025-155214-1.png",
       "native_size": [
         1254,
         1254
@@ -94,7 +94,7 @@
       "id": "avatar-05",
       "style": "portrait",
       "expression": "gentle",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/image/images/crapi-20261025-153915-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/image/images/crapi-20261025-153915-1.png",
       "native_size": [
         1254,
         1254
@@ -114,7 +114,7 @@
       "id": "avatar-06",
       "style": "portrait",
       "expression": "bright",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/portrait-02/image/images/crapi-20261025-154601-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-02/image/images/crapi-20261025-154601-1.png",
       "native_size": [
         1254,
         1254
@@ -134,7 +134,7 @@
       "id": "avatar-07",
       "style": "portrait",
       "expression": "calm",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/portrait-03/image/images/crapi-20261025-155400-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-03/image/images/crapi-20261025-155400-1.png",
       "native_size": [
         1254,
         1254
@@ -154,7 +154,7 @@
       "id": "avatar-08",
       "style": "portrait",
       "expression": "cheerful",
-      "source": "/Users/crosery/Pictures/nano-ip/gitlab-avatar-20261025/raw/portrait-04/image/images/crapi-20261025-155717-1.png",
+      "source": "nano-ip/gitlab-avatar-20261025/raw/portrait-04/image/images/crapi-20261025-155717-1.png",
       "native_size": [
         1254,
         1254
