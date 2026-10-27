@@ -44,6 +44,7 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 | `app/forum/` | `docs/services/forum/` | `docs/services/forum/README.md` |
 | `app/cli/` | `docs/services/cli/` | `docs/services/cli/README.md` |
 | `deploy/` | `docs/ops/DEPLOY.md`、`docs/ops/ENVIRONMENTS.md`、`docs/ops/CICD.md` | `docs/ops/DEPLOY.md`、`docs/ops/ENVIRONMENTS.md`、`docs/ops/CICD.md` |
+| `deploy/storage-cdn/` | `docs/ops/STORAGE-CDN.md` | `docs/ops/STORAGE-CDN.md` |
 | `.github/workflows/` | `docs/ops/CICD.md` | `docs/ops/CICD.md` |
 
 检查分两种，按所在分支自动选：
@@ -87,6 +88,7 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 | 统一组件库、AI 检索、官方 API 和示例 | [Tuffex 文档库](components/tuffex/README.md)、[使用政策](components/tuffex/USAGE-POLICY.md) |
 | 已采用技术栈与升级准入 | [STACK](design/STACK.md) |
 | 部署、回滚、两套 Docker 栈 | [DEPLOY](ops/DEPLOY.md) |
+| 香港对象存储与静态 CDN（Garage/S3 Manager/Caddy） | [ops/STORAGE-CDN](ops/STORAGE-CDN.md) |
 | 一键系统备份、恢复、跨环境搬迁数据 | [BACKUP](ops/BACKUP.md) |
 | `.env` 契约、密钥注入、DNS/TLS 前置 | [ENVIRONMENTS](ops/ENVIRONMENTS.md) |
 | CI/CD 工作流、环境 secrets/vars、部署开关 | [CICD](ops/CICD.md) |

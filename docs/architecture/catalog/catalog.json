@@ -16319,7 +16319,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "95b0a96f4bc28285d8695e5c7b43dd97cfdc4fb117d69a1a1b3575cd540f742c",
+    "fingerprint": "70cfb06a2c7d4583cc01da65b40739de520fb2653f1f0157a1d10959647c0ebd",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18247,11 +18247,11 @@
       },
       {
         "path": "docs/ops/BACKUP.md",
-        "sha256": "624aa4c6487d88d8d5acf8045e5fc6bfbaf3856a2fbba6b46aa5415048afd337"
+        "sha256": "1e98849be1fed471722fb1147ffdcdc5e8f9d267a98e184de6b4c1e35c32e276"
       },
       {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "f2908c2010b8bcb2c71bd18114e1f5acfae1c0c18dc4f51e1e1679e37b360800"
+        "sha256": "d9d25fb6d5dee252ac326e29f675f2b4ae1af30a36ce64d33be0b787a334982d"
       },
       {
         "path": "docs/ops/USAGE.md",
