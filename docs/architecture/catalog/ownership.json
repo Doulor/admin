@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-25",
+  "updated": "2026-10-27",
   "applications": [
     {
       "id": "web",
@@ -317,7 +317,8 @@
     "app/server/src/routes/console/competition-candidates.ts": "competitions",
     "app/server/src/routes/console/competition-results.ts": "competitions",
     "app/server/src/routes/sites/index.ts": "competitions",
-    "app/server/src/routes/console/backup.ts": "platform"
+    "app/server/src/routes/console/backup.ts": "platform",
+    "app/server/src/routes/forum-api/markdown.ts": "forum"
   },
   "routeOverrides": {
     "GET /api/public/config": "platform"
@@ -424,9 +425,9 @@
       "scope": "nitro-and-prerender",
       "source": {
         "path": "app/forum/server/middleware/forum-markdown.ts",
-        "needle": "if (path !== '/llms.txt' && !topicMatch)"
+        "needle": "if (path !== '/llms.txt' && !topicMatch && !publishedAsset)"
       },
-      "summary": "论坛应用相对路径；Nitro 中间件提供，静态镜像使用预渲染文件，不代表动态读取当前核心论坛数据库。"
+      "summary": "demo与本机快照本地生成；site开发代理核心动态授权出口，生产静态镜像不携带该文件。"
     },
     {
       "id": "forum.topic-markdown",
@@ -442,7 +443,23 @@
         "path": "app/forum/server/middleware/forum-markdown.ts",
         "needle": "const TOPIC_MARKDOWN ="
       },
-      "summary": "论坛应用相对路径；源码匹配的 Markdown 视图，部署时可用文件取决于构建时预渲染内容。"
+      "summary": "demo与本机快照本地生成；site开发代理核心动态授权出口，生产静态镜像不携带话题Markdown。"
+    },
+    {
+      "id": "forum.published-proxy",
+      "application": "forum",
+      "domain": "forum",
+      "path": "/published/:file",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "scope": "nitro-and-prerender",
+      "source": {
+        "path": "app/forum/server/middleware/forum-markdown.ts",
+        "needle": "const PUBLISHED_ASSET ="
+      },
+      "summary": "site开发把旧帖图片转给核心按当前viewer授权；demo保留public静态素材，site镜像删除该目录。"
     }
   ],
   "flows": [
@@ -4041,10 +4058,10 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：游客与成员均可读；通知、书签和真实通知设置仅本人可见，其他用户设置给默认值；关注关系公开。",
-        "响应与错误：200 {state}，帖子只有字段和摘要、没有正文；每IP(/64)分钟120次（路由自带的 FORUM_REQUEST_LIMITS），游客还另外按 SPEC §3.8 的 meta.limit.read.per_minute 限到每分钟60次（成员按等级更松，见 lib/limits.ts），哪个先触发就回哪个 bucket；超额429；显式HEAD回405且不计算state。",
-        "数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。",
-        "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
+        "权限与资源：游客、注册用户、成员和版务都只收到当前读取等级可见的话题；有效范围为 COALESCE(topic.visibility, category.visibility, public)，历史显式覆盖不因分类后来收紧而失效。",
+        "响应与错误：200 {state}，帖子只有摘要；分类只在自身可读或被可读话题引用时下发，用户新增标签、通知和书签不得引用隐藏话题；每IP限流与显式HEAD规则不变。",
+        "数据与副作用：读论坛表与公开种子；不删除或改写被隐藏的话题、分类、标签、通知和书签，权限恢复后原记录重新进入投影。",
+        "身份与失败：site 客户端初始投影为空；身份变化立即清空旧投影并重读，迟到的读取、搜索、正文和写回答不能恢复旧身份内容；无权威响应时不回退到构建时正文。"
       ],
       "evidence": [
         {
@@ -4122,15 +4139,45 @@
         {
           "path": "app/server/src/lib/forum-content.ts",
           "needle": "export function loadForumContent(dir: string): ForumContent {"
+        },
+        {
+          "path": "app/forum/app/composables/useContentSource.ts",
+          "needle": "export function useContentSource()"
+        },
+        {
+          "path": "app/forum/app/composables/useSiteAccount.ts",
+          "needle": "export function useSiteAccount()"
+        },
+        {
+          "path": "app/forum/app/data/access.ts",
+          "needle": "export function forumAccess("
+        },
+        {
+          "path": "app/forum/app/plugins/site-state.client.ts",
+          "needle": "export default defineNuxtPlugin"
+        },
+        {
+          "path": "app/forum/shared/published.ts",
+          "needle": "export function publishedForumState()"
+        },
+        {
+          "path": "app/forum/shared/site-state.ts",
+          "needle": "export function siteForumState()"
         }
       ],
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-server-store.test.ts",
+        "app/forum/tests/site-state.test.ts",
+        "app/forum/tests/site-account.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
         "docs/architecture/API.md",
-        "docs/architecture/SECURITY.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/forum/README.md"
       ]
     },
     {
@@ -4164,7 +4211,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：游客与成员均可读，无额外帖子级权限；与state可见性一致。",
+        "权限与资源：与state、搜索和分页共用 COALESCE(topic.visibility, category.visibility, public)；不可见话题在正文直链返回401/403且响应不带标题或正文。",
         "响应与错误：200 {posts}含正文；话题不存在404；每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.read.per_minute 限额（同 /state）。",
         "数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4204,7 +4251,9 @@
         }
       ],
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4243,7 +4292,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：游客与成员均可搜索；只本人用户记录显示真实通知设置，不搜索已删帖子正文。",
+        "权限与资源：只搜索当前读取等级可见的话题与帖子；身份重置立即丢弃页面上的旧搜索结果，迟到回答不得恢复旧身份内容。",
         "响应与错误：200 {results:{topics,posts,users}}；空词空结果；词过长400 validation_error，每IP分钟60次（路由自带），游客另按 SPEC §3.8 的 meta.limit.search.per_minute 限额；每次真正搜索（非空词）记一条 forum.search 操作记录。",
         "数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4264,10 +4313,16 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/pages/search.vue",
+          "needle": "server.search"
         }
       ],
       "tests": [
-        "tests/server/forum.test.ts"
+        "tests/server/forum.test.ts",
+        "tests/server/forum-category-visibility.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -4314,7 +4369,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.topic.create 节点。",
         "响应与错误：201 {changes,viewer,guestPolicy,topicId,postId}，帖子带正文；非法标题/分类/tag/空正文400，成员限流429。",
         "数据与副作用：单事务创建话题、首帖、编号和必要新tag，处理最多10个@提及通知；成功后记topic限流事件，不发邮件。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4377,7 +4432,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.pin，作用于指定话题。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.pin 节点。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。",
         "数据与副作用：更新pinned；以CONSOLE_ORG记forum.topic.pin审计，只含话题id及开关，不含正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4440,7 +4495,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 此外必须具备forum.topic.close，作用于指定话题。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另按指定话题的分类 scope 核对 forum.moderate.close 节点。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；缺能力403，话题不存在404。",
         "数据与副作用：更新closed；以CONSOLE_ORG记forum.topic.close审计，只含话题id及开关，不含正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4652,7 +4707,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 必须是作者本人，或者持有forum.post.moderate；能力不是作者分支的共同前提。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可编辑自己的帖子；编辑他人帖子另需目标分类 scope 下的 forum.moderate.edit。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；帖子正文随changes返回；404不存在、403他人帖子、409 post_deleted、400 empty_content。",
         "数据与副作用：只更新正文/edited_at；只有编辑他人帖子才写forum.post.edit审计，不记录正文；不会因编辑重新发送提及通知。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4713,7 +4768,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 作者本人或forum.post.moderate；第一帖禁止删除。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 作者本人可删除自己的回复；删除他人回复另需目标分类 scope 下的 forum.moderate.delete；第一帖禁止删除。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在、403他人帖子、400 first_post；已软删重试返回现状。",
         "数据与副作用：置deleted并清正文，保留点赞和书签；只在删除他人帖子时记forum.post.delete审计；幂等重试不重复执行删除。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4778,7 +4833,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 点赞主体固定本人，不接受代他人点赞。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；点赞主体固定本人，不接受代他人点赞。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在，409 post_deleted；帖子投影不带全文。",
         "数据与副作用：事务切换点赞；新点赞按作者通知设置生成一次通知（同人同帖不重复），取消不撤回已有通知，不写操作审计。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4840,7 +4895,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只能操作本人的书签；handler只检查帖子存在，未禁止为已软删帖子加书签。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；仅操作本人书签，handler 检查帖子存在，未禁止为软删帖子加书签。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404不存在；删除书签用changes.removed反馈。",
         "数据与副作用：事务按userId/postId切换书签，不通知作者，不修改帖子正文。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4905,7 +4960,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 关注发起人固定本人，目标须存在且不是本人。",
+        "权限与资源：requireWriter：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 另需 forum.react；关注发起人固定本人，目标须存在且不是本人。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；404未知用户，400 cannot_follow_self。",
         "数据与副作用：事务切换关注；首次关注在对方允许通知且未曾通知时写通知与编号，取消关注不删除旧通知。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -4970,7 +5025,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 SQL同时匹配通知id与recipient_id，不能读取/标记他人通知。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 SQL 同时匹配通知 id 与 recipient_id，不能标记他人通知。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；不存在或属于他人均404。",
         "数据与副作用：仅更新本人该条read=1，不删通知；其他人的通知设置不下发。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5031,7 +5086,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 仅recipient_id等于本人。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 仅处理 recipient_id 等于本人的通知。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；没有未读通知仍返回合法空变更。",
         "数据与副作用：UPDATE本人未读行并RETURNING id，据此只回变动通知，不清除别人的未读数。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5091,7 +5146,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只修改本人记录；允许昵称、签名、所在地、https网站与通知设置，不接收用户角色授权。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只改本人昵称、简介、所在地、网站与通知设置，不接受客户端授予角色。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；400昵称/控制字符/网址等错误；旧昵称未变时不因新昵称规则阻止修改其他字段。",
         "数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5158,7 +5213,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 onRequest阶段即鉴权并消费每小时10次额度，失败解码也算；只改本人头像。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 onRequest 阶段即鉴权并消费每小时 10 次额度，解码失败也计次；只改本人头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。；413 avatar_too_large，415 unsupported_media_type，400非法图像/尺寸，429限流。",
         "数据与副作用：PNG/JPEG/WebP最多2MB、4096×4096；sharp取首帧转256×256 WebP去元数据；按哈希写库并更新本人引用，同事务清理无人引用的旧头像。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5223,7 +5278,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：requireMember：有效sid且当前仍是CONSOLE_ORG成员；主体由服务端forumViewer确定，客户端userId/role不能赋权。 只清本人自定义头像。",
+        "权限与资源：requireMember：有效站内会话且账号 active；registered、邮箱和 Google 登录也可解析为论坛账号，不以 CONSOLE_ORG 成员资格授权；主体由服务端 forumViewer 确定，客户端 userId/role 不能赋权。 只清本人自定义头像。",
         "响应与错误：200 {changes,viewer,guestPolicy}；只返回本次变动记录，成员自己的用户记录总携带，私有记录按本人范围投影。",
         "数据与副作用：事务移除avatar_hash引用并删除无用户引用的旧头像，保留GitHub头像字段用于回退，不删除用户。",
         "身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。"
@@ -5604,7 +5659,7 @@
       ],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：谁都能调；按身份的分级可见（CONTRACT §1）过滤（public/registered/member），过滤在 SQL WHERE 里做，不是查出来再筛（和 state()/search() 共用 visibilityWhere()）。",
+        "权限与资源：按当前 viewer 的有效可见性在SQL层过滤；与state、搜索、正文及Markdown出口共用 COALESCE(topic.visibility, category.visibility, public)。",
         "响应与错误：200 {topics,nextCursor}；按 last_activity_at DESC, rowid DESC 排序，游标是 base64url 编的排序键，解不出来当没有（从第一页开始）；limit 要求1–50的整数，不是回400 validation_error；q 超过100字400。",
         "数据与副作用：访客翻页上限（SPEC §3.8，CONTRACT §9）——没带 cursor 的第一页不计数，带 cursor 的请求按访客 id（yugc_vid）或IP哈希、北京日历日窗口计最多10次，第11次429 {bucket:\"forum.visitor.pages\"}；注册用户、成员不限。",
         "身份条件副作用：forumViewer()按会话的账号认人创建/刷新forum_users的角色、称号、部门和GitHub头像；getSession()发现会话过期或账号已停用时删除该行会话，不续期。"
@@ -5636,7 +5691,8 @@
         }
       ],
       "tests": [
-        "tests/server/forum-v2-endpoints.test.ts"
+        "tests/server/forum-v2-endpoints.test.ts",
+        "tests/server/forum-category-visibility.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6401,7 +6457,9 @@
       "id": "forum.markdown.index",
       "title": "提供论坛Markdown索引",
       "domain": "public_content",
-      "relatedDomains": [],
+      "relatedDomains": [
+        "forum"
+      ],
       "assessment": "declared-with-source-evidence",
       "operation": "interface:forum.llms",
       "capabilities": [],
@@ -6409,15 +6467,14 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：匿名GET/HEAD；只拦截llms.txt；其它方法/路径交后续处理器。",
-        "响应与错误：200 text/plain UTF-8加nosniff；快照加载失败503。",
-        "数据与副作用：site构建使用siteForumState，开发快照模式读只读投影，否则进程示例种子；预渲染可落成静态文件，不动态读取核心forum_*数据库。",
-        "验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。"
+        "权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/llms.txt，不读取published源正文。",
+        "响应与错误：demo/快照为text/plain UTF-8；site响应、身份错误和限流由核心原样返回，失败不回退静态索引。",
+        "数据与副作用：site镜像不预渲染llms.txt；生产入口由web nginx直达核心，论坛静态容器直接访问该路径为404。"
       ],
       "evidence": [
         {
           "path": "app/forum/server/middleware/forum-markdown.ts",
-          "needle": "if (path !== '/llms.txt' && !topicMatch)"
+          "needle": "if (path !== '/llms.txt' && !topicMatch && !publishedAsset)"
         },
         {
           "path": "app/forum/server/middleware/forum-markdown.ts",
@@ -6427,7 +6484,8 @@
       "tests": [
         "app/forum/tests/forum-markdown.test.ts",
         "app/forum/tests/site-state.test.ts",
-        "app/forum/tests/content-source.test.ts"
+        "app/forum/tests/content-source.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -6438,7 +6496,9 @@
       "id": "forum.markdown.topic",
       "title": "提供话题Markdown正文",
       "domain": "public_content",
-      "relatedDomains": [],
+      "relatedDomains": [
+        "forum"
+      ],
       "assessment": "declared-with-source-evidence",
       "operation": "interface:forum.topic-markdown",
       "capabilities": [],
@@ -6446,10 +6506,9 @@
       "writes": [],
       "doesNotEnqueue": [],
       "invariants": [
-        "权限与资源：匿名GET/HEAD；路径按TOPIC_MARKDOWN匹配，不能二次解码冒充其他路由。",
-        "响应与错误：200 text/markdown UTF-8；未知话题404 text/plain；快照失败503。",
-        "数据与副作用：与索引同源：site内容/开发快照/示例种子；不包含浏览器新写内容或实时核心数据库帖子，构建静态输出与在线核心API分别取证。",
-        "验证边界：所列为纯解析、内容转换或配置测试，不是本次启动Nitro或读取真实快照的证明。"
+        "权限与资源：demo和明确本机快照模式继续本地生成；site开发模式把GET/HEAD与同源cookie转给核心 /forum/t/:id.md。",
+        "响应与错误：demo/快照未知话题404；site的200、401、403、404与限流由核心按当前viewer返回，不回退published源正文。",
+        "数据与副作用：site镜像不预渲染t/*.md；动态alternate只指向核心授权出口，论坛静态容器直接访问Markdown为404。"
       ],
       "evidence": [
         {
@@ -6463,7 +6522,8 @@
       ],
       "tests": [
         "app/forum/tests/forum-markdown.test.ts",
-        "app/forum/tests/site-state.test.ts"
+        "app/forum/tests/site-state.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
       ],
       "docs": [
         "docs/services/server/endpoint-contracts.md",
@@ -12174,6 +12234,263 @@
         "docs/architecture/SECURITY.md",
         "docs/ops/DEPLOY.md",
         "docs/services/server/endpoint-contracts.md"
+      ]
+    },
+    {
+      "id": "forum.site-markdown.index",
+      "title": "按当前身份读取论坛Markdown索引",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /forum/llms.txt",
+      "capabilities": [],
+      "reads": [
+        "forum_counters",
+        "forum_users",
+        "forum_tags",
+        "forum_topics",
+        "forum_posts",
+        "forum_likes",
+        "forum_notifications",
+        "forum_bookmarks",
+        "forum_follows",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：forumViewer解析sid，levelOf计算public/registered/member；索引只使用forum-store本次请求已过滤的state，显式话题覆盖保留COALESCE语义。",
+        "响应与错误：GET/自动HEAD返回text/plain UTF-8，private,no-store,nosniff；无可见话题返回空态说明，不包含隐藏标题、摘要或分类。",
+        "数据与副作用：不读取论坛静态published JSON；GET可能刷新当前论坛用户并执行既有限流，不改话题、分类或正文。",
+        "交付：web nginx保留原始/forum URI和cookie直达核心；forum site镜像及客户端包不携带索引或旧帖正文。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/markdown.ts",
+          "needle": "app.get(\"/forum/llms.txt\""
+        },
+        {
+          "path": "app/server/src/lib/forum-markdown.ts",
+          "needle": "export function forumLlmsTxt("
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "state(viewerId: string | null, level: ViewerLevel): ForumStateBody {"
+        },
+        {
+          "path": "app/server/src/routes/forum-api/contracts.ts",
+          "needle": "\"GET /forum/llms.txt\""
+        },
+        {
+          "path": "app/server/src/routes/forum-api/index.ts",
+          "needle": "await app.register(markdown);"
+        },
+        {
+          "path": "app/forum/nuxt.config.ts",
+          "needle": "const markdownRoutes = contentSource === 'site' ? []"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    {
+      "id": "forum.site-markdown.topic",
+      "title": "按当前身份读取话题Markdown正文",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /forum/t/:topic_id.md",
+      "capabilities": [],
+      "reads": [
+        "forum_users",
+        "forum_topics",
+        "forum_posts",
+        "forum_likes",
+        "forum_tags",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events",
+        "limit_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：先按话题有效可见性执行assertVisible，再从同一viewer的state与topicPosts生成正文；游客、注册和成员拒绝语义与JSON正文接口一致。",
+        "响应与错误：可见话题200 text/markdown UTF-8；未知id 404；匿名缺等级401、已登录等级不足403；private,no-store,nosniff。",
+        "数据与副作用：只读核心数据库当前正文，不读取构建时Markdown或published JSON，不改变话题visibility或内容。",
+        "并发：身份切换由客户端投影版本丢弃迟到读取；外部Markdown请求每次独立按其sid重新授权。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/markdown.ts",
+          "needle": "app.get<{ Params: TopicParams }>(\"/forum/t/:topic_id.md\""
+        },
+        {
+          "path": "app/server/src/lib/forum-markdown.ts",
+          "needle": "export function forumTopicMarkdown("
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "topicPosts(topicId: string, viewerId: string | null = null): ForumPost[] {"
+        },
+        {
+          "path": "app/forum/app/pages/t/[id].vue",
+          "needle": "serverMode || isSnapshot || markdownTopicIds.includes"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts",
+        "app/forum/tests/forum-category-visibility.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    {
+      "id": "forum.site-published.asset",
+      "title": "按当前身份下载旧帖引用图片",
+      "domain": "forum",
+      "relatedDomains": [
+        "identity",
+        "permissions",
+        "public_content",
+        "platform",
+        "audit"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /forum/published/:file",
+      "capabilities": [],
+      "reads": [
+        "forum_users",
+        "forum_topics",
+        "forum_posts",
+        "forum_category_settings",
+        "sessions",
+        "perm_members",
+        "perm_entries",
+        "perm_groups"
+      ],
+      "writes": [
+        "forum_users",
+        "sessions",
+        "activity_events"
+      ],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：只接受16位小写十六进制webp名；至少一篇当前viewer可见且未删除的正文引用该文件才允许读取，多话题复用取最宽有效可见性。",
+        "响应与错误：允许时200 image/webp；无引用、仅隐藏话题引用、非法名或磁盘缺文件都统一404，不泄漏附件存在性；private,no-store,nosniff。",
+        "数据与副作用：只读核心数据库引用和server镜像内保留的原始图片；forum site镜像删除published目录，不删除源文件或历史帖子。"
+      ],
+      "evidence": [
+        {
+          "path": "app/server/src/routes/forum-api/markdown.ts",
+          "needle": "app.get<{ Params: PublishedParams }>(\"/forum/published/:file\""
+        },
+        {
+          "path": "app/server/src/lib/forum-store.ts",
+          "needle": "publishedAssetVisibility(file: string): ViewerLevel | null {"
+        },
+        {
+          "path": "app/server/Dockerfile",
+          "needle": "COPY --chown=node:node app/forum/public/published/"
+        },
+        {
+          "path": "app/web/Dockerfile",
+          "needle": "location ~ \"^/forum/published/[a-f0-9]{16}\\.webp$\""
+        },
+        {
+          "path": "app/forum/Dockerfile",
+          "needle": "rm -rf .output/public/llms.txt .output/public/t/*.md .output/public/published"
+        }
+      ],
+      "tests": [
+        "tests/server/forum-category-visibility.test.ts",
+        "tests/tooling/forum-site-content.test.ts",
+        "tests/tooling/forum-redirects.test.ts"
+      ],
+      "docs": [
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md",
+        "docs/architecture/API.md",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    {
+      "id": "forum.published.proxy",
+      "title": "site开发代理旧帖图片到核心授权面",
+      "domain": "forum",
+      "relatedDomains": [
+        "public_content",
+        "platform"
+      ],
+      "assessment": "declared-with-source-evidence",
+      "operation": "interface:forum.published-proxy",
+      "capabilities": [],
+      "reads": [],
+      "writes": [],
+      "doesNotEnqueue": [],
+      "invariants": [
+        "权限与资源：仅site模式由Nitro中间件将GET/HEAD和cookie代理到核心/forum/published/:file；demo模式继续由public静态文件提供。",
+        "响应与错误：核心状态码与响应头原样返回；site失败不回退本地图片，非匹配路径交后续处理器。",
+        "数据与副作用：不读写本机快照或核心数据库；生产静态镜像删除published目录，外部路径由web nginx直达核心。"
+      ],
+      "evidence": [
+        {
+          "path": "app/forum/server/middleware/forum-markdown.ts",
+          "needle": "const PUBLISHED_ASSET ="
+        }
+      ],
+      "tests": [
+        "tests/tooling/forum-site-content.test.ts"
+      ],
+      "docs": [
+        "docs/services/forum/README.md",
+        "docs/services/web/README.md"
       ]
     }
   ],
