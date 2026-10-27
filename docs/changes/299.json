@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "issue": 299,
+  "kind": "engineering",
+  "summary": "论坛表情对照测试把 app/forum/shared/sticker-url.ts 复制到临时目录再导入，不再让 vite 读取 app/forum/tsconfig.json 引用的 .nuxt 生成物，解除 GitHub core 作业里这条测试必然失败的红灯。",
+  "applications": [],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不触碰表情白名单的规则本身，只改测试加载这份代码的方式。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不新增应用 HTTP 接口、数据库表或服务端代码。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不涉及权限节点与资源范围。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不读写业务数据；临时副本放在仓库里被忽略的 .tools/ 下，测试结束即删除。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增依赖，不改 vitest 配置与论坛代码；做法与 tests/server/forum.test.ts 的 forumWriteParser 相同。",
+      "evidence": [
+        "tests/server/forum.test.ts"
+      ]
+    },
+    "documentation": {
+      "status": "unchanged",
+      "reason": "只改一条测试的加载方式，TESTING 规范与服务文档里的事实没有变化。",
+      "evidence": [
+        "docs/conventions/TESTING.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "这条对照测试在没有 .nuxt 的环境里能执行了，断言一字未改，用例数保持 2；改前在同一环境里是 TSConfckParseError。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "GitHub core 作业的 pnpm run test --coverage 不再因它失败，verify (required check) 才有可能转绿；不改部署工作流，不建 tag。",
+      "evidence": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "tests/tooling/forum-sticker-url-parity.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "测试改为从副本导入论坛的 sticker-url.ts，使其不依赖 Nuxt 生成物；三边前缀与哈希写法的断言保持不变。"
+    }
+  ],
+  "documents": [
+    "docs/conventions/TESTING.md"
+  ],
+  "tests": [
+    "tests/tooling/forum-sticker-url-parity.test.ts"
+  ],
+  "compatibility": "断言和被测代码都不变，只是加载路径不同；有 .nuxt 的环境里同样通过。",
+  "migration": "不涉及数据或接口迁移：没有表结构、接口或配置变化，只是一条测试读取源文件的方式。",
+  "rollback": "回滚本次改动即可，这条测试回到依赖 .nuxt 的状态。"
+}
