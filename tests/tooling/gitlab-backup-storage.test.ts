@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 // 假 docker / gpg / node / sha256sum + 假 Garage 对象树：不连真实主机，只在临时目录里跑完整演练
-function drillFixture(options: { image?: string; failAt?: 'restore'; removeContainerFails?: boolean } = {}) {
+function drillFixture(options: { image?: string; archiveImage?: string; failAt?: 'restore'; removeContainerFails?: boolean } = {}) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'geek-restore-drill-')));
   roots.push(dir);
   const bin = join(dir, 'bin');
@@ -55,12 +55,13 @@ function drillFixture(options: { image?: string; failAt?: 'restore'; removeConta
   // 适配器 resolve-gitlab-run 返回的对象清单：路径 + 字节数，演练脚本先核对再下载
   const objectsJson = JSON.stringify(Object.entries(encryptedFiles).map(([path, content]) => ({ path, bytes: Buffer.byteLength(content) })));
 
-  // 假 gpg 的“解密”结果：配置归档里必须有 srv/gitlab/config/gitlab-secrets.json
+  // 假 gpg 的“解密”结果：配置归档里必须有 srv/gitlab/config/gitlab-secrets.json，以及备份当时的 compose
   const stage = join(dir, 'stage');
   mkdirSync(join(stage, 'srv/gitlab/config'), { recursive: true });
   writeFileSync(join(stage, 'srv/gitlab/config/gitlab-secrets.json'), '{"synthetic":"secret"}\n', { mode: 0o600 });
+  writeFileSync(join(stage, 'srv/gitlab/docker-compose.yml'), `services:\n  gitlab:\n    image: ${options.archiveImage ?? PINNED_IMAGE}\n`, { mode: 0o600 });
   const plainConfigTar = join(dir, 'plain-config.tar');
-  execFileSync('/usr/bin/tar', ['-cf', plainConfigTar, '-C', stage, 'srv/gitlab/config/gitlab-secrets.json']);
+  execFileSync('/usr/bin/tar', ['-cf', plainConfigTar, '-C', stage, 'srv/gitlab/config/gitlab-secrets.json', 'srv/gitlab/docker-compose.yml']);
 
   const state = join(dir, 'docker-state.json');
   const dockerCalls = join(dir, 'docker-calls.jsonl');
@@ -245,6 +246,18 @@ describe('GitLab restore drill failure teardown and image pinning', () => {
     expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill --hostname gitlab-drill'))).toBe(true);
     expect(result.stderr).not.toContain('is not a pinned digest');
     expect(f.state().secretsPresentAtStart).toBe(true);
+  });
+
+  it('refuses a backup whose archived compose pins a different GitLab image', () => {
+    // 目标机 compose 是被复核过的 digest，但配置归档里记录的是另一个版本：这次演练证明不了「被复核的版本能读这份备份」。
+    const f = drillFixture({ archiveImage: 'gitlab/gitlab-ce@sha256:' + 'a'.repeat(64) });
+    const result = f.run();
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('配置归档里的 GitLab 镜像是 gitlab/gitlab-ce@sha256:');
+    expect(result.stderr).toContain('不一致');
+    expect(f.calls().some(call => call.startsWith('run -d --name gitlab-drill'))).toBe(false);
+    expect(f.state().secretsPresentAtStart).toBe(false);
   });
 
   it('keeps the drill scene on success and only removes it with --cleanup', () => {

@@ -225,8 +225,25 @@ node "${ARCHIVE_TOOL}" get-tree --role gitlab-backup --prefix "${REMOTE_PREFIX}"
 )
 
 # 2. 解密该不可变运行里的两个 .gpg 文件
-BACKUP_GPG="$(find "${WORK_DIR}/dl" -maxdepth 1 -type f -name '*_gitlab_backup.tar.gpg' | sort | tail -n 1)"
-CONFIG_GPG="$(find "${WORK_DIR}/dl" -maxdepth 1 -type f -name 'gitlab_config_*.tar.gpg' | sort | tail -n 1)"
+# 一个 run 里必须恰好各有一个数据归档与配置归档：多个候选时静默挑最后一个，等于让恢复用它没核对过的那份。
+BACKUP_LIST="$(find "${WORK_DIR}/dl" -maxdepth 1 -type f -name '*_gitlab_backup.tar.gpg')"
+CONFIG_LIST="$(find "${WORK_DIR}/dl" -maxdepth 1 -type f -name 'gitlab_config_*.tar.gpg')"
+BACKUP_COUNT=$(printf '%s\n' "${BACKUP_LIST}" | grep -c . || true)
+CONFIG_COUNT=$(printf '%s\n' "${CONFIG_LIST}" | grep -c . || true)
+
+if [[ "${BACKUP_COUNT}" != "1" ]]; then
+    echo "Error: 这个 run 里应当恰好有一个 *_gitlab_backup.tar.gpg，实际 ${BACKUP_COUNT} 个" >&2
+    [[ -n "${BACKUP_LIST}" ]] && printf '  %s\n' ${BACKUP_LIST} >&2
+    exit 1
+fi
+if [[ "${CONFIG_COUNT}" != "1" ]]; then
+    echo "Error: 这个 run 里应当恰好有一个 gitlab_config_*.tar.gpg，实际 ${CONFIG_COUNT} 个" >&2
+    [[ -n "${CONFIG_LIST}" ]] && printf '  %s\n' ${CONFIG_LIST} >&2
+    exit 1
+fi
+
+BACKUP_GPG="${BACKUP_LIST}"
+CONFIG_GPG="${CONFIG_LIST}"
 
 if [[ -z "${BACKUP_GPG}" || ! -f "${BACKUP_GPG}" ]]; then
     echo "Error: No *_gitlab_backup.tar.gpg found in downloaded files" >&2
@@ -255,6 +272,18 @@ tar -xf "${DECRYPTED_CONFIG}" -C "${EXTRACTED_CONFIG_DIR}"
 SECRETS_SRC="${EXTRACTED_CONFIG_DIR}/srv/gitlab/config/gitlab-secrets.json"
 if [[ ! -f "${SECRETS_SRC}" ]]; then
     echo "Error: gitlab-secrets.json not found in config archive" >&2
+    exit 1
+fi
+# 配置归档里记着备份当时的 compose：它的镜像必须与被复核过的固定 digest 一致，
+# 否则这次演练证明的只是「某个别的版本能读这份备份」。
+ARCHIVED_COMPOSE="${EXTRACTED_CONFIG_DIR}/srv/gitlab/docker-compose.yml"
+if [[ ! -f "${ARCHIVED_COMPOSE}" ]]; then
+    echo "Error: 配置归档里没有 srv/gitlab/docker-compose.yml，无法核对备份时的 GitLab 版本" >&2
+    exit 1
+fi
+ARCHIVED_IMAGE="$(grep -E '^[[:space:]]*image:[[:space:]]*gitlab/gitlab-ce' "${ARCHIVED_COMPOSE}" | head -n 1 | sed -E 's/^[[:space:]]*image:[[:space:]]*//; s/[[:space:]"'"'"']+$//')"
+if [[ "${ARCHIVED_IMAGE}" != "${EXPECTED_IMAGE}" ]]; then
+    echo "Error: 配置归档里的 GitLab 镜像是 ${ARCHIVED_IMAGE:-空}，与被复核的固定镜像 ${EXPECTED_IMAGE} 不一致" >&2
     exit 1
 fi
 cp "${SECRETS_SRC}" "${WORK_DIR}/config/gitlab-secrets.json"
