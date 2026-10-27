@@ -93,6 +93,23 @@
         "domain:platform"
       ],
       "reason": "CLI 合同的已知限制与更新日期同步改写，如实写出哪些已在 pwsh 下验证、哪些仍未验证。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "CLI 合同与 cli-dist.mjs 更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
     }
   ],
   "documents": [
