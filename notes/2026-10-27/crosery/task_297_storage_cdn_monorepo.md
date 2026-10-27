@@ -50,3 +50,10 @@
 - 做了什么：在 `deploy/storage-cdn/Caddyfile` 的公共对象段加 `Access-Control-Allow-Origin: *`、暴露 `ETag/Content-Length/Content-Range/Accept-Ranges`，`OPTIONS` 由 Caddy 直接 204 不转 s3_web；合同文档补 CORS 段；`storage-cdn-config` 新增断言（CORS 只出现在公共对象段，全文 ACAO 恰好 2 处）；297.json 变更登记补一条
 - 结果：触发原因是实测：七牛的 woff2 带 `access-control-allow-origin: *`，新 CDN 的同一文件没有——站点切过来字体与 hls.js 取分片会被浏览器 CORS 拦掉。验证：香港机上 `caddy validate` = Valid configuration、`caddy adapt` 里两处 ACAO 都落位；`storage-cdn-config` 12/12；`check-secrets`/`check-docs`/`check-doc-sync` 全绿
 - 下一步：推送更新 MR !34，被审 SHA 变化，请审查者复核这一条
+
+## 16:19:56 +08:00 · 返工 · #297 · 撤掉误判的公共直链 CORS 修改
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：撤销 4c4acd75 的 Caddyfile、storage-cdn-config 测试、STORAGE-CDN.md 与 297.json 四处改动（该提交的执行记录原样保留）。4c4acd75 的依据是一次没带 Origin 头的 curl；带 Origin 重测线上 cdn.yangtzeu.work：来源为 https://yangtzeu.work 与 https://prev.yangtzeu.work 时回对应的 access-control-allow-origin，来源为 https://evil.example 时不回，OPTIONS 预检 200；香港机 /etc/caddy/Caddyfile 对 access-control 零命中，线上 CORS 不来自 Caddy。
+- 结果：仓库模板不再声称缺 CORS，也不再写比线上更宽的 Access-Control-Allow-Origin *（与上游已有的头叠加可能变成两个值，浏览器会拒绝）；线上 CORS 的具体来源（推测为 Garage 的桶级 CORS 配置）未核实。文档核对：docs/ops/STORAGE-CDN.md 随代码一并撤回，内容回到 4c4acd75 之前。
+- 下一步：提交并推送 task/297，给 MR !34 补一条更正

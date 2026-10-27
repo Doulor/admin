@@ -142,20 +142,6 @@
         "domain:platform"
       ],
       "reason": "密钥扫描器补上 .py、无扩展名 Caddyfile 与自建服务模板 env，并新增 Garage 访问键、bcrypt、S3 密钥赋值三类形状。"
-    },
-    {
-      "paths": [
-        "deploy/storage-cdn/Caddyfile",
-        "tests/tooling/storage-cdn-config.test.ts",
-        "docs/ops/STORAGE-CDN.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "公共直链补 CORS 响应头与 OPTIONS 预检：Garage 的 s3_web 不回 Access-Control-*，跨域字体与 hls.js 的 HLS 分片会被浏览器拦下，CSP 放行也救不回来。"
     }
   ],
   "documents": [
