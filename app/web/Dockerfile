@@ -213,10 +213,26 @@ server {
     location = /forum {
         return 308 /forum/;
     }
+    # llms、话题 Markdown 与旧帖图片按当前 sid 动态授权，不经过 forum 静态镜像，也不改写 URI。
+    location = /forum/llms.txt {
+        proxy_pass http://server:3000;
+        proxy_hide_header Content-Security-Policy;
+        include /etc/nginx/conf.d/90-proxy-headers.conf;
+    }
     # 论坛容器不知道外面的 /forum 前缀，它发出的相对跳转（/users/）在这里补回前缀（/forum/users/）。
     # 写了这一条，默认的 proxy_redirect（http://forum:3000/ → /forum/）就不再生效；它本来也碰不上：
     # 转发时 Host 是外面的域名，论坛拼不出 http://forum:3000/。论坛自己也关了绝对跳转，只会发相对地址。
     location ^~ /forum/ {
+        location ~ ^/forum/t/[^/]+\.md$ {
+            proxy_pass http://server:3000;
+            proxy_hide_header Content-Security-Policy;
+            include /etc/nginx/conf.d/90-proxy-headers.conf;
+        }
+        location ~ "^/forum/published/[a-f0-9]{16}\.webp$" {
+            proxy_pass http://server:3000;
+            proxy_hide_header Content-Security-Policy;
+            include /etc/nginx/conf.d/90-proxy-headers.conf;
+        }
         proxy_pass http://forum:3000/;
         proxy_redirect / /forum/;
         include /etc/nginx/conf.d/90-proxy-headers.conf;

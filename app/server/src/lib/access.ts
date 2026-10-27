@@ -4,7 +4,7 @@ import type { IdentityProvider } from "./identity-store.js";
 
 export type AccessDeps = {
   roles: RoleStore;
-  /** 账号记下的成员资格与站内角色（lib/identity-store.ts 的 membershipOf）。 */
+  /** 当前有效的 member/alumni 与 direct owner 摘要（identity-store.membershipOf），不读旧 org_role。 */
   membership: {
     of: (accountId: string) => { member: boolean; orgRole: OrgRole };
   };
@@ -23,7 +23,7 @@ export type ResolveInput = { login: string; userId: number | null; accountId: st
  * GitHub 组织角色并写回站内角色/新权限引擎（membership.record → identity-store 的 applyOrgRole →
  * syncPermissionLevel），这就让任何 GitHub 组织管理员一旦调用到走这条路径的接口（例如论坛），不填邀请码也能
  * 被悄悄提升为 level.member 甚至站长，绕开了邀请码制度——这正是本轮复核要堵的洞。现在彻底不查 GitHub：
- * 成员资格、站内角色和站长身份只认账号自己在新权限引擎里记的（perm_members），由注册时的邀请码结果
+ * 成员资格、站内角色和站长身份只认账号自己在新权限引擎里记的有效直接资格（perm_members），由注册时的邀请码结果
  * （lib/identity-store.ts 的 signInWithGithub/signInSecondChannel）或控制台/命令行的显式操作
  * （setSiteRole、provisionAccount）写入，不会再被一次路由调用悄悄改变。
  */

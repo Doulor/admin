@@ -75,7 +75,7 @@ describe('forum CSP script', () => {
   it('reads the site policy from each host template and keeps both templates on the same policy', () => {
     const preview = siteCsp(hostConf('preview'));
     // 第二个来源是静态资源 CDN 的前缀（#146），与 scripts/static-cdn-base.mjs 的一致性在 static-cdn.test.ts 里核对。
-    expect(preview).toMatch(/^default-src 'self'; script-src 'self' https:\/\/challenges\.cloudflare\.com https:\/\/cdn\.crosery\.com\/yzgc\/static\/site\/;/);
+    expect(preview).toMatch(/^default-src 'self'; script-src 'self' https:\/\/challenges\.cloudflare\.com https:\/\/cdn\.yangtzeu\.work\/geek-public\/static\/site\/;/);
     expect(preview).toContain("object-src 'none'");
     expect(preview).toContain("frame-ancestors 'none'");
     expect(siteCsp(hostConf('production'))).toBe(preview);
@@ -133,17 +133,17 @@ describe('forum CSP wiring', () => {
     // 构建上下文默认排除 deploy/nginx，只放回论坛要读的这一份模板。
     const ignore = read('.dockerignore').split('\n').map(line => line.trim());
     expect(ignore.indexOf('!deploy/nginx/production.conf')).toBeGreaterThan(ignore.indexOf('deploy/nginx'));
-    // 容器站点里没有自己 add_header 的页面 location 才会继承 http 层的 CSP：add_header 只许出现在 .md 与 llms.txt 两处。
+    // 静态论坛不再提供文档和旧帖图片；所有 location 都继承 http 层 CSP。
     const site = heredoc(forumDockerfile, 'NGINX_SITE');
-    const locations = [...site.matchAll(/^    location ([^{]+) \{\n([\s\S]*?)^    \}$/gm)].map(match => ({ name: match[1], body: match[2] }));
+    const locations = [...site.matchAll(/^    location (.+) \{\n([\s\S]*?)^    \}$/gm)].map(match => ({ name: match[1], body: match[2] }));
     // /_nuxt/ 是 ^~（整个目录缓存一年，#146），其中不带哈希的 builds/latest.json 精确匹配、不缓存；两处都不写 add_header。
-    expect(locations.map(location => location.name)).toEqual(['~ \\.md$', '= /llms.txt', '^~ /_nuxt/', '= /_nuxt/builds/latest.json', '~* \\.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$', '= /200.html', '= /404.html', '/']);
-    expect(site.match(/^\s*add_header /gm)).toHaveLength(2);
-    expect(locations.filter(location => location.body.includes('add_header')).map(location => location.name)).toEqual(['~ \\.md$', '= /llms.txt']);
+    expect(locations.map(location => location.name)).toEqual(['= /llms.txt', '~ ^/t/[^/]+\\.md$', '~ "^/published/[a-f0-9]{16}\\.webp$"', '^~ /_nuxt/', '= /_nuxt/builds/latest.json', '~* \\.(?:png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf)$', '= /200.html', '= /404.html', '/']);
+    expect(site).not.toMatch(/^\s*add_header /m);
+    for (const location of locations.slice(0, 3)) expect(location.body).toContain('return 404;');
     // 页面不缓存：发版后旧页面配新哈希会白屏。
     for (const name of ['= /200.html', '= /404.html', '/', '= /_nuxt/builds/latest.json']) expect(locations.find(location => location.name === name)?.body, name).toContain('expires -1;');
-    // web 容器不发 CSP（server 也不发，已搜过 app/server/src）；要发必须从同一份站点策略出发，并同步这里。
-    expect(webDockerfile).not.toMatch(/Content-Security-Policy/i);
+    // web 不定义第二份策略；动态论坛文档仍由边缘下发站点策略。
+    expect(webDockerfile).not.toMatch(/add_header\s+Content-Security-Policy/i);
   });
 });
 
@@ -281,8 +281,8 @@ describe.skipIf(!nginxBinary)('forum CSP through host → web → forum (live ng
 
   it('everything else keeps exactly the host policy', async () => {
     const site = siteCsp(hostConf('preview'));
-    // /forum/t/t1.md 的 location 有自己的 add_header，不继承论坛那份，由宿主补上站点策略。
-    for (const path of ['/', '/console', '/forum', '/forum/t/t1.md']) expect(await cspOf(path), path).toBe(site);
+    // 核心服务提供的文档与图片不能让边缘把它的 CSP 当成论坛页面策略。
+    for (const path of ['/', '/console', '/forum', '/forum/t/t1.md', '/forum/llms.txt', '/forum/published/0123456789abcdef.webp']) expect(await cspOf(path), path).toBe(site);
     // 点段绕行原样发给宿主（fetch 会先在客户端规整路径，测不到宿主），宿主规整成 /console，拿到的是站点策略。
     for (const path of ['/forum/../console', '/forum/%2e%2e/console', '/forum/..%2fconsole']) expect(await rawCspOf(path), path).toBe(site);
   });

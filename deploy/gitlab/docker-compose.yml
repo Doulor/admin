@@ -1,0 +1,55 @@
+# GitLab CE：Arch 主机 /srv/gitlab/docker-compose.yml
+# 公网入口在香港 Caddy（git.yangtzeu.work → 10.66.0.2:8929，经 hk-tunnel）；本机只绑 tun0 与回环，不开 SSH 端口。
+# 镜像按摘要锁定：2026-10-23 拉取时 Docker Hub 上 latest 的摘要（Hub 更新于 2026-10-21）。升级时先 pull 新的 latest，读 RepoDigests 再改这一行。
+name: gitlab
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e991ecdd6cae11ca7d7e5d36fc3
+    container_name: gitlab
+    hostname: git.yangtzeu.work
+    restart: unless-stopped
+    shm_size: 256m
+    mem_limit: 10g
+    cpus: 6
+    ports:
+      - "10.66.0.2:8929:80"
+      - "127.0.0.1:8929:80"
+    volumes:
+      - /srv/gitlab/config:/etc/gitlab
+      - /srv/gitlab/logs:/var/log/gitlab
+      - /srv/gitlab/data:/var/opt/gitlab
+    networks:
+      - gitlab
+    environment:
+      TZ: Asia/Shanghai
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://git.yangtzeu.work'
+        gitlab_rails['time_zone'] = 'Asia/Shanghai'
+
+        # TLS 在香港 Caddy 终止，容器里只听 80
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        letsencrypt['enable'] = false
+        # 10.66.0.1 是 Caddy 经隧道连进来的源地址；172.31.29.1 是本机 127.0.0.1:8929 经 docker-proxy 进来的网关
+        nginx['real_ip_trusted_addresses'] = ['10.66.0.1', '10.66.0.2', '127.0.0.1', '172.31.29.1']
+        nginx['real_ip_header'] = 'X-Forwarded-For'
+        nginx['real_ip_recursive'] = 'on'
+        gitlab_rails['trusted_proxies'] = ['10.66.0.1', '10.66.0.2', '127.0.0.1', '172.31.29.1']
+
+        registry['enable'] = false
+        gitlab_rails['registry_enabled'] = false
+        gitlab_rails['usage_ping_enabled'] = false
+        gitlab_rails['backup_keep_time'] = 1209600
+
+        # 常驻内存压在 6GB 以内
+        puma['worker_processes'] = 2
+        sidekiq['concurrency'] = 10
+        prometheus_monitoring['enable'] = false
+
+networks:
+  gitlab:
+    ipam:
+      config:
+        - subnet: 172.31.29.0/24
+          gateway: 172.31.29.1

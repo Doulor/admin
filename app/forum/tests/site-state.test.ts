@@ -8,20 +8,34 @@ import manifest from '../content/published/manifest.json'
 import published from '../content/published/topics.json'
 import { forumLlmsTxt, topicMarkdown } from '../shared/forum-markdown'
 import { parseSnapshotState } from '../shared/local-snapshot'
-import { publishedTopicIds } from '../shared/published'
+import { publishedForumState, publishedTopicIds } from '../shared/published'
 import { SITE_NOTICE, siteMarkdownNotice } from '../shared/site-notice'
 import { siteForumState } from '../shared/site-state'
 
-// 极客班论坛 as the images build it: the curated categories and tags of
-// content/curation.json, and the old-forum documents of content/published.
+// Source publication stays testable, but the deployed site bootstrap is empty:
+// core is the only authority that may project these records to a viewer.
 describe('siteForumState', () => {
-  const state = siteForumState()
+  const state = publishedForumState()
+  const bootstrap = siteForumState()
 
-  it('lists the six curated categories in the sidebar order, 招新与机试 first', () => {
-    expect(state.categories.map(category => category.id)).toEqual(['c-exam', 'c-announcements', 'c-courses', 'c-competitions', 'c-careers', 'c-ai'])
-    expect(state.categories.map(category => category.name)).toEqual(['招新与机试', '班级公告', '课程与作业', '竞赛与项目', '求职与升学', '人工智能'])
-    const order = curation.categoryOrder.filter(id => curation.categories.some(category => category.id === id))
-    expect(state.categories.map(category => category.id)).toEqual(order)
+  it('keeps the complete curated catalogue separate: 使用说明 is third and no legacy category is added', () => {
+    expect(curation.categories.map(({ id, name }) => [id, name])).toEqual([
+      ['c-exam', '招新与机试'], ['c-announcements', '班级公告'], ['c-guides', '使用说明'],
+      ['c-courses', '课程与作业'], ['c-competitions', '竞赛与项目'], ['c-careers', '求职与升学'], ['c-ai', '人工智能'],
+    ])
+    expect(curation.categoryOrder.filter(id => curation.categories.some(category => category.id === id)))
+      .toEqual(['c-exam', 'c-announcements', 'c-guides', 'c-courses', 'c-competitions', 'c-careers', 'c-ai'])
+    expect(new Set(curation.categories.map(category => category.id)).size).toBe(7)
+    expect(new Set(curation.categories.map(category => category.slug)).size).toBe(7)
+  })
+
+  it('boots the site with no categories, topics, bodies or personal references', () => {
+    expect(bootstrap).toEqual({
+      version: 1,
+      seededAt: 0,
+      counters: { topic: 0, post: 0, notification: 0, tag: 0 },
+      users: [], categories: [], tags: [], topics: [], posts: [], notifications: [], bookmarks: [], follows: [],
+    })
   })
 
   it('copies each category and tag with exactly the fields the store knows', () => {
@@ -54,7 +68,7 @@ describe('siteForumState', () => {
     expect(tagged('tag-coding')).toEqual(['t84', 't89'])
     expect(tagged('tag-notes')).toEqual(['t84'])
     expect(tagged('tag-agents')).toEqual(['t89'])
-    // No replies, notifications, bookmarks or follows until the forum has a backend.
+    // The source export itself has one opening post per topic and no private lists.
     expect(state.posts).toHaveLength(state.topics.length)
     expect(state.notifications).toEqual([])
     expect(state.bookmarks).toEqual([])
@@ -147,21 +161,16 @@ describe('siteForumState', () => {
 
   it('returns a fresh state on every call', () => {
     const a = siteForumState()
-    a.categories[0]!.name = 'changed'
-    a.tags.pop()
-    a.topics[0]!.tagIds.push('changed')
-    a.posts[0]!.content = 'changed'
-    expect(siteForumState().categories[0]!.name).toBe('招新与机试')
-    expect(siteForumState().tags).toHaveLength(curation.tags.length)
-    expect(siteForumState().topics[0]!.tagIds).toEqual(['tag-grade25'])
-    expect(siteForumState().posts[0]!.content).toBe(published.topics[0]!.content)
+    a.counters.topic = 99
+    a.categories.push({ id: 'x', slug: 'x', name: 'x', description: '', color: '#000000', icon: 'i-carbon-forum' })
+    expect(siteForumState()).toEqual(bootstrap)
   })
 
   it('is a state the store can persist and read back', () => {
-    expect(parseState(serializeState(state))).toEqual(state)
+    expect(parseState(serializeState(bootstrap))).toEqual(bootstrap)
   })
 
-  it('gives an llms.txt and Markdown twins that name 极客班论坛 and its published documents', () => {
+  it('keeps the source projection renderable for deterministic export checks without using it as the site response', () => {
     const site = { siteName: '极客班论坛', origin: 'https://prev.example.test', basePath: '/forum/', notice: siteMarkdownNotice() }
     const text = forumLlmsTxt(state, site)
     expect(text.split('\n')[0]).toBe('# 极客班论坛')

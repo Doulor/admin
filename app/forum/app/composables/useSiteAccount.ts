@@ -1,6 +1,5 @@
 import type { SiteAccount } from '../../shared/site-account'
 import { toast } from '@talex-touch/tuffex/utils'
-import { publishedTopicIds } from '../../shared/published'
 import { signinOutcomes } from '../../shared/signin-outcomes'
 import { bindEmailHref, completeProfileHref, emailRequired, parseMe, profileRequired } from '../../shared/site-account'
 
@@ -20,6 +19,7 @@ export type { SiteAccount } from '../../shared/site-account'
  */
 /** 顶栏调用本组合函数；同一页面只发一次 /auth/me。 */
 let inflight: Promise<void> | null = null
+let accountVersion = 0
 
 export function useSiteAccount() {
   const account = useState<SiteAccount | null>('site-account', () => null)
@@ -31,29 +31,56 @@ export function useSiteAccount() {
   function refresh(): Promise<void> {
     if (!import.meta.client)
       return Promise.resolve()
-    inflight ??= fetchAccount().finally(() => { inflight = null })
+    if (!inflight) {
+      const pending = fetchAccount().finally(() => {
+        if (inflight === pending)
+          inflight = null
+      })
+      inflight = pending
+    }
     return inflight
   }
 
+  function acceptAccount(next: SiteAccount | null): void {
+    const changed = account.value?.login !== next?.login
+    account.value = next
+    if (useContentSource().serverMode) {
+      const server = useForumServerStore()
+      // /auth/me does not expose the forum's exact read level. Revalidate an
+      // active projection rather than guessing rights from a login. The
+      // projection can be loading or rate-limited while /auth/me answers;
+      // refreshIdentity must still advance its version before that old read
+      // or write can settle.
+      const activeProjection = server.status === 'ready' || server.status === 'loading' || server.status === 'busy'
+      if (activeProjection && (changed || loaded.value || !next))
+        void server.refreshIdentity({ preserveLocalWork: !changed && !!next })
+    }
+  }
+
   async function fetchAccount(): Promise<void> {
+    const version = accountVersion
     try {
       const response = await fetch('/auth/me', { credentials: 'same-origin', headers: { accept: 'application/json' } })
       const body: unknown = response.ok && response.headers.get('content-type')?.includes('application/json')
         ? await response.json()
         : null
+      if (version !== accountVersion)
+        return
       if (emailRequired(body) || profileRequired(body)) {
         const { pathname, search, hash } = window.location
         const back = `${pathname}${search}${hash}`
         window.location.assign(emailRequired(body) ? bindEmailHref(back) : completeProfileHref(back))
         return
       }
-      account.value = parseMe(body)
+      acceptAccount(parseMe(body))
     }
     catch {
-      account.value = null
+      if (version === accountVersion)
+        acceptAccount(null)
     }
     finally {
-      loaded.value = true
+      if (version === accountVersion)
+        loaded.value = true
     }
   }
 
@@ -61,7 +88,7 @@ export function useSiteAccount() {
     outcomeShown.value = true
     const raw = route.query.signin
     // 登录没成功的原因在这里说明一次，然后把参数从地址里拿掉，刷新页面不会重复提示。
-    const outcomes = signinOutcomes({ hasPosts: !useContentSource().isSite || publishedTopicIds().length > 0 })
+    const outcomes = signinOutcomes({ hasPosts: !useContentSource().isSite || useForumStore().state.topics.length > 0 })
     const outcome = typeof raw === 'string' ? outcomes[raw] : undefined
     if (raw === undefined)
       return
@@ -80,10 +107,12 @@ export function useSiteAccount() {
       .then(response => response.ok)
       .catch(() => false)
     if (ok) {
+      accountVersion += 1
+      inflight = null
       account.value = null
+      loaded.value = true
       if (useContentSource().serverMode) {
-        useSessionStore().currentUserId = null
-        void useForumServerStore().load()
+        void useForumServerStore().refreshIdentity()
       }
       return
     }

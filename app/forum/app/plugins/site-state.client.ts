@@ -3,11 +3,10 @@ import { siteForumState } from '../../shared/site-state'
 /**
  * 极客班论坛 (`contentSource: 'site'`): the forum server holds the data. Like
  * the snapshot plugin, this runs before the app mounts, so the upstream demo
- * seed is never on screen, not even for one frame: the store starts from the
- * published posts the build shipped, the session as a guest, and then asks
- * `/api/forum/state` for the real forum (stores/forum-server.ts).
- * `LocalSnapshotGate` holds the pages until the server answered or failed; a
- * failure keeps the published posts, read-only.
+ * seed is never on screen, not even for one frame: the store starts empty,
+ * the session as a guest, and then asks `/api/forum/state` for the current
+ * viewer projection (stores/forum-server.ts). A failure stays empty instead
+ * of restoring source bodies that may have been restricted since build time.
  *
  * The store already starts from this state in a site build (see
  * `initialState` in stores/forum.ts); replacing it here keeps the guarantee

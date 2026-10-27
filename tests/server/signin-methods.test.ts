@@ -212,6 +212,9 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     await user.send('POST', '/auth/email/verify', { ...REAL, code: await mail.codeFor('no.invite.member@example.test') });
     const me = (await user.send('GET', '/auth/me')).json();
     expect(me).toMatchObject({ signed_in: true, provider: 'email', user_id: null, level: 'registered' });
+    const profile = await user.send('GET', '/api/identity/profile');
+    expect(profile.statusCode).toBe(200);
+    expect(profile.json().username).toMatch(/^[a-z0-9_]{3,24}$/);
 
     // 之前的 bug：论坛只按 session.user_id（GitHub 数字 id）认人，没有它就按游客处理；
     // 修复后按账号（account_id）认人，邮箱注册也是真实成员（viewer.kind），不用游客昵称和 PoW——
@@ -221,7 +224,7 @@ describe('email code sign-in and invite-code registration (#262)', () => {
     expect(state.viewer.kind).toBe('member');
     expect(state.viewer.userId).toMatch(/^a\d+$/);
     const forumUser = state.users.find((u: { id: string }) => u.id === state.viewer.userId);
-    expect(forumUser).toMatchObject({ username: me.login, kind: 'member' });
+    expect(forumUser).toMatchObject({ username: profile.json().username, kind: 'member' });
 
     const posted = await user.send('POST', '/api/forum/topics', { title: '邮箱注册也能发帖', categoryId: 'c-ai', content: '不用游客昵称和验证码' });
     expect(posted.statusCode).toBe(403);
@@ -519,7 +522,7 @@ describe('console permissions come only from the site account; GitHub is a conne
     expect(calls).toEqual([]);
   });
 
-  it('access.resolve() reads the stored site role and never calls GitHub, whatever an org-membership stub would say (#274 review round 1: the org-role recheck is gone)', async () => {
+  it('access.resolve() reads valid site membership and never calls GitHub, whatever an org-membership stub would say', async () => {
     // roles.octocat='admin' 只是用来证明没人会去看它：access.resolve() 已经不查 GitHub（lib/access.ts），
     // 这个账号没填邀请码签入，站内角色只能是空，不会被这个桩「升级」成管理员。
     const roles: Record<string, 'admin' | 'member' | null> = { octocat: 'admin' };
@@ -530,8 +533,8 @@ describe('console permissions come only from the site account; GitHub is a conne
     expect(calls).toEqual([]);
     const accountId = (db.prepare('SELECT id FROM users').get() as { id: string }).id;
     const access = await app.services.access.resolve({ login: 'octocat', userId: 42, accountId, accessToken: 'token-octocat', provider: 'github' });
-    // member 现在只看账号状态（lib/access.ts 的 membershipOf），不看 org_state/org_role；siteRole 仍然是 null。
-    expect([access.member, access.siteRole]).toEqual([true, null]);
+    // 正常登录不等于具有 member/alumni 资格；论坛识别会话与业务写权限仍分别判定。
+    expect([access.member, access.siteRole]).toEqual([false, null]);
     expect(db.prepare('SELECT org_role, org_state FROM users').get()).toEqual({ org_role: null, org_state: 'not_member' });
     expect(calls).toEqual([]);
   });

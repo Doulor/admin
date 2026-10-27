@@ -7,10 +7,12 @@ import { enrollmentYearFor } from '../../app/server/src/lib/grade';
 
 /** 论坛内容夹具（分类、标签、两篇旧帖），代替 app/forum/content 的真实文件。 */
 export const FORUM_FIXTURE_DIR = fileURLToPath(new URL('./fixtures/forum-content', import.meta.url));
+/** 论坛公开旧帖图片夹具；动态下载必须和话题可见性走同一授权面。 */
+export const FORUM_PUBLISHED_FIXTURE_DIR = fileURLToPath(new URL('./fixtures/forum-published', import.meta.url));
 
 /** createConfig 之后把论坛内容目录换成夹具：测试不读真实的论坛内容。 */
 export function testConfig(env: Record<string, string | undefined>) {
-  return { ...createConfig(env), forumContentDir: FORUM_FIXTURE_DIR };
+  return { ...createConfig(env), forumContentDir: FORUM_FIXTURE_DIR, forumPublishedDir: FORUM_PUBLISHED_FIXTURE_DIR };
 }
 
 /** Core-only fixture. A missing/deprecated FORUM_DB_PATH must never be opened. `env` 覆盖个别环境变量（例如 TRUST_PROXY）。 */

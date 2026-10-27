@@ -12,18 +12,18 @@ date: 2026-10-25
 
 1. 打开桌面上的「比赛」窗口，或者用链接 `/?open=competitions` 直接打开。未登录也能看比赛列表，但报名和组队要先登录，且要是极客班成员。
 
-![比赛窗口，左边列表右边详情](https://cdn.crosery.com/yzgc/static/site/forum/guides/competitions-window.dsiACZTf.webp)
+![比赛窗口，左边列表右边详情](https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/competitions-window.dsiACZTf.webp)
 
 2. 点一场内部比赛进详情，报名中的比赛会显示「立即报名」按钮；个人赛报名后就算完成，团队赛报名后再决定创建队伍还是加入别人的队伍。
 3. 团队赛：领队点「创建队伍」填队名，之后可以邀请队友，也可以在「找队友」里看谁还没入队、主动邀请；队员收到邀请后接受即可。队伍确认参赛之后不能再改动成员，撤销确认可以再改。队伍还没满员时，领队可以在队伍页签点「在广场招人」，写想说的话和想找的方向，队伍就会出现在组队广场里；不想招了点「不在广场招人了」。
 4. 工具栏左侧的「组队广场」汇总所有正在报名的团队赛里招人的队伍和找队伍的同学，可以按类型、比赛筛选，也能搜队名、技能或留言。看中了点卡片上的「去申请」或「去邀请」，会回到那场比赛的队伍页签去操作。报名团队赛时勾上「出现在「找队友」里」，你也会出现在这里。
 
-![组队广场，招人的队伍和找队伍的同学两种卡片](https://cdn.crosery.com/yzgc/static/site/forum/guides/competitions-plaza.3YWinpr5.webp)
+![组队广场，招人的队伍和找队伍的同学两种卡片](https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/competitions-plaza.3YWinpr5.webp)
 5. 显示「规划中」的比赛是组织者还在筹备，开赛前不能报名和组队，等组织者开放。报名截止后整场比赛只读，报名按钮会消失，写操作都不再被接受。
 6. 开了积分的比赛，窗口上面有「天梯」，列出按分数排的名次；个人榜前三名在顶部的领奖台，其余进表格，自己那一行会高亮。分数已经乘过年级系数。
 7. 工具栏左侧的「赛事 / 我的参赛 / 组队广场」切到「我的参赛」，只看自己报名过的比赛，能看到报名到哪一步、在哪支队伍。
 
-![我的参赛视图，显示报名进度和已结束比赛的定榜结果](https://cdn.crosery.com/yzgc/static/site/forum/guides/competitions-my-entries.jfS3IWZN.webp)
+![我的参赛视图，显示报名进度和已结束比赛的定榜结果](https://cdn.yangtzeu.work/geek-public/static/site/forum/guides/competitions-my-entries.jfS3IWZN.webp)
 
 8. 比赛结束并且组织者「定榜」之后，「我的参赛」里这场比赛会多一张结果卡：名次、分数、定榜时间；得奖的话还有金额、说明和兑奖码，点「复制」拿到完整兑奖码。兑奖码只有本人能看到，公开页面不会显示。
 9. 拿到兑奖码后，找负责这场比赛的组织者当面核销兑奖，组织者在控制台「核销兑奖码」里核对后核销。

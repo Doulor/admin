@@ -7,6 +7,7 @@ import posts from "./posts.js";
 import people from "./people.js";
 import stickers from "./stickers.js";
 import uploads from "./uploads.js";
+import markdown from "./markdown.js";
 
 /**
  * 论坛接口 `/api/forum/*`（#57，ADR-0004）：存储在 data.db，身份只认核心 `sid`，
@@ -22,4 +23,5 @@ export default async function forumRoutes(app: FastifyInstance) {
   await app.register(people);
   await app.register(stickers);
   await app.register(uploads);
+  await app.register(markdown);
 }

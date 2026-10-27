@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { activityRows, grantPermGroup, signIn, testApp } from './helpers';
+import { activityRows, grantPermGroup, grantPermNode, signIn, testApp } from './helpers';
 
 const SEED_ID = 'oss-challenge-2026-1';
 const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
@@ -15,7 +15,7 @@ afterEach(async () => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104 };
+const USERS: Record<string, number> = { alice: 101, bob: 102, carol: 103, dave: 104, reviewer: 105 };
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
 
@@ -48,6 +48,7 @@ async function setup() {
     return app.services.auth.getSession(sessions.get(login)!)!.account_id;
   };
   grantPermGroup(app, accountId('alice'), 'title.site.owner'); // #274：控制台比赛/积分接口按新权限体系判定
+  grantPermNode(app, accountId('reviewer'), 'competition.score.review');
   /** 一场已开放报名、可组队、可计分的比赛（1–3 人）。 */
   const scoreCompetition = async (settings: Record<string, unknown> = {}) => {
     const now = Date.now();
@@ -70,9 +71,9 @@ async function setup() {
   const signUp = (id: string, login: string) =>
     app.inject({ method: 'POST', url: `/api/competitions/${id}/signup`, headers: as(login), payload: {} });
   const addScore = (id: string, payload: Record<string, unknown>) =>
-    app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events`, headers: as('alice'), payload });
+    app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events`, headers: as('reviewer'), payload });
   const revoke = (id: string, eventId: string, reason = '重复登记') =>
-    app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events/${eventId}/revoke`, headers: as('alice'), payload: { reason } });
+    app.inject({ method: 'POST', url: `/api/console/competitions/${id}/score-events/${eventId}/revoke`, headers: as('reviewer'), payload: { reason } });
   const board = async (id: string, login = 'alice') => {
     const res = await app.inject({ url: `/api/competitions/${id}/leaderboard`, headers: as(login) });
     expect(res.statusCode).toBe(200);
@@ -161,7 +162,7 @@ describe('score events', () => {
     expect(top.statusCode).toBe(201);
     expect(top.json().event).toMatchObject({
       kind: 'issue', points: 30, importance: 'critical', core: 'core', damp_percent: 100, weighted_points: 30,
-      contributed_at: expect.any(Number), repo: 'org/repo', number: 6, status: 'active', created_by_login: 'alice',
+      contributed_at: expect.any(Number), repo: 'org/repo', number: 6, status: 'active', created_by_login: 'reviewer',
       person: { login: 'alice' }, revoked_at: null, revoke_reason: null, reason: '',
     });
     // 同样两档，PR 比 Issue 高

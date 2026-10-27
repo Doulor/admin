@@ -1,15 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   RELEASE_TAG_RE, acceptanceComment, acceptanceSays, artifactName, buildJobSucceeded, commentState, deploy, deploymentPayload, expectedDigest, parseArgs,
-  COMMENT_STATE_QUERY, REQUIRED_CONTEXT, SECRET_ENV, archiveCheckCommand, deployStackCommand, pickRun, previewReleaseMatches, repoFromRemote, sshTarget, templateTarget, withoutSecrets, workflowFile,
+  COMMENT_STATE_QUERY, REQUIRED_CONTEXT, SECRET_ENV, archiveCheckCommand, deployStackCommand, pickRun, previewReleaseMatches, repoFromRemote, withoutSecrets, workflowFile,
 } from '../../scripts/deploy-manual.mjs';
-import { readFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import { RELEASE_TAG_RE as POLICY_TAG_RE } from '../../scripts/release-policy.mjs';
 import { SECRET_FIELDS } from '../../scripts/deployment-environment.mjs';
 
 const COMMIT = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
 const REPO = 'Yangtze-University-Geek-Class/admin';
 const APPROVAL = `https://github.com/${REPO}/issues/63#issuecomment-555`;
+const roots: string[] = [];
+afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
 
 describe('deploy-manual arguments', () => {
   it('pairs rc tags with preview and release tags with production', () => {
@@ -174,16 +179,6 @@ describe('deploy-manual helpers', () => {
     expect(expectedDigest('not a digest  yzgc.tar.gz', 'yzgc.tar.gz')).toBeNull();
   });
 
-  it('refuses SSH targets that look like options or do not match the environment template', () => {
-    const template = templateTarget('DEPLOY_HOST=203.0.113.9\nDEPLOY_PORT=22000\nDEPLOY_USER=root\n');
-    const env = { DEPLOY_SSH_HOST: '203.0.113.9', DEPLOY_SSH_PORT: '22000', DEPLOY_SSH_USER: 'root', DEPLOY_SSH_KEY_FILE: '/k', DEPLOY_SSH_KNOWN_HOSTS_FILE: '/h' };
-    const [command, args] = sshTarget(env, template).ssh('true');
-    expect(command).toBe('ssh');
-    expect(args).toEqual(expect.arrayContaining(['-F', 'none', 'StrictHostKeyChecking=yes', 'GlobalKnownHostsFile=/dev/null', 'root@203.0.113.9']));
-    expect(() => sshTarget({ ...env, DEPLOY_SSH_HOST: '-oProxyCommand=x' }, template)).toThrow(/格式/);
-    expect(() => sshTarget({ ...env, DEPLOY_SSH_PORT: '22 -v' }, template)).toThrow(/格式/);
-    expect(() => sshTarget({ ...env, DEPLOY_SSH_PORT: '22' }, template)).toThrow(/拿错/);
-  });
 });
 
 type Call = { command: string; args: string[]; env?: Record<string, string> };
@@ -193,7 +188,23 @@ type WorldOptions = { environment?: string; tag?: string; permission?: string; p
 function fakeWorld({ environment = 'preview', tag = 'v0.1.0-rc.1', permission = 'admin', previewState = 'success', releaseCommit = COMMIT, failOn = null, commentIssue = 63, approvedAt = '2026-09-25T11:00:00Z', editedAt = null, minimized = false, touchedAt, approval = '批准发布 v0.1.0\n' }: WorldOptions = {}) {
   const calls: Call[] = [];
   const removed: string[] = [];
-  const work = '/tmp/yzgc-deploy-test';
+  const work = mkdtempSync(join(tmpdir(), 'geek-manual-deploy-'));
+  roots.push(work);
+  const src = join(work, 'src');
+  mkdirSync(join(src, 'scripts'), { recursive: true });
+  mkdirSync(join(src, 'deploy/env'), { recursive: true });
+  cpSync(new URL('../../scripts/deployment-environment.mjs', import.meta.url), join(src, 'scripts/deployment-environment.mjs'));
+  cpSync(new URL('../../deploy/environments.json', import.meta.url), join(src, 'deploy/environments.json'));
+  writeFileSync(join(src, `deploy/env/.env.${environment}`), `GEEK_DEPLOYMENT_ENVIRONMENT=${environment}\nDEPLOY_HOST=203.0.113.9\nDEPLOY_PORT=22000\nDEPLOY_USER=root\nDEPLOY_PROXY_JUMP=\n`);
+  const scripts = join(src, 'deploy/remote');
+  const received = join(work, 'received/incoming');
+  mkdirSync(scripts, { recursive: true });
+  const taggedScripts = new Map<string, string>();
+  for (const name of ['deploy-stack.sh', 'rollback-stack.sh']) {
+    const text = readFileSync(new URL(`../../deploy/remote/${name}`, import.meta.url), 'utf8') + `\n# tagged fixture ${COMMIT}\n`;
+    taggedScripts.set(name, text);
+    writeFileSync(join(scripts, name), text);
+  }
   const hash = 'cd'.repeat(32);
   const imagesArchive = `yzgc-images-${environment}-${COMMIT.slice(0, 12)}.tar.gz`;
   const plan = {
@@ -225,9 +236,17 @@ function fakeWorld({ environment = 'preview', tag = 'v0.1.0-rc.1', permission = 
   };
   const deps = {
     env,
-    run: (command: string, args: string[], options: { env?: Record<string, string> } = {}) => { calls.push({ command, args, env: options.env }); return answer(command, args); },
+    run: (command: string, args: string[], options: { env?: Record<string, string> } = {}) => {
+      calls.push({ command, args, env: options.env });
+      if (args[1] === 'ssh-config') return execFileSync(command, args, { encoding: 'utf8', env: options.env, stdio: ['ignore', 'pipe', 'pipe'] });
+      if (command === 'scp' && args.at(-1) === `yzgc-target:/opt/yzgc/${environment}/incoming/`) {
+        mkdirSync(received, { recursive: true });
+        for (const source of args.filter(arg => arg.endsWith('.sh'))) cpSync(source, join(received, basename(source)));
+      }
+      return answer(command, args);
+    },
     fetchJson: () => ({ environment: 'preview', commit: releaseCommit, version: `0.1.0-rc.1@${COMMIT.slice(0, 12)}` }),
-    readText: (path: string) => (path.endsWith('.sha256') ? `${hash}  ${imagesArchive}\n` : 'DEPLOY_HOST=203.0.113.9\nDEPLOY_PORT=22000\nDEPLOY_USER=root\n'),
+    readText: (path: string) => (path.endsWith('.sha256') ? `${hash}  ${imagesArchive}\n` : readFileSync(path, 'utf8')),
     hashFile: async () => hash,
     tempDir: () => work,
     makeDir: () => {},
@@ -236,7 +255,7 @@ function fakeWorld({ environment = 'preview', tag = 'v0.1.0-rc.1', permission = 
     log: () => {},
   };
   const index = (needle: string) => calls.findIndex(call => [call.command, ...call.args].join(' ').includes(needle));
-  return { deps, calls, removed, work, index };
+  return { deps, calls, removed, work, index, received, taggedScripts };
 }
 
 describe('deploy-manual orchestration', () => {
@@ -245,6 +264,13 @@ describe('deploy-manual orchestration', () => {
     world.deps.env.DEPLOY_TARGET_ENVIRONMENT = 'production';
     await expect(deploy({ environment: 'preview', tag: 'v0.1.0-rc.1' }, world.deps)).rejects.toThrow(/DEPLOY_TARGET_ENVIRONMENT/);
     expect(world.calls).toEqual([]);
+  });
+
+  it('refuses an environment jump override even when the tagged template explicitly uses a direct connection', async () => {
+    const world = fakeWorld();
+    world.deps.env.DEPLOY_SSH_PROXY_JUMP = 'root@203.0.113.10:22';
+    await expect(deploy({ environment: 'preview', tag: 'v0.1.0-rc.1' }, world.deps)).rejects.toThrow(/DEPLOY_SSH_PROXY_JUMP/);
+    expect(world.calls.filter(call => call.command === 'ssh' || call.command === 'scp' || call.args.includes('POST'))).toEqual([]);
   });
 
   it('takes every deploy material from the tagged commit, not the working tree', async () => {
@@ -305,6 +331,18 @@ describe('deploy-manual orchestration', () => {
     // 部署成功后记录置为 success，临时目录删掉。
     expect(world.calls.some(call => call.args.includes('state=success'))).toBe(true);
     expect(world.removed).toEqual([world.work]);
+  });
+
+  it.each([
+    ['preview', 'v0.1.0-rc.1', undefined],
+    ['production', 'v0.1.0', APPROVAL],
+  ])('ships executable deploy and rollback material from the same tag into %s incoming', async (environment, tag, acceptance) => {
+    const world = fakeWorld({ environment, tag });
+    await deploy({ environment, tag, acceptance }, world.deps);
+    expect(readdirSync(world.received).sort()).toEqual(['deploy-stack.sh', 'rollback-stack.sh']);
+    for (const [name, tagged] of world.taggedScripts) {
+      expect(readFileSync(join(world.received, name), 'utf8'), name).toBe(tagged);
+    }
   });
 
   it('hands secrets to render through the child environment only', async () => {

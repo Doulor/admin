@@ -2,9 +2,9 @@
 
 > 从真实建库函数产生的内存 SQLite 提取表、列、索引和物理外键；不读取业务记录。
 
-状态：`current` · 更新：2026-10-25 · 自动生成，不手工编辑。
+状态：`current` · 更新：2026-10-27 · 自动生成，不手工编辑。
 
-来源摘要：`b597322adff2df7aaca64f02de66947a0b7fe4c49a41f2dea054640513a1f08b`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`ed5a56040f67f7d69a660d3c970d6db6554ee6daaef1964132fff06452dfa951`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 

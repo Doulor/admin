@@ -102,8 +102,8 @@ RUN test -n "$GEEK_DEPLOYMENT_ENVIRONMENT" \
 # 各写一份，tests/tooling/static-cdn-parity.test.ts 核对一致。放在编译之后：开关变化不让依赖层和编译层失效。
 ARG STATIC_CDN_BASE=""
 RUN case "$STATIC_CDN_BASE" in \
-      "" | "https://cdn.crosery.com/yzgc/static/site/") ;; \
-      *) echo "STATIC_CDN_BASE 只能为空或 https://cdn.crosery.com/yzgc/static/site/：${STATIC_CDN_BASE}" >&2; exit 1 ;; \
+      "" | "https://cdn.yangtzeu.work/geek-public/static/site/") ;; \
+      *) echo "STATIC_CDN_BASE 只能为空或 https://cdn.yangtzeu.work/geek-public/static/site/" >&2; exit 1 ;; \
     esac
 
 # ── 运行阶段：Node 22、非 root、保持仓库布局 ──────────────────
@@ -140,6 +140,8 @@ COPY --from=builder --chown=node:node /repo/app/server/dist /app/app/server/dist
 COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/curation.json
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
 COPY --chown=node:node app/forum/content/guides/ /app/app/forum/content/guides/
+# 旧帖正文引用的图片不再由 forum 静态镜像直接下载；核心按当前 viewer 可见话题动态提供。
+COPY --chown=node:node app/forum/public/published/ /app/app/forum/public/published/
 
 # 内置表情包的源图片与清单（#276、#286，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers）：
 # 整个目录镶进镜像，每个包一个子目录（pack.json 和图片），外加 manifest.json。启动时按清单读图片、按内容哈希种进

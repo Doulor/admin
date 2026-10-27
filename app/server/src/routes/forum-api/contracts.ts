@@ -117,6 +117,10 @@ export const forumContracts: RouteContracts = {
   // instanceof ArrayBuffer 分支直接进 onSend，不走序列化），占位 Schema 只为满足宏观对齐的声明要求，不会真的生效。
   "GET /api/forum/stickers/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.webp$") }, ["file"]), response: { 200: { type: "string" } } },
   "GET /api/forum/uploads/:file": { params: object({ file: pattern("^[0-9a-f]{64}\\.[a-z0-9]{1,8}$") }, ["file"]), response: { 200: { type: "string" } } },
+  // 站点 Markdown 与旧帖图片按当前 viewer 动态输出；文本和 Buffer 都不经过 JSON 序列化。
+  "GET /forum/llms.txt": { response: { 200: { type: "string", description: "text/plain; charset=utf-8" } } },
+  "GET /forum/t/:topic_id.md": { response: { 200: { type: "string", description: "text/markdown; charset=utf-8" } } },
+  "GET /forum/published/:file": { response: { 200: { type: "string", description: "image/webp; binary" } } },
 };
 
 const FIELD_LABELS: Record<string, string> = {
