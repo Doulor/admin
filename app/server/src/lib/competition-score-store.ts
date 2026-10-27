@@ -63,12 +63,13 @@ export type LeaderboardTeam = {
 export type Leaderboard = { updated_at: number; individuals: LeaderboardIndividual[]; teams: LeaderboardTeam[] };
 
 export type ScoreErrorCode =
-  | "not_found" | "scoring_not_enabled" | "not_signed_up"
+  | "not_found" | "scoring_not_enabled" | "not_signed_up" | "self_review"
   | "bad_repo" | "bad_number" | "bad_levels" | "duplicate_score_event" | "already_revoked" | "competition_finalized";
 export const SCORE_ERRORS: Record<ScoreErrorCode, { status: number; message: string }> = {
   not_found: { status: 404, message: "比赛或积分记录不存在" },
   scoring_not_enabled: { status: 409, message: "这场比赛没有开启积分" },
   not_signed_up: { status: 409, message: "这位成员没有报名这场比赛" },
+  self_review: { status: 403, message: "不能审核自己的贡献" },
   bad_repo: { status: 400, message: "请填写 owner/name 形式的仓库（GitLab 子组写成 group/sub/project）" },
   bad_number: { status: 400, message: "Issue 或 PR 编号必须是正整数" },
   bad_levels: { status: 400, message: "Issue 和 PR 要选重要程度和核心度，扣分不选" },
@@ -134,7 +135,7 @@ export function createCompetitionScoreStore(
       AND COALESCE(contributed_at, created_at) >= ? AND COALESCE(contributed_at, created_at) < ?`);
   const revokeEvent = db.prepare("UPDATE competition_score_events SET status = 'revoked', revoked_by = ?, revoked_at = ?, revoke_reason = ? WHERE id = ?");
   const selectTotals = db.prepare("SELECT account_id, kind, COALESCE(weighted_points, points) AS points, status, created_at FROM competition_score_events WHERE competition_id = ?");
-  const selectFinal = db.prepare("SELECT 1 AS n FROM competition_finals WHERE competition_id = ?");
+  const selectFinal = db.prepare("SELECT standings, finalized_at FROM competition_finals WHERE competition_id = ?");
   const isFinalized = (competitionId: string) => Boolean(selectFinal.get(competitionId));
   const selectLatestTouch = db.prepare("SELECT COALESCE(MAX(COALESCE(revoked_at, created_at)), 0) AS n FROM competition_score_events WHERE competition_id = ?");
 
@@ -205,6 +206,7 @@ export function createCompetitionScoreStore(
   }
 
   function add(competitionId: string, actorAccountId: string, input: ScoreEventInput, now: number): ScoreResult<ScoreEvent> {
+    if (actorAccountId === input.account_id) return failure("self_review");
     const computed = compute(competitionId, input, now);
     if (!computed.ok) return computed;
     const reason = (input.reason ?? "").trim();
@@ -230,6 +232,7 @@ export function createCompetitionScoreStore(
   function revoke(competitionId: string, actorAccountId: string, eventId: string, reason: string, now: number): ScoreResult<ScoreEvent> {
     const row = selectEvent.get(competitionId, eventId) as EventRow | undefined;
     if (!row) return failure("not_found");
+    if (row.account_id === actorAccountId) return failure("self_review");
     if (isFinalized(competitionId)) return failure("competition_finalized");
     if (row.status === "revoked") return failure("already_revoked");
     revokeEvent.run(actorAccountId, now, reason.trim(), eventId);
@@ -271,13 +274,24 @@ export function createCompetitionScoreStore(
       || (a.person.account_id < b.person.account_id ? -1 : 1));
     let lastPoints: number | null = null;
     let lastRank = 0;
-    const individuals: LeaderboardIndividual[] = rows.map(({ signed_up_at: _signedUpAt, ...row }, index) => {
+    let individuals: LeaderboardIndividual[] = rows.map(({ signed_up_at: _signedUpAt, ...row }, index) => {
       if (row.points !== lastPoints) {
         lastRank = index + 1;
         lastPoints = row.points;
       }
       return { ...row, rank: lastRank };
     });
+    const final = selectFinal.get(competitionId) as { standings: string; finalized_at: number } | undefined;
+    if (final) {
+      const frozen = JSON.parse(final.standings) as Standing[];
+      const byAccount = new Map(individuals.map(row => [row.person.account_id, row]));
+      individuals = frozen.map(row => ({
+        ...(byAccount.get(row.account_id) ?? {
+          person: signups.person(row.account_id), team: null, issues: 0, prs: 0, penalties: 0,
+        }),
+        rank: row.rank, points: row.points,
+      }));
+    }
 
     const teamRows = teamViews.map(team => ({
       rank: 0,
@@ -300,7 +314,7 @@ export function createCompetitionScoreStore(
     return {
       ok: true,
       value: {
-        updated_at: (selectLatestTouch.get(competitionId) as { n: number }).n,
+        updated_at: final?.finalized_at ?? (selectLatestTouch.get(competitionId) as { n: number }).n,
         individuals,
         teams,
       },

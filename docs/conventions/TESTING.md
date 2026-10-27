@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-27
 
 ## 根入口和分工
 
@@ -47,6 +47,10 @@
 宏观对齐（#257）：`architecture-alignment.test.ts` 通过公开检查接口与真实临时 Git 提交覆盖八维缺项、假 UI 分类、未覆盖文件、过宽路径、未知目录节点、生成文档冒充业务文档、漏回归、隐藏正文引用，以及固定提交不受脏工作区干扰。`catalog-map.test.ts` 核对地图与目录同源、离线和脚本数据转义。真实浏览器另测搜索定位、节点与跨页钻取、PR 报告导入、窄屏导航和详情，不把静态检查当浏览器验收。
 
 `catalog-coverage.test.ts` 核对全部业务操作及补充入口都有流程关联；删除真实接口的关联后生成必须失败。`pr-contract.test.ts` 拒绝阻塞审查、隐藏或重复标题、围栏/缩进代码中的伪结论；宏观检查共享同一正文解析，并拒绝用已删除流程证明当前源码。`catalog-map.spec.ts` 在 CI 真实 Chromium 中覆盖地图搜索、表关系、窄屏和影响报告的成功、过期摘要、未知节点及清除操作。
+
+## 首场内部个人赛（GitHub #276）
+
+[有限矩阵与命令](../services/server/competition-rehearsal.md)覆盖身份/资源/精确时间/状态/幂等/并发/外部故障。新增 `competition-readiness`、`competition-identity-boundaries` 与 `competition-rehearsal` 路由测试，复用真实buildApp、同库SQLite与GitLab HTTP Adapter；身份集成哨兵保留严格失败断言，不skip。`scripts/contest-rehearsal.mts --smoke`经真实OAuth路由走至报名、贡献、审核、定榜、兑奖核销与重启；`--serve`只绑定loopback给父级浏览器接力，生产应用不注册fixture入口。Node22用 `node --import ./app/server/node_modules/tsx/dist/loader.mjs scripts/contest-rehearsal.mts --smoke`避免tsx CLI额外IPC监听。Vitest workers≤2；监听EPERM与业务断言失败分开报告。既有固定种子评分模拟不能代替路由流程。
 
 ## 分支、环境与发布门禁回归
 
