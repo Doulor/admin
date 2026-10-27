@@ -251,6 +251,15 @@ jobs:
           GEEK_RELEASE_COMMIT: ${{ needs.plan.outputs.commit }}
         run: pnpm build
 
+      - name: 构建并核对 CLI 五目标分发物料
+        shell: bash
+        # 固定 digest 的 cargo-zigbuild 容器内含 macOS SDK；不向 web 运行镜像加入 Rust/Zig/Cargo。
+        # cli-dist 生成五目标二进制、安装脚本、latest.json 与 sha256，随后独立核对非空和清单完整性。
+        run: |
+          set -eu
+          node scripts/cli-dist.mjs --container
+          node scripts/check-cli-dist.mjs
+
       - name: 构建三个镜像（preview 专用仓库，tag = SHA 前 12 位）
         shell: bash
         # 镜像仓库按环境分开（yzgc-preview/<服务>）：两套栈共用目标机的 Docker 守护进程，
@@ -271,8 +280,13 @@ jobs:
             esac
             # 静态资源 CDN 开关（#146、#286）：web、forum 的前端产物，以及 server 里内置表情图片的地址都跟着它；空 = 同源。
             cdn_args=(--build-arg STATIC_CDN_BASE="$STATIC_CDN_BASE")
+            case "$service" in
+              web) context_args=(--build-context cli=dist/cli) ;;
+              *) context_args=() ;;
+            esac
             docker build \
               --file "app/${service}/Dockerfile" \
+              "${context_args[@]}" \
               --build-arg GEEK_DEPLOYMENT_ENVIRONMENT=preview \
               --build-arg GEEK_RELEASE_VERSION="$GEEK_RELEASE_VERSION" \
               --build-arg GEEK_RELEASE_COMMIT="$GEEK_RELEASE_COMMIT" \
@@ -447,6 +461,8 @@ jobs:
     environment:
       name: preview
       url: ${{ needs.plan.outputs.origin }}
+      # 保留环境保护与 secrets；目标校验通过后才由 record 步骤创建部署记录。
+      deployment: false
     permissions:
       contents: read
       # 读本次运行的镜像归档（scripts/fetch-artifact.mjs 经 REST API 下载）。
@@ -490,6 +506,19 @@ jobs:
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
+
+      - name: 校验 SSH 目标并生成受控配置（必须与模板逐字一致）
+        shell: bash
+        env:
+          DEPLOY_TARGET_ENVIRONMENT: ${{ vars.DEPLOY_TARGET_ENVIRONMENT }}
+          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+        run: |
+          set -eu
+          node scripts/deployment-environment.mjs ssh-config --environment preview \
+            --out "$RUNNER_TEMP/ssh/config" --key-file "$RUNNER_TEMP/ssh/id_deploy" \
+            --known-hosts-file "$RUNNER_TEMP/ssh/known_hosts"
 
       - name: 下载镜像归档（并发分段）
         shell: bash
@@ -541,7 +570,6 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/ssh/id_deploy"
           chmod 644 "$RUNNER_TEMP/ssh/known_hosts"
-          # 私钥与 known_hosts 都来自环境级 secrets；不打印内容，只确认长度。
           echo "SSH 物料就绪：私钥 $(wc -l < "$RUNNER_TEMP/ssh/id_deploy") 行，known_hosts $(wc -l < "$RUNNER_TEMP/ssh/known_hosts") 行"
 
       - name: 创建部署记录（in_progress）
@@ -570,48 +598,27 @@ jobs:
 
       - name: 分发镜像、env 文件与 compose 物料
         shell: bash
-        env:
-          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
         run: |
           set -eu
-          key="$RUNNER_TEMP/ssh/id_deploy"
-          known="$RUNNER_TEMP/ssh/known_hosts"
-          target="${DEPLOY_SSH_USER}@${DEPLOY_SSH_HOST}"
-          ssh_options=(-i "$key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known" -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20)
-          scp_options=(-i "$key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$known" -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20)
-          # 目标机只接收物料：incoming/ 放本次归档与渲染好的 env 文件，deploy/compose/ 放两套栈定义（长期存在）。
-          ssh "${ssh_options[@]}" -p "$DEPLOY_SSH_PORT" "$target" \
+          cfg="$RUNNER_TEMP/ssh/config"
+          ssh -F "$cfg" yzgc-target \
             "mkdir -p '$INCOMING_DIR' '$STACK_ROOT/deploy/compose' && chmod 700 '$INCOMING_DIR'"
-          scp "${scp_options[@]}" -P "$DEPLOY_SSH_PORT" \
+          scp -F "$cfg" \
             "$RUNNER_TEMP/bundle/${IMAGES_ARCHIVE}" "$RUNNER_TEMP/bundle/${IMAGES_ARCHIVE}.sha256" \
-            "$RUNNER_TEMP/bundle/.env.preview" deploy/remote/deploy-stack.sh \
-            "${target}:${INCOMING_DIR}/"
-          scp "${scp_options[@]}" -P "$DEPLOY_SSH_PORT" \
+            "$RUNNER_TEMP/bundle/.env.preview" deploy/remote/deploy-stack.sh deploy/remote/rollback-stack.sh \
+            "yzgc-target:${INCOMING_DIR}/"
+          scp -F "$cfg" \
             deploy/compose/production.yml deploy/compose/preview.yml \
-            "${target}:${STACK_ROOT}/deploy/compose/"
-          ssh "${ssh_options[@]}" -p "$DEPLOY_SSH_PORT" "$target" \
+            "yzgc-target:${STACK_ROOT}/deploy/compose/"
+          ssh -F "$cfg" yzgc-target \
             "cd '${INCOMING_DIR}' && chmod 600 '.env.preview' && ls -la && sha256sum -c '${IMAGES_ARCHIVE}.sha256'"
-
       - name: 执行远端部署（load 镜像 → compose up → 健康检查）
         id: deploy-stack
         shell: bash
-        env:
-          DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
-          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
         run: |
           set -eu
-          target="${DEPLOY_SSH_USER}@${DEPLOY_SSH_HOST}"
-          # deploy-stack.sh 只从 env 文件取事实（IMAGE_TAG/STACK_ROOT/COMPOSE_PROJECT_NAME），
-          # 传进来的 --image-tag/--stack-root 只做交叉校验；compose up 或健康检查失败会自动回滚到上一个 tag 并非零退出，
-          # 成功后删掉 incoming 里本环境的归档与 .env.preview。
-          # --images 只指这次的归档：失败的部署会在 incoming 里留下归档，不指定时 deploy-stack.sh 会把整个目录都当成本次输入，
-          # 看到别的版本的镜像就拒绝部署（v0.1.0-rc.2 的归档留在预发布机上，审查时复现过）。
-          ssh -i "$RUNNER_TEMP/ssh/id_deploy" -o IdentitiesOnly=yes \
-            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 \
-            -p "$DEPLOY_SSH_PORT" "$target" \
+          cfg="$RUNNER_TEMP/ssh/config"
+          ssh -F "$cfg" yzgc-target \
             "bash '${INCOMING_DIR}/deploy-stack.sh' --environment preview --stack-root '${STACK_ROOT}' \
               --image-tag '${IMAGE_TAG}' --incoming-dir '${INCOMING_DIR}' --images '${INCOMING_DIR}/${IMAGES_ARCHIVE}' \
               --env-file '${INCOMING_DIR}/.env.preview'"

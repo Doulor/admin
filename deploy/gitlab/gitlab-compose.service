@@ -1,0 +1,16 @@
+[Unit]
+Description=GitLab CE (docker compose), waits for hk-tunnel's 10.66.0.2
+# 端口绑在 tun0 的 10.66.0.2 上：开机时 docker 先起而隧道没起，容器会因绑定失败起不来，这里等隧道地址出现后再 up
+Requires=docker.service
+After=docker.service hk-tunnel.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sh -c 'for i in $(seq 120); do ip -4 addr show dev tun0 2>/dev/null | grep -q "inet 10.66.0.2" && exit 0; sleep 1; done; echo "tun0 10.66.0.2 not up"; exit 1'
+ExecStart=/usr/bin/docker compose -f /srv/gitlab/docker-compose.yml up -d
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

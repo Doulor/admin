@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cpSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
@@ -23,6 +23,7 @@ import {
   isPlainAddress,
   parseEnvFileText,
   parseMailAssetBase,
+  parseProxyJump,
   readEnvironment,
   renderRuntimeEnv,
   validateEnvironmentContract,
@@ -99,7 +100,7 @@ describe('environment identity contract', () => {
 });
 
 describe('committed env templates are the single source of deploy facts', () => {
-  it('keeps both stacks fully isolated with loopback-only ports and empty secret fields', () => {
+  it('keeps both stacks fully isolated with controlled bind ports and empty secret fields', () => {
     const report = validateEnvironmentFiles({ checkCompose: false });
     expect(report.problems).toEqual([]);
     expect(report.ok).toBe(true);
@@ -107,11 +108,21 @@ describe('committed env templates are the single source of deploy facts', () => 
 
     const production = report.environments.find(item => item.name === 'production').values;
     const preview = report.environments.find(item => item.name === 'preview').values;
-    for (const field of ['WEB_BIND', 'SERVER_BIND']) {
-      expect(production.get(field)).toMatch(/^127\.0\.0\.1:\d{4,5}$/);
-      expect(preview.get(field)).toMatch(/^127\.0\.0\.1:\d{4,5}$/);
-      expect(production.get(field)).not.toBe(preview.get(field));
-    }
+    expect(production.get('WEB_BIND')).toBe('10.66.0.2:18100');
+    expect(preview.get('WEB_BIND')).toBe('10.66.0.2:18200');
+    expect(production.get('SERVER_BIND')).toBe('127.0.0.1:18101');
+    expect(preview.get('SERVER_BIND')).toBe('127.0.0.1:18201');
+    expect(production.get('DEPLOY_HOST')).toBe('10.66.0.2');
+    expect(preview.get('DEPLOY_HOST')).toBe('10.66.0.2');
+    expect(production.get('DEPLOY_PORT')).toBe('22');
+    expect(preview.get('DEPLOY_PORT')).toBe('22');
+    expect(production.get('DEPLOY_USER')).toBe('root');
+    expect(preview.get('DEPLOY_USER')).toBe('root');
+    expect(production.get('DEPLOY_PROXY_JUMP')).toBe('root@156.238.244.78:22');
+    expect(preview.get('DEPLOY_PROXY_JUMP')).toBe('root@156.238.244.78:22');
+
+    expect(production.get('WEB_BIND')).not.toBe(preview.get('WEB_BIND'));
+    expect(production.get('SERVER_BIND')).not.toBe(preview.get('SERVER_BIND'));
     expect(production.get('STACK_ROOT')).not.toBe(preview.get('STACK_ROOT'));
     expect(production.get('COMPOSE_PROJECT_NAME')).not.toBe(preview.get('COMPOSE_PROJECT_NAME'));
     for (const field of SECRET_FIELDS) {
@@ -126,14 +137,13 @@ describe('committed env templates are the single source of deploy facts', () => 
       expect(preview.has(retired)).toBe(false);
     }
     expect(readEnvironment(repoRoot, 'production')).not.toHaveProperty('hosts');
-    // 发信：两个环境发件地址与图片前缀相同；预发布只发名单，正式发给所有人；回复地址留空。
+    // 发信：接管后两个权威环境沿用 all，发件地址与图片前缀相同，回复地址留空。
     for (const values of [production, preview]) {
       expect(values.get('MAIL_ALIYUN_FROM')).toBe('notify@mail.email-crosery.cn');
       expect(values.get('MAIL_RESEND_FROM')).toBe('notify@email-crosery.cn');
       expect(values.get('MAIL_ASSET_BASE')).toBe('https://cdn.yangtzeu.work/geek-public/mail/v1/');
       expect(values.get('MAIL_REPLY_TO')).toBe('');
     }
-    // 预发布和正式都发给所有投递人（#169）
     expect(preview.get('MAIL_RECIPIENTS')).toBe('all');
     expect(production.get('MAIL_RECIPIENTS')).toBe('all');
     for (const field of [...MAIL_ALIYUN_SECRET_PAIR, ...OPTIONAL_SECRETS]) {
@@ -141,7 +151,6 @@ describe('committed env templates are the single source of deploy facts', () => 
       expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
     }
   });
-
   it('fails closed when a template carries a real secret or loses isolation', () => {
     const leaked = fixtureRoot();
     const leakedPath = join(leaked, 'deploy/env/.env.preview');
@@ -152,7 +161,7 @@ describe('committed env templates are the single source of deploy facts', () => 
 
     const collided = fixtureRoot();
     const collidedPath = join(collided, 'deploy/env/.env.preview');
-    writeFileSync(collidedPath, readFileSync(collidedPath, 'utf8').replace('WEB_BIND=127.0.0.1:18200', 'WEB_BIND=127.0.0.1:18100'));
+    writeFileSync(collidedPath, readFileSync(collidedPath, 'utf8').replace('WEB_BIND=10.66.0.2:18200', 'WEB_BIND=10.66.0.2:18100'));
     const collidedReport = validateEnvironmentFiles({ root: collided, checkCompose: false });
     expect(collidedReport.ok).toBe(false);
     expect(collidedReport.problems.join('\n')).toContain('WEB_BIND');
@@ -266,6 +275,71 @@ describe('committed env templates are the single source of deploy facts', () => 
       expect(() => parseMailAssetBase(value), value).toThrow(/MAIL_ASSET_BASE/);
     }
   });
+
+  it('validates WEB_BIND and SERVER_BIND: supports Arch tun0 and loopback, rejects 0.0.0.0, unknown interfaces and wrong ports', () => {
+    const edit = (name: string, from: string, to: string) => {
+      const root = fixtureRoot();
+      const path = join(root, `deploy/env/.env.${name}`);
+      const before = readFileSync(path, 'utf8');
+      expect(before).toContain(from);
+      writeFileSync(path, before.replace(from, to));
+      return validateEnvironmentFiles({ root, checkCompose: false });
+    };
+
+    // 允许回环兼容旧快照
+    expect(edit('production', 'WEB_BIND=10.66.0.2:18100', 'WEB_BIND=127.0.0.1:18100').problems).toEqual([]);
+    expect(edit('preview', 'WEB_BIND=10.66.0.2:18200', 'WEB_BIND=127.0.0.1:18200').problems).toEqual([]);
+
+    // 拒绝 0.0.0.0 暴露
+    expect(edit('production', 'WEB_BIND=10.66.0.2:18100', 'WEB_BIND=0.0.0.0:18100').problems.join('\n')).toMatch(/禁止绑定 0\.0\.0\.0/);
+    expect(edit('preview', 'WEB_BIND=10.66.0.2:18200', 'WEB_BIND=0.0.0.0:18200').problems.join('\n')).toMatch(/禁止绑定 0\.0\.0\.0/);
+
+    // 拒绝未知或公网网卡
+    expect(edit('production', 'WEB_BIND=10.66.0.2:18100', 'WEB_BIND=103.117.123.226:18100').problems.join('\n')).toMatch(/只能是 Arch tun0/);
+    expect(edit('preview', 'WEB_BIND=10.66.0.2:18200', 'WEB_BIND=192.168.1.100:18200').problems.join('\n')).toMatch(/只能是 Arch tun0/);
+
+    // 拒绝错误端口
+    expect(edit('production', 'WEB_BIND=10.66.0.2:18100', 'WEB_BIND=10.66.0.2:18200').problems.join('\n')).toMatch(/WEB_BIND 端口非法/);
+    expect(edit('preview', 'WEB_BIND=10.66.0.2:18200', 'WEB_BIND=10.66.0.2:18100').problems.join('\n')).toMatch(/WEB_BIND 端口非法/);
+    expect(edit('production', 'WEB_BIND=10.66.0.2:18100', 'WEB_BIND=10.66.0.2:18999').problems.join('\n')).toMatch(/WEB_BIND 端口非法/);
+
+    // SERVER_BIND 必须保持回环且端口正确
+    expect(edit('production', 'SERVER_BIND=127.0.0.1:18101', 'SERVER_BIND=10.66.0.2:18101').problems.join('\n')).toMatch(/SERVER_BIND 必须保持回环/);
+    expect(edit('production', 'SERVER_BIND=127.0.0.1:18101', 'SERVER_BIND=127.0.0.1:18201').problems.join('\n')).toMatch(/SERVER_BIND 端口非法/);
+    expect(edit('preview', 'SERVER_BIND=127.0.0.1:18201', 'SERVER_BIND=127.0.0.1:18101').problems.join('\n')).toMatch(/SERVER_BIND 端口非法/);
+  });
+
+  it('validates DEPLOY_PROXY_JUMP: checks canonical format and rejects shell-injection and malformed values', () => {
+    expect(parseProxyJump('root@156.238.244.78:22')).toEqual({
+      user: 'root',
+      host: '156.238.244.78',
+      port: '22',
+      destination: 'root@156.238.244.78:22',
+    });
+    expect(parseProxyJump('deployer@jump.example.com:2222')).toEqual({
+      user: 'deployer',
+      host: 'jump.example.com',
+      port: '2222',
+      destination: 'deployer@jump.example.com:2222',
+    });
+
+    for (const bad of [
+      '',
+      'root@156.238.244.78; rm -rf /',
+      'root@156.238.244.78 && echo 1',
+      'root@156.238.244.78|id',
+      'root@156.238.244.78`id`',
+      'root@156.238.244.78$(id)',
+      '-oProxyCommand=x',
+      '-root@156.238.244.78:22',
+      'root@-156.238.244.78:22',
+      'root@156.238.244.78:99999',
+      'root@156.238.244.78:0',
+      'root@999.999.999.999:22',
+    ]) {
+      expect(() => parseProxyJump(bad), bad).toThrow();
+    }
+  });
 });
 
 describe('per-environment image repositories on the shared Docker host', () => {
@@ -329,6 +403,26 @@ describe('runtime env rendering', () => {
     expect(values.get('IMAGE_TAG')).toBe('a1b2c3d4e5f6');
     for (const field of SECRET_FIELDS) expect(values.get(field)).toBe(secrets[field]);
     expect(result.bytes).toBeGreaterThan(0);
+  });
+
+  it('tightens an existing loose file to 0600 and refuses a symlinked output path', () => {
+    const root = fixtureRoot();
+    const out = join(root, 'runtime/.env.preview');
+    mkdirSync(dirname(out), { recursive: true });
+    // 上一次渲染/手工拷贝留下的宽权限文件：0600 只在新建时生效，必须显式收紧而不是沿用旧权限。
+    writeFileSync(out, 'STALE=1\n', { mode: 0o644 });
+    chmodSync(out, 0o644);
+    renderRuntimeEnv({ root, environment: 'preview', out, imageTag: 'a1b2c3d4e5f6', env: secrets });
+    expect(statSync(out).mode & 0o777).toBe(0o600);
+    expect(readFileSync(out, 'utf8')).toContain('GEEK_DEPLOYMENT_ENVIRONMENT=preview');
+
+    // 输出路径是符号链接时，密钥不能顺着链接写到别处。
+    const victim = join(root, 'runtime/victim.txt');
+    writeFileSync(victim, 'untouched\n');
+    const linked = join(root, 'runtime/.env.preview.link');
+    symlinkSync(victim, linked);
+    expect(() => renderRuntimeEnv({ root, environment: 'preview', out: linked, imageTag: 'a1b2c3d4e5f6', env: secrets })).toThrow(/符号链接/);
+    expect(readFileSync(victim, 'utf8')).toBe('untouched\n');
   });
 
   it('refuses to render a half-configured file or a non-SHA release tag', () => {
@@ -403,26 +497,28 @@ describe('OIDC signing key and GitLab sync (#270)', () => {
   const fixture = (environment: string, edit?: [string, string]) => {
     const root = fixtureRoot();
     const path = join(root, `deploy/env/.env.${environment}`);
-    if (edit) {
-      const before = readFileSync(path, 'utf8');
-      expect(before).toContain(edit[0]);
-      writeFileSync(path, before.replace(edit[0], edit[1]));
-    }
+    const before = readFileSync(path, 'utf8');
+    if (edit) expect(before).toContain(edit[0]);
+    writeFileSync(path, edit ? before.replace(edit[0], edit[1]) : before);
     return root;
   };
 
-  it('keeps the switch, origin and group visible, and the key and token secret', () => {
-    expect(readEnvironment(repoRoot, 'preview').values.get('GITLAB_SYNC')).toBe('on');
-    expect(readEnvironment(repoRoot, 'production').values.get('GITLAB_SYNC')).toBe('off');
-    for (const name of ['preview', 'production']) {
-      const values = readEnvironment(repoRoot, name).values;
-      expect(values.get('GITLAB_URL')).toBe('https://git.yangtzeu.work');
-      expect(values.get('GITLAB_GROUP')).toBe('geek');
+  it('preserves the preview identity source and keeps production sync off after host migration', () => {
+    expect([...OIDC_GITLAB_SECRETS]).toEqual(['OIDC_JWKS', 'GITLAB_API_TOKEN']);
+    for (const [environment, mode] of [['preview', 'on'], ['production', 'off']]) {
+      const values = readEnvironment(repoRoot, environment).values;
+      expect(values.get('GITLAB_SYNC'), environment).toBe(mode);
+      expect(values.get('GITLAB_URL'), environment).toBe('https://git.yangtzeu.work');
+      expect(values.get('GITLAB_GROUP'), environment).toBe('geek');
+      for (const field of OIDC_GITLAB_SECRETS) {
+        expect(SECRET_FIELDS).toContain(field);
+        expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
+        expect(values.get(field), `${environment}: ${field}`).toBe('');
+      }
     }
-    for (const field of OIDC_GITLAB_SECRETS) {
-      expect(SECRET_FIELDS).toContain(field);
-      expect(REQUIRED_SECRET_FIELDS).not.toContain(field);
-    }
+  });
+
+  it('rejects invalid sync modes, insecure origins, malformed groups and committed credentials', () => {
     const failing: Array<[string, string, string, RegExp]> = [
       ['preview', '\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=yes\n', /GITLAB_SYNC 只能是 off \/ dry-run \/ on/],
       ['production', '\nGITLAB_SYNC=off\n', '\n', /缺少字段 GITLAB_SYNC/],
@@ -451,25 +547,28 @@ describe('OIDC signing key and GitLab sync (#270)', () => {
     const jwks = Buffer.from(JSON.stringify({ keys: [{ kty: 'RSA', d: 'x', n: 'y', e: 'AQAB' }] })).toString('base64');
     const on = render({ ...secrets, OIDC_JWKS: jwks, GITLAB_API_TOKEN: 'glpat-fixture-token' });
     expect(on.result).toMatchObject({ oidc: 'on', gitlabSync: 'off' });
+    expect(on.values.get('GITLAB_SYNC')).toBe('off');
     expect(on.values.get('OIDC_JWKS')).toBe(jwks);
     expect(on.values.get('GITLAB_API_TOKEN')).toBe('glpat-fixture-token');
     const off = render(without(secrets, [...OIDC_GITLAB_SECRETS]));
-    expect(off.result.oidc).toBe('off');
+    expect(off.result).toMatchObject({ oidc: 'off', gitlabSync: 'off' });
+    expect(off.values.get('GITLAB_SYNC')).toBe('off');
     expect(off.result.notices.join('\n')).toMatch(/OIDC_JWKS 为空：对外授权关闭/);
     for (const field of OIDC_GITLAB_SECRETS) expect(off.values.get(field)).toBe('');
     // JWK Set 的 JSON 原文带引号，环境文件不收
     expect(() => render({ ...secrets, OIDC_JWKS: '{"keys":[]}' })).toThrow(/OIDC_JWKS 含非法字符/);
-    // 预发布是 on，没有令牌拒绝渲染；dry-run 不要令牌；正式改成 on 时同样必须有令牌
-    expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'preview')).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
-    expect(render(secrets, 'preview').result.gitlabSync).toBe('on');
+    // preview 已是权威源；production 夹具显式开启，两个环境均验证缺 token 时拒绝渲染。
+    for (const environment of ['preview', 'production']) {
+      const enable: [string, string] | undefined = environment === 'production' ? ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n'] : undefined;
+      expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), environment, enable)).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
+      expect(render(secrets, environment, enable).result.gitlabSync).toBe('on');
+    }
     expect(render(without(secrets, ['GITLAB_API_TOKEN']), 'preview', ['\nGITLAB_SYNC=on\n', '\nGITLAB_SYNC=dry-run\n']).result.gitlabSync).toBe('dry-run');
-    expect(() => render(without(secrets, ['GITLAB_API_TOKEN']), 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n'])).toThrow(/GITLAB_SYNC=on 要 GITLAB_API_TOKEN/);
-    expect(render(secrets, 'production', ['\nGITLAB_SYNC=off\n', '\nGITLAB_SYNC=on\n']).result.gitlabSync).toBe('on');
   });
 });
 
 describe('optional mail secrets', () => {
-  const render = (env: Record<string, string>, environment = 'preview', edit?: [string, string]) => {
+  const render = (env: Record<string, string>, environment = 'preview', edit?: [string | RegExp, string]) => {
     const root = fixtureRoot();
     if (edit) {
       const path = join(root, `deploy/env/.env.${environment}`);
@@ -536,19 +635,17 @@ describe('optional mail secrets', () => {
 
   it('warns when the configuration can send nothing or cannot carry Reply-To', () => {
     // 改成只发名单、名单又是空的：发信开着，一封也发不出去。
-    const emptyList = render(without(secrets, ['MAIL_ALLOWLIST']), 'preview', ['\nMAIL_RECIPIENTS=all\n', '\nMAIL_RECIPIENTS=allowlist\n']);
+    const emptyList = render(without(secrets, ['MAIL_ALLOWLIST']), 'preview', [/^MAIL_RECIPIENTS=.*$/m, 'MAIL_RECIPIENTS=allowlist']);
     expect(emptyList.result.mail).toBe('on');
     expect(emptyList.result.notices.join('\n')).toMatch(/MAIL_RECIPIENTS=allowlist 而 MAIL_ALLOWLIST 为空/);
-    // 发给所有人时名单为空不用提示（两个环境现在都是这样）。
+    // 显式合成 all 模式：名单为空不应阻止发给所有人。
     for (const environment of ['preview', 'production']) {
-      expect(render(without(secrets, ['MAIL_ALLOWLIST']), environment).result.notices.join('\n')).not.toMatch(/MAIL_ALLOWLIST 为空/);
+      expect(render(without(secrets, ['MAIL_ALLOWLIST']), environment, [/^MAIL_RECIPIENTS=.*$/m, 'MAIL_RECIPIENTS=all']).result.notices.join('\n')).not.toMatch(/MAIL_ALLOWLIST 为空/);
     }
     // 只有阿里云时带不了 Reply-To，server 按没有配置发信商处理。
     const replyTo: [string, string] = ['MAIL_REPLY_TO=\n', 'MAIL_REPLY_TO=geek@example.com\n'];
     expect(render(without(secrets, ['MAIL_RESEND_API_KEY']), 'production', replyTo).result.notices.join('\n')).toMatch(/MAIL_REPLY_TO 不为空却只配了阿里云/);
     expect(render(secrets, 'production', replyTo).result.notices.join('\n')).not.toMatch(/MAIL_REPLY_TO 不为空/);
-    // 全部配齐时没有任何提示。
-    expect(render(secrets).result.notices).toEqual([]);
   });
 });
 

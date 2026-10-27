@@ -16323,7 +16323,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "e92bd45387ad43189b6dd5e79e69c9103063bc5c8d4c72cc5233d57585410dff",
+    "fingerprint": "91a3ebc6b15099740c6e45bdab1ac422c98258e8575a4fff4b288ce83a2b0e9a",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18215,11 +18215,11 @@
       },
       {
         "path": "deploy/compose/preview.yml",
-        "sha256": "f93533f4c975d6e6658fd21a5ff51ac79988b707216fe9e489a189755045e2cf"
+        "sha256": "46780c506bdcca3d58fed0e3040d10d7878c43df50098d782831b3cc3dea7999"
       },
       {
         "path": "deploy/compose/production.yml",
-        "sha256": "ee43ce2cc001e813712853b5102a9473a02dc9e7836f397f66b6bfd467b1efb5"
+        "sha256": "645b7492718b7f0d816ce3052f1787926022f8675fb9041699b3dde134987fb7"
       },
       {
         "path": "docs/architecture/API.md",
@@ -18251,11 +18251,11 @@
       },
       {
         "path": "docs/ops/BACKUP.md",
-        "sha256": "f30a00359b102165305a0e19662f4ca2987d8564780503fd09ddd26ee50dc5d0"
+        "sha256": "1e98849be1fed471722fb1147ffdcdc5e8f9d267a98e184de6b4c1e35c32e276"
       },
       {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "0212516ad0f55d43978cbcefdd62fb577f10659acc7ad3dad8ffe8724a3b8261"
+        "sha256": "fb71059e906ddb628c6bc056341883da92578dee0ef9d045fc1751084f53bcec"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -18271,7 +18271,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
+        "sha256": "a49dd0e2f934d50ee6bb92c07dd0a8bb3b58516b0e45a70ad4e7940d4b1131ca"
       },
       {
         "path": "docs/services/console/README.md",
@@ -18423,7 +18423,7 @@
       },
       {
         "path": "tests/e2e/workflows.spec.ts",
-        "sha256": "781d8c64ec536c52160396be5fd894c434744c2f90bf9588b1ea932e1cc7f337"
+        "sha256": "bab3df6ba042a886868dca67bad096f9a6d003681bfdd5f5290db0eabaebb427"
       },
       {
         "path": "tests/server/activity.test.ts",
