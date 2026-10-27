@@ -57,6 +57,7 @@ export type AccountClaims = {
   login: string; handle: string | null; github: { id: number; login: string; avatar_url: string | null } | null; email: string | null;
   emails: string[];
 };
+export type PublicIdentityFallback = { login: string; avatarUrl: string | null };
 /** #274：GitHub 登录和邮箱、Google 共用同一套结果（不再单独带 `accountId` 的拒绝分支，组织门槛已经去掉）。 */
 export type GithubSigninResult = SigninResult;
 /** 启动回填的计数，写进 `identity.backfill` 审计（规格「交付 1：回填」第 5 步）。 */
@@ -331,6 +332,12 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   const identityOf = db.prepare("SELECT id, user_id FROM identities WHERE provider = ? AND provider_uid = ?");
   const githubOfAccount = db.prepare("SELECT provider_uid, login, avatar_url FROM identities WHERE user_id = ? AND provider = 'github'");
+  const publicFallbackRows = db.prepare(`SELECT u.id AS account_id,
+      CASE WHEN g.login IS NOT NULL AND g.login <> '' THEN g.login
+        ELSE COALESCE(u.handle, 'yz_' || lower(substr(u.id, 1, 8))) END AS login,
+      CASE WHEN g.login IS NOT NULL AND g.login <> '' THEN g.avatar_url ELSE NULL END AS avatar_url
+    FROM users u LEFT JOIN identities g ON g.user_id = u.id AND g.provider = 'github'
+    WHERE u.status <> 'merged' AND u.id IN (SELECT value FROM json_each(?))`);
   const providerOfAccount = db.prepare("SELECT id FROM identities WHERE user_id = ? AND provider = ?");
   const accountRow = db.prepare(`SELECT id, status, org_state, org_role, handle, invite_code_id, canonical_email, password_hash, password_updated_at, created_at
     FROM users WHERE id = ?`);
@@ -359,6 +366,18 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     if (github?.login) return { login: github.login, userId: Number(github.provider_uid), avatarUrl: github.avatar_url };
     const row = accountRow.get(accountId) as { handle: string | null } | undefined;
     return { login: row?.handle ?? `yz_${accountId.slice(0, 8).toLowerCase()}`, userId: null, avatarUrl: null };
+  }
+
+  /**
+   * 公开资料缺昵称或上传头像时使用的当前账号绑定。批量只读，不建档、不返回邮箱、provider uid、状态或实名；
+   * 论坛历史作者投影用它避免逐账号调用 getAccountClaims()/sessionProfile()。
+   */
+  function publicFallbacks(accountIds: string[]): Map<string, PublicIdentityFallback> {
+    if (!accountIds.length) return new Map();
+    const rows = publicFallbackRows.all(JSON.stringify([...new Set(accountIds)])) as {
+      account_id: string; login: string; avatar_url: string | null;
+    }[];
+    return new Map(rows.map(row => [row.account_id, { login: row.login, avatarUrl: row.avatar_url }]));
   }
 
   /**
@@ -504,10 +523,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
    * 不看 org_state，那一列只记注册时有没有填邀请码（SPEC §3.2）。
    */
   function isMember(accountId: string): boolean {
-    const row = db.prepare(`SELECT u.status AS status, EXISTS (SELECT 1 FROM perm_members m WHERE m.account_id = u.id
-      AND m.group_id IN ('level.member', 'level.alumni') AND (m.expires_at IS NULL OR m.expires_at > ?)) AS in_class
-      FROM users u WHERE u.id = ?`).get(clock(), accountId) as { status: string; in_class: number } | undefined;
-    return row?.status === "active" && row.in_class === 1;
+    return membershipOf(accountId).member;
   }
 
   /**
@@ -594,20 +610,9 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
     }).immediate();
   }
 
-  /** 账号记下的成员资格与站内角色：不论用哪种方式登录，判成员和称号都用它（不调用 GitHub）。 */
-  /**
-   * #274 review round 1：`member` 不再看 `org_state`——那一列现在记的是「注册时有没有兑换邀请码」
-   * （见 insertUser/insertAccount 的改动），不是「这个账号算不算旧能力系统的成员」。旧能力系统（lib/access.ts、
-   * lib/roles.ts 的 computeAccess）靠这个 `member` 判断论坛等能力（forum-api/viewer.ts 的 forumViewer()），
-   * 从 #262 起的既定设计就是「任何正常账号都算成员，站内角色只决定多出来的能力」，不受邀请码影响；邀请码挡的是
-   * 新权限引擎的 `level.member` 组（SPEC §3.2），不是这里。任何没合并、没停用的账号都算，`orgRole` 仍然只认
-   * 账号自己记的站内角色（管理员/舰员），没有角色的普通账号为 null，不会因为这条改动多拿到任何能力。
-   */
+  /** 身份摘要与对外声明共用当前有效的直接成员资格，不读回滚专用的 org_state/org_role。 */
   function membershipOf(accountId: string): { member: boolean; orgRole: RecordedOrgRole } {
-    const row = accountRow.get(accountId) as { status: string; org_role: string | null } | undefined;
-    const member = row?.status === "active";
-    const orgRole = member && (row.org_role === "admin" || row.org_role === "member") ? row.org_role : null;
-    return { member, orgRole };
+    return membershipFromRow(claimsOf.get({ accountId, now: clock() }) as ClaimsRow | undefined);
   }
 
   /**
@@ -759,26 +764,32 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   // ── 对外授权与 GitLab 同步（#270）：只读 ──
   // #274 SPEC §3.2：邀请码选填之后，新建的账号按有没有有效邀请码写 org_state（'active' 或 'not_member'）——
-  // 组织那道门已经去掉，这一列不再代表真的 GitHub 组织成员资格，只给旧能力系统与历史数据兜底，详见 docs 里的
+  // 组织那道门已经去掉，这一列不再代表真的 GitHub 组织成员资格，只给回滚与历史数据兜底，详见 docs 里的
   // 「org_state 已弃用」说明。对外授权（OIDC、GitLab 同步）判定「是不是成员」必须另外看新权限引擎的
-  // level.member 组，不能再信 org_state。
+  // 有效的 level.member / level.alumni 直接成员资格，不能再信 org_state；owner 称号不替代成员身份。
   const claimsSelect = `SELECT u.id, u.status, u.org_state, u.org_role, u.handle, u.canonical_email,
       g.provider_uid AS github_id, g.login AS github_login, g.avatar_url,
-      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'level.member') AS is_level_member,
-      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'title.site.owner') AS is_site_owner
+      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id IN ('level.member', 'level.alumni')
+        AND (pm.expires_at IS NULL OR pm.expires_at > @now)) AS is_level_member,
+      EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = u.id AND pm.group_id = 'title.site.owner'
+        AND (pm.expires_at IS NULL OR pm.expires_at > @now)) AS is_site_owner
     FROM users u LEFT JOIN identities g ON g.user_id = u.id AND g.provider = 'github'`;
   type ClaimsRow = {
     id: string; status: "active" | "disabled" | "merged"; org_state: string; org_role: string | null; handle: string | null; canonical_email: string | null;
     github_id: string | null; github_login: string | null; avatar_url: string | null; is_level_member: 0 | 1; is_site_owner: 0 | 1;
   };
+  function membershipFromRow(row: ClaimsRow | undefined): { member: boolean; orgRole: RecordedOrgRole } {
+    const member = row?.status === "active" && row.is_level_member === 1;
+    return { member, orgRole: member ? (row!.is_site_owner === 1 ? "admin" : "member") : null };
+  }
   const toClaims = (row: ClaimsRow): AccountClaims => {
-    const member = row.status === "active" && row.is_level_member === 1;
+    const { member, orgRole } = membershipFromRow(row);
     return {
       account_id: row.id,
       status: row.status === "active" ? "active" : "disabled",
       member,
       // 站长看 title.site.owner 组，不看旧的 org_role：控制台里任命、撤销的站长要同步成 GitLab 的 Owner / Developer。
-      site_role: member ? (row.is_site_owner === 1 ? "admin" : "member") : null,
+      site_role: orgRole,
       login: row.github_login ?? row.handle ?? `yz_${row.id.slice(0, 8).toLowerCase()}`,
       handle: row.handle,
       github: row.github_id !== null && row.github_login ? { id: Number(row.github_id), login: row.github_login, avatar_url: row.avatar_url } : null,
@@ -786,7 +797,7 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
       emails: emailsOf(row.id, row.canonical_email),
     };
   };
-  const claimsOf = db.prepare(`${claimsSelect} WHERE u.id = ?`);
+  const claimsOf = db.prepare(`${claimsSelect} WHERE u.id = @accountId`);
   const emailsSelect = db.prepare("SELECT provider_uid FROM identities WHERE user_id = ? AND provider = 'email' ORDER BY created_at, rowid");
   /** 绑定的全部邮箱，主邮箱在前（#272）。 */
   function emailsOf(accountId: string, primary: string | null): string[] {
@@ -796,20 +807,20 @@ export function createIdentityStore(db: Database.Database, deps: IdentityDeps) {
 
   /** 一个账号的信息；账号不存在或已被合并（不是终点账号）时为 null。 */
   function getAccountClaims(accountId: string): AccountClaims | null {
-    const row = claimsOf.get(accountId) as ClaimsRow | undefined;
+    const row = claimsOf.get({ accountId, now: clock() }) as ClaimsRow | undefined;
     return row && row.status !== "merged" ? toClaims(row) : null;
   }
 
   /** 所有没被合并的账号，按建号先后。GitLab 同步按它对账：停用的、不是成员的也在里面，同步据此封禁。 */
   function listAccountsForSync(): AccountClaims[] {
-    return (db.prepare(`${claimsSelect} WHERE u.status <> 'merged' ORDER BY u.created_at ASC, u.id ASC`).all() as ClaimsRow[]).map(toClaims);
+    return (db.prepare(`${claimsSelect} WHERE u.status <> 'merged' ORDER BY u.created_at ASC, u.id ASC`).all({ now: clock() }) as ClaimsRow[]).map(toClaims);
   }
 
   return {
     signInWithGithub, recordSignout, accountForGithub,
     signInWithEmailCode, signInWithPassword, signInWithGoogle, passwordFor, passwordHashOf, setPassword, resetPassword, hasEmail, isMember, linkEmail, unlinkEmail, emailAddRefusal, hasGoogle, linkGoogle,
     membershipOf, accountView, provisionAccount, listAccounts, setSiteRole, githubIdentityByLogin, accountTarget,
-    getAccountClaims, listAccountsForSync,
+    getAccountClaims, listAccountsForSync, publicFallbacks,
   };
 }
 export type IdentityStore = ReturnType<typeof createIdentityStore>;

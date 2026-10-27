@@ -28,8 +28,8 @@ const trimmed = computed(() => query.value.trim())
 const local = computed(() => forum.searchAll(trimmed.value))
 /** The server's answer for the current term; `null` while it is on its way. */
 const remote = ref<SearchResults | null>(null)
-/** Terms already asked for, newest last: only the latest answer is kept. */
-let asked = ''
+/** Each request, including an unchanged term under a new viewer, supersedes the last. */
+let asked = 0
 
 // The server holds every body (#156): scanning `state` there would match
 // summaries only, never the whole post, so that mode waits for the answer.
@@ -44,20 +44,18 @@ function postText(post: Post): string {
 }
 
 async function load(term: string) {
+  const request = ++asked
   if (!serverMode) {
     remote.value = null
     return
   }
-  if (!term) {
-    asked = ''
+  if (!term || server.status !== 'ready') {
     remote.value = EMPTY_RESULTS
     return
   }
-  asked = term
   remote.value = null
   const answer = await server.search(term)
-  // A newer term was asked for while this one was out: drop the stale answer.
-  if (asked !== term)
+  if (asked !== request)
     return
   remote.value = answer ?? EMPTY_RESULTS
 }
@@ -72,6 +70,11 @@ const syncQuery = useDebounceFn((value: string) => {
 
 watch(trimmed, (value) => {
   syncQuery(value)
+})
+
+// Search results live on this page, not in the forum state: an identity reset
+// must clear them too, and the same query is asked again only after /state.
+watch([trimmed, () => server.projectionVersion, () => server.status], ([value]) => {
   void load(value)
 }, { immediate: true })
 

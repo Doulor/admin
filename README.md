@@ -46,7 +46,7 @@
 
 ## 一句话
 
-`geek_main` 是极客班的统一仓库：`app/` 下四个服务，`docs/` 下全部规范，`deploy/` 下两套一模一样的 Docker 栈（正式、预发布）。包名沿用 `yzgc-admin`、`@yzgc/web`、`@yzgc/server`，不为改名而改名。
+`geek_main` 是极客班的统一仓库：`app/` 下五个源码应用（含 Rust CLI），`docs/` 下全部规范，`deploy/` 下两套一模一样的 Docker 栈（正式、预发布）。包名沿用 `yzgc-admin`、`@yzgc/web`、`@yzgc/server`，不为改名而改名。
 
 > [!IMPORTANT]
 > **每个环境是一套互相隔离的完整 Docker 栈**：web、server（Fastify 与本环境的 SQLite）、forum。官网、控制台和论坛共用 GitHub 登录及 host-only `sid`；论坛发帖、回复、资料、通知等数据由核心 `/api/forum/*` 提供，并非只有浏览器存储。本机演示和只读快照是另外的运行模式，不作为真实认证或持久化证据。登录后的 3D Hub 尚未实现。当前线上运行的版本以目标环境 `/release.json` 和对应验收记录为准，不由当前分支或本页推断。
@@ -65,9 +65,10 @@
 | 服务 | 目录 | 做什么 | 技术 | 服务文档 |
 |---|---|---|---|---|
 | 官网 portal | `app/web` | 3D 书桌 → 开机进 YUGC OS 桌面；加入我们（信封投递）、论坛与 GitHub 场景、文档、意见箱、邀请落地 | React 18 · Vite 6 · three.js 0.186 | [web](docs/services/web/README.md) · [portal](docs/services/web/portal.md) |
-| 控制台 console | `app/console` | 用 GitHub 登录，按称号显示页面：投递、成员与权限、意见箱、审计、GitHub 组织管理 | Vue 3.5 · Tuffex 0.6 · Vite 7 | [console](docs/services/console/README.md) |
+| 控制台 console | `app/console` | 统一登录、权限节点与部门范围：投递、用户与权限、意见箱、操作记录、GitLab 运维 | Vue 3.5 · Tuffex 0.6 · Vite 7 | [console](docs/services/console/README.md) |
 | 论坛 forum | `app/forum` | 基于 MIT 许可的 Tuff Forum，接核心论坛接口；本机另有演示与只读快照模式 | Nuxt 4 · Vue 3 · Tuffex 0.6 · Node ≥26 · pnpm 11.24.0 | [forum](docs/services/forum/README.md) |
-| 后端 server | `app/server` | GitHub OAuth 登录、会话、邀请链接、投递、意见箱、控制台与论坛接口 | Fastify 5 · better-sqlite3 · Node 22 | [server](docs/services/server/README.md) |
+| 后端 server | `app/server` | 统一账号与会话、权限节点、OIDC/GitLab 同步、投递、比赛、控制台与论坛接口 | Fastify 5 · better-sqlite3 · Node 22 | [server](docs/services/server/README.md) |
+| 命令行 CLI | `app/cli` | `geek` 的 RFC 8628 登录、论坛/比赛/仓库命令与 Agent 技能；产物随 web 的 `/cli/` 分发，不另成运行容器 | Rust/Cargo，独立于两套 Node 工具链 | [CLI](docs/services/cli/README.md) |
 
 | 状态 | 内容 |
 |---|---|
@@ -81,11 +82,11 @@
 
 <div align="center">
 
-<img src="docs/assets/readme/architecture.webp" alt="浏览器 → 宿主 nginx（TLS）→ 每个环境一套 Docker 栈：web 容器按路径分给 portal、console、forum、server" width="720" />
+<img src="docs/assets/readme/architecture.webp" alt="迁移前的宿主 nginx 与双栈架构" width="720" />
 
 </div>
 
-每个环境只有一个域名，按路径分：`/` 官网，`/console` 控制台（旧的 `/admin` 跳过去），`/forum/` 论坛，`/api`、`/auth` 后端。`web` 容器提供统一入口，server 另有宿主回环调试端口；TLS 由宿主 nginx 终止。细节见 [ARCHITECTURE](docs/architecture/ARCHITECTURE.md) 与 [DEPLOY](docs/ops/DEPLOY.md)。
+每个环境只有一个域名，按路径分：`/` 官网、`/console` 控制台、`/forum/` 论坛、`/api`/`/auth` 后端。上图记录迁移前链路；现行入口是香港 Caddy → `ssh -w` 隧道 → Arch web nginx → server。DNS 过渡期间旧 Nginx 只转发香港；Caddy 重建可信客户端地址，后端保持 `TRUST_PROXY=2`，Arch 不叠宿主 nginx。运行证据和限制见 [DEPLOY](docs/ops/DEPLOY.md)。
 
 ---
 
@@ -95,6 +96,7 @@
 
 - 核心（web / console / server）：`.nvmrc` 里的 Node 22（至少 22.13），pnpm 9.15.9。
 - 论坛：Node ≥26，pnpm 11.24.0，只经根目录的 `forum:*` 命令使用，不混进核心依赖。
+- CLI：独立 Cargo 工具链，不是 Node workspace 包；根目录运行 `pnpm cli:build`、`pnpm cli:test`、`pnpm cli:dist`，源码、锁文件和内嵌技能都在 `app/cli/`。分发与安装见 [CLI 合同](docs/services/cli/README.md)。
 - 切换 Node 后不要复用另一个版本编译出的 SQLite 二进制。论坛工具链的准备见 [TUFF-FORUM](docs/ops/TUFF-FORUM.md)。
 
 ### 2. 安装并打开
@@ -176,18 +178,26 @@ issue ──▶ task/<issue>/<slug>（独立 worktree）──▶ PR → stage �
 
 ## 部署
 
-同一台机器两套 Docker 栈，目录、compose 项目、网络、数据卷、端口、密钥全部分开：
+2026-10-26 两套原版 Linux Docker 栈已迁入 Arch，六容器健康；Arch 只作 Docker 宿主，目录、项目、网络、卷和应用密钥按环境分开。
 
-| 环境 | 发布 tag（提交所在分支） | 栈根 | 入口 | web 宿主端口 |
-|---|---|---|---|---|
-| production | `vX.Y.Z`（`main`） | `/opt/yzgc/production` | `https://yangtzeu.work` | `127.0.0.1:18100` |
-| preview | `vX.Y.Z-rc.N`（`stage`） | `/opt/yzgc/preview` | `https://prev.yangtzeu.work` | `127.0.0.1:18200` |
+| 环境 | Arch 正在运行 | 入口 | web 私有端口 |
+|---|---|---|---|
+| production | `v0.1.0` / `d4a24749d077` | `https://yangtzeu.work` | `10.66.0.2:18100` |
+| preview | `v0.1.1-rc.25` / `02cb751c0b83` | `https://prev.yangtzeu.work` | `10.66.0.2:18200` |
 
-- 镜像按环境分仓库：`yzgc-production/{server,web,forum}:<sha12>` 与 `yzgc-preview/{server,web,forum}:<sha12>`；回滚就是切回更早发布 tag 的镜像。
-- 环境变量只在 `deploy/env/.env.<环境>`；密钥留空，真实值只在目标机，由 CI/CD 的环境级 secrets 填。
-- 部署开关：`DEPLOY_PREVIEW_ENABLED` 已打开，打 rc tag 就部署预发布；`DEPLOY_PRODUCTION_ENABLED` 也已打开（2026-09-27 起），打正式 tag 后由 `deploy-production.yml` 经 `production` 环境的审批部署；`scripts/deploy-manual.mjs` 只在 GitHub 计划让部署 job 按设计失败关闭时作退路，部署同一 tag 的 CI 产物。不用 systemd、pm2 或手工 node 进程代替 Docker 栈。
+- 原镜像、完整卷、会话与身份密钥分别保全并核对；Arch 为唯一写入源。旧应用及旧看护已停止，旧 VPS 只保留 HTTPS 转发、兼容跳转及恢复资料。
+- DNS 未修改，由所有者后续指向香港 `156.238.244.78`，不是 Arch 私有地址。两域名新旧入口 52 项路径与 20 次交替 SNI 检查通过。
+- GitHub 双环境已更新 10 项 SSH 配置并同步 22 项原应用 secret，补齐预发布 Google/OIDC/GitLab 配置；共享 `ssh-config` 生成的严格跳板配置已实测 SSH/SCP。个人私钥不进入 CI。
+- 本机 `ssh yzgc`、`crosery-ct service yzgc` 指向 Arch；后续发布不再使用旧 VPS。原版应用没有升级，新工作流源码仍待集成，未执行新 Actions 发布或补推 tag。
+- 现有 task270 与 GitHub stage 相差 2,363 个文件，宏观声明同号冲突与历史 notes 门禁仍阻塞合并；未覆盖历史记录或降低检查。
 
-操作步骤：[DEPLOY](docs/ops/DEPLOY.md) · [ENVIRONMENTS](docs/ops/ENVIRONMENTS.md) · [CICD](docs/ops/CICD.md)。
+操作合同：[DEPLOY](docs/ops/DEPLOY.md) · [ENVIRONMENTS](docs/ops/ENVIRONMENTS.md) · [CICD](docs/ops/CICD.md) · [平台备份/恢复](docs/ops/BACKUP.md) · [旁路 GitLab](docs/ops/GITLAB.md)。平台与 GitLab 备份分别验收，旧宿主看护含全局清理，不能原样装进 Arch timer。
+
+### CLI 元数据与迁移验收
+
+现行 CLI 在 `app/cli`，不以旧 `../geek_cli` 的实现替换。`--env` 优先于 `GEEK_ORIGIN`，每次调用独立选择，默认正式；预发布示例使用 `geek --env preview whoami --json`，不因先执行 preview login 就假定后续仍选 preview。该命令会访问服务端，本次文档任务未执行真实登录/API。
+
+凭据优先系统 keyring，文件退路由系统配置目录决定：macOS 为 `~/Library/Application Support/geek/credentials`，Linux 默认 `~/.config/geek/credentials`（支持 XDG）。`GEEK_TOKEN` 不落盘；不复制个人凭据进行迁移。产物安装/hash、跨平台发布缺口、Cargo 包元数据和真实 harness 验收边界见 [CLI 合同](docs/services/cli/README.md)。
 
 ---
 

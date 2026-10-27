@@ -96,6 +96,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
     storage.db.close();
     throw error;
   }
+  const profiles = createAccountProfiles(storage.db, { clock: overrides.clock });
   // 论坛内容读不出来就让启动失败，不带着半份论坛上线；失败前先关掉刚打开的库。
   const forum = (() => {
     try {
@@ -104,6 +105,8 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
         orgLogins: () => [...roles.listAssignments().map(row => row.github_login), ...auth.signedInLogins()],
         // 表情图片地址（#286）：STATIC_CDN_BASE 打开时，仓库内置的表情是 CDN 地址，站长在控制台上传的仍是同源地址。
         stickerUrl: createStickerUrl({ cdnBase: config.staticCdnBase, manifest: storage.stickerManifest }),
+        profiles,
+        identity,
       });
       store.seed();
       return store;
@@ -121,7 +124,6 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
       throw error;
     }
   })();
-  const profiles = createAccountProfiles(storage.db, { clock: overrides.clock });
   // 对外授权与 GitLab 同步（#270，#274 改成读统一资料 account_profiles）：账号目录把账号和统一资料拼起来；
   // OIDC_JWKS 没设时不开 /oidc（oidc 为 null）。
   const oidcStore = createOidcStore(storage.db, crypto, overrides.clock);
@@ -151,7 +153,7 @@ export function createServices(config: AppConfig, overrides: ServiceOverrides = 
   // GitLab 贡献收集（#278）：复用 gitlab-sync 的令牌与请求函数，定时器由 buildApp 的 gitlabSync 决定开不开（和账号同步一起）。
   const competitionCandidates = createCompetitionCandidates(storage.db, {
     competitions, signups: competitionSignups, scores: competitionScores, rules: competitionRules, gitlab,
-    canReview: accountId => permissions.check(accountId, "competition.score.review"),
+    canReview: accountId => identity.getAccountClaims(accountId)?.status === "active" && permissions.check(accountId, "competition.score.review"),
     audit: storage.audit, onScoresChanged: id => cache.invalidate(publicCachePrefix(id)), clock: overrides.clock,
   });
   return {

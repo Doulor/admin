@@ -84,15 +84,10 @@ if (!topic.value) {
 
 useHead({ title: () => topic.value?.title ?? '话题' })
 
-// The Markdown twin for AI readers (server/middleware/forum-markdown.ts). Only
-// advertised where a file exists: every topic of the dev server's snapshot,
-// otherwise the topics the static build wrote (`markdownTopicIds` from
-// nuxt.config.ts: the seed topics, none for 极客班论坛 yet). A topic started
-// in this browser lives in localStorage alone and has none. The list comes
-// from the runtime config rather than the seed module, so a 极客班论坛 build
-// does not bundle the demo topics for this check.
+// Site topics always have a dynamic Markdown twin in core; snapshot and demo
+// keep their existing local/static contracts.
 const { app: { baseURL }, public: { markdownTopicIds } } = useRuntimeConfig()
-const markdownHref = computed(() => (topic.value && (isSnapshot || markdownTopicIds.includes(topic.value.id))
+const markdownHref = computed(() => (topic.value && (serverMode || isSnapshot || markdownTopicIds.includes(topic.value.id))
   ? `${baseURL}${topicMarkdownPath(topic.value.id)}`
   : undefined))
 useHead({

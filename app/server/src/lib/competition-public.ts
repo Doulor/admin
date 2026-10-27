@@ -3,6 +3,7 @@
 // 只给公开字段：昵称、@用户名、头像、队名、分数、贡献标题与链接、时间。不给邮箱、account_id、真实姓名、IP，
 // 扣分不给原因。人的展示资料取统一资料 account_profiles（用户名、显示名、头像），没上传头像时用 GitHub 头像。
 // 定榜之后个人名次换成定榜快照里的严格名次（和发奖用的一致），定榜前同分并列（1,1,3）。
+import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 import { avatarPath } from "./account-profiles.js";
 import { toPublicCompetition, type CompetitionRecord, type CompetitionStore } from "./competition-store.js";
@@ -58,10 +59,10 @@ function decodeCursor(cursor: string): { at: number; id: string } | null {
   const match = /^([0-9]{1,15}):([0-9a-f-]{36})$/.exec(text);
   return match ? { at: Number(match[1]), id: match[2] } : null;
 }
-/** 人员分页的游标：account_id 是 26 位 Crockford Base32（`newAccountId`），不是贡献动态那 36 位的 UUID。 */
+/** 人员游标只含本场比赛隔离的单向摘要，不能把内部 account_id 编成 base64 下发。 */
 function decodeParticipantCursor(cursor: string): { at: number; id: string } | null {
   const text = Buffer.from(cursor, "base64url").toString("utf8");
-  const match = /^([0-9]{1,15}):([0-9A-Z]{1,32})$/.exec(text);
+  const match = /^([0-9]{1,15}):([0-9a-f]{64})$/.exec(text);
   return match ? { at: Number(match[1]), id: match[2] } : null;
 }
 
@@ -203,21 +204,23 @@ export function createCompetitionPublic(db: Database.Database, deps: {
 
   /**
    * 人员（#278 站点包的「人员」接口）：已报名、未取消的全部参赛者，不是只有拿过分的人（和天梯不同）。
-   * 按报名时间升序分页，和贡献动态一样用 `created_at:account_id` 游标；一页最多 `PARTICIPANTS_PAGE_MAX` 条。
+   * 按报名时间、比赛内摘要升序分页；一页最多 `PARTICIPANTS_PAGE_MAX` 条。
    */
   function participants(competitionId: string, cursor: string | null, limit = PARTICIPANTS_PAGE_SIZE): PublicParticipants | null {
     if (!visible(competitionId)) return null;
     const size = Math.min(Math.max(1, limit), PARTICIPANTS_PAGE_MAX);
-    const all = deps.signups.activeSignups(competitionId);
+    const all = deps.signups.activeSignups(competitionId).map(row => ({
+      ...row, cursor_id: createHash("sha256").update(`${competitionId}:${row.account_id}`).digest("hex"),
+    })).sort((a, b) => a.created_at - b.created_at || a.cursor_id.localeCompare(b.cursor_id));
     const after = cursor ? decodeParticipantCursor(cursor) : null;
-    const start = after ? all.findIndex(row => row.created_at > after.at || (row.created_at === after.at && row.account_id > after.id)) : 0;
+    const start = after ? all.findIndex(row => row.created_at > after.at || (row.created_at === after.at && row.cursor_id > after.id)) : 0;
     const slice = start < 0 ? [] : all.slice(start, start + size + 1);
     const page = slice.slice(0, size);
     const departments = departmentsOf(page.map(row => row.account_id), Date.now());
     const last = page[page.length - 1];
     return {
       items: page.map(row => ({ ...personOf(row.account_id), department: departments.get(row.account_id) ?? null })),
-      next_cursor: slice.length > size && last ? encodeCursor(last.created_at, last.account_id) : null,
+      next_cursor: slice.length > size && last ? encodeCursor(last.created_at, last.cursor_id) : null,
     };
   }
 

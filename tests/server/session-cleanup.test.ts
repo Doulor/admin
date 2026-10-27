@@ -62,6 +62,27 @@ async function rawApp(sessionCleanup: boolean) {
 }
 
 describe('expired sessions are deleted without waiting for their owner to come back (#128)', () => {
+  it('rejects an authenticated request exactly when its seven-day session expires', async () => {
+    const { app, time } = await setup();
+    const sid = signIn(app, 'boundary-user', 3101, null, '');
+    const headers = { cookie: `sid=${sid}` };
+    time.advance(7 * 24 * 60 * 60 * 1000 - 1);
+    expect((await app.inject({ url: '/api/identity/me', headers })).statusCode).toBe(200);
+    time.advance(1);
+    expect((await app.inject({ url: '/api/identity/me', headers })).statusCode).toBe(401);
+    expect((await app.inject({ url: '/auth/me', headers })).json().signed_in).toBe(false);
+  });
+
+  it('actively removes a session at its exact expiry without removing a newer session', async () => {
+    const { app, auth, time } = await setup();
+    signIn(app, 'boundary-user', 3101, null, '');
+    time.advance(1);
+    const fresh = signIn(app, 'newer-user', 3102, null, '');
+    time.advance(7 * 24 * 60 * 60 * 1000 - 1);
+    expect(auth.cleanupExpiredSessions()).toEqual({ deleted: 1, walTruncated: true });
+    expect((await app.inject({ url: '/api/identity/me', headers: { cookie: `sid=${fresh}` } })).statusCode).toBe(200);
+  });
+
   it('deletes the expired rows and leaves the unexpired ones alone', async () => {
     const { app, auth, db, time, rows } = await setup();
     const stale = signIn(app, 'stale-user', 1, null, 'token-stale');

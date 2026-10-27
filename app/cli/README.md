@@ -4,6 +4,9 @@
 
 ## 安装
 
+唯一现行源码与分发入口是本 monorepo 的 `app/cli/` 与 `scripts/cli-dist.mjs`；
+安装不依赖另外检出独立 CLI 仓库，也不依赖本机源码目录。
+
 ```bash
 # macOS / Linux
 curl -fsSL https://yangtzeu.work/cli/install.sh | sh
@@ -22,15 +25,17 @@ macOS 二进制未签名：curl 下载的文件没有 Gatekeeper 隔离属性，
 ## 上手
 
 ```bash
-geek login --env preview   # 设备码登录（动画 + 用户码），浏览器确认后显示头像、昵称、部门
-geek status --json         # 本机登录状态：令牌来自哪一层、服务端连不连得上、令牌是否有效（不要求已登录）
-geek whoami --json         # 看登录信息
-geek forum list --json     # 板块与话题摘要
-geek comp list --json      # 公开比赛列表
-geek logout                # 撤销令牌、清掉本机凭据
+geek --env preview login              # 设备码登录（动画 + 用户码），浏览器确认后显示头像、昵称、部门
+geek --env preview status --json      # 本机登录状态：令牌来自哪一层、服务端连不连得上、令牌是否有效（不要求已登录）
+geek --env preview whoami --json      # 看登录信息
+geek --env preview forum list --json  # 板块与话题摘要
+geek --env preview comp list --json   # 公开比赛列表
+geek --env preview logout             # 撤销令牌、清掉本机凭据
 ```
 
-默认源站生产 `https://yangtzeu.work`；`--env preview` 或 `GEEK_ORIGIN=https://prev.yangtzeu.work` 切到预发布。令牌存进系统钥匙串，没有钥匙串时退到 `~/.config/geek/credentials`（0600）。
+源站优先级：`--env production|preview` > `GEEK_ORIGIN` > 默认生产 `https://yangtzeu.work`。每次调用独立选择环境，不会记住上一次 `login` 的选择；上述预发布命令每次都要带 `--env preview`。
+
+令牌存进系统钥匙串，不可用时退到系统配置目录下的 `geek/credentials`（Unix 权限 0600）。macOS 为 `~/Library/Application Support/geek/credentials`；Linux 为 `$XDG_CONFIG_HOME/geek/credentials`（未设置时为 `~/.config/geek/credentials`）。
 
 ## 命令一览
 
@@ -77,9 +82,24 @@ geek skill install [--target claude|codex|omp|all]      给 agent 装极客班�
 ```bash
 geek skill install --target claude   # 写到 ~/.claude/skills/geek
 geek skill install --target codex    # 写到 ~/.codex/skills/geek
-geek skill install --target omp      # 写到 ~/.omp/skills/geek
+geek skill install --target omp      # 写到 ~/.omp/agent/skills/geek
 geek skill install --target all      # 三个都装
 ```
+
+安装时沿用各 harness 的目录覆盖：`CLAUDE_CONFIG_DIR`、`CODEX_HOME`、
+`PI_CODING_AGENT_DIR` 分别替代对应的配置根目录，技能放在该目录的
+`skills/geek/SKILL.md`。空值使用默认目录，`CLAUDE_CONFIG_DIR` 先去除首尾空白。
+
+OMP 的命名 profile（`OMP_PROFILE`，未设置时兼容 `PI_PROFILE`）优先于
+`PI_CODING_AGENT_DIR`，写入 `~/.omp/profiles/<profile>/agent/skills/geek`；
+`default` profile 仍使用默认 agent 目录或显式 `PI_CODING_AGENT_DIR`。
+`PI_CONFIG_DIR` 可替换 HOME 下的 `.omp` 配置目录名。相对目录相对于运行命令的目录，
+OMP 的目录覆盖不展开字面量 `~`。这些设置只影响这次安装，不修改用户的全局 profile 或配置。
+
+已有 `SKILL.md`、文件符号链接及 `geek` 目录符号链接一律保留，不覆盖自定义技能，
+也不迁移或删除旧的 `~/.omp/skills/geek`。重复安装不会重写文件。
+`--json` 返回 `{ "ok": true, "data": { "installed": [...], "skipped": [...] } }`：
+`installed` 仅列出本次新建的文件，`skipped` 列出保留的已有目标；文件系统错误仍非零退出。
 
 ## 鉴权与权限
 
@@ -93,18 +113,18 @@ geek skill install --target all      # 三个都装
 
 | 变量 | 作用 |
 |---|---|
-| `GEEK_ORIGIN` | 覆盖源站（优先于 `--env`） |
+| `GEEK_ORIGIN` | 未指定 `--env` 时覆盖默认源站，优先级低于 `--env` |
 | `GEEK_TOKEN` | 跳过本地存储，临时用指定令牌（CI/agent 友好，不落盘） |
-| `GEEK_NO_KEYRING` | 设为任意非空值时跳过系统钥匙串，只用文件存储（无图形会话的环境） |
+| `GEEK_NO_KEYRING` | 变量存在时跳过系统钥匙串，只用文件存储（无图形会话的环境） |
 | `NO_COLOR` | 设置后登录动画不画，输出不带颜色 |
 
 ## 开发
 
 ```bash
-cargo build
-cargo test
-cargo fmt --check && cargo clippy --all-targets -- -D warnings
-node ../../scripts/cli-dist.mjs   # 交叉编译全部发布目标，产出 ../../dist/cli/
+pnpm cli:build                   # 仓库根目录；Cargo locked，jobs=2
+pnpm cli:test                    # 串行测试，设备协议测试需要允许 loopback
+CARGO_BUILD_JOBS=2 pnpm check:cli # 格式、Clippy、测试；不放宽 lint
+pnpm cli:dist                    # 交叉编译全部发布目标，产出 dist/cli/
 ```
 
 ## 已知限制

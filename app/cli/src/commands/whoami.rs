@@ -7,7 +7,9 @@ use serde_json::Value;
 struct Whoami {
     account_id: String,
     login: String,
+    username: Option<String>,
     nickname: Option<String>,
+    bio: Option<String>,
     avatar_url: Option<String>,
     department: Option<String>,
     /// 年级（「大二」「已毕业」之类），服务端按入学年份现算；没补过资料时是 null。真实姓名不在这
@@ -22,7 +24,8 @@ struct Whoami {
 }
 
 /// `GET /auth/device/userinfo` 对任何有效令牌都能用，带 `email_required`/`profile_required`
-/// （#280）；`GET /api/console/me` 多给昵称与部门，但账号没绑邮箱或没补资料时会被同一个关口
+/// （#280）；公开资料优先读 userinfo，旧后端的昵称和部门从 `GET /api/console/me` 补，
+/// 但账号没绑邮箱或没补资料时会被同一个关口
 /// （bearer-auth.ts 的 `gateRefusal`）挡住——这两种情况直接按 userinfo 的旗子跳过，不发一个
 /// 注定 403 的请求。
 pub async fn run(ctx: &Context, json: bool) -> i32 {
@@ -92,25 +95,28 @@ async fn build(ctx: &Context) -> Outcome {
         .and_then(Value::as_bool)
         .unwrap_or(false);
 
-    let mut nickname = None;
+    let username = user
+        .get("username")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let mut nickname = user
+        .get("display_name")
+        .and_then(Value::as_str)
+        .filter(|name| !name.trim().is_empty())
+        .map(str::to_string);
+    let bio = user.get("bio").and_then(Value::as_str).map(str::to_string);
     let mut department = None;
     if !email_required && !profile_required {
         if let Ok(crate::api::ApiOutcome::Ok(me)) =
             client.get_json::<Value>("/api/console/me").await
         {
-            // 新账号还没填过资料时 display_name 是空字符串（服务端真实行为）：落到登录名。
-            nickname = me
-                .get("display_name")
-                .and_then(Value::as_str)
-                .filter(|name| !name.trim().is_empty())
-                .map(str::to_string)
-                .or_else(|| {
-                    if login.is_empty() {
-                        None
-                    } else {
-                        Some(login.clone())
-                    }
-                });
+            if nickname.is_none() {
+                nickname = me
+                    .get("display_name")
+                    .and_then(Value::as_str)
+                    .filter(|name| !name.trim().is_empty())
+                    .map(str::to_string);
+            }
             department = me
                 .get("department")
                 .and_then(|value| value.get("name"))
@@ -118,6 +124,7 @@ async fn build(ctx: &Context) -> Outcome {
                 .map(str::to_string);
         }
     }
+    let nickname = nickname.or_else(|| (!login.is_empty()).then_some(login.clone()));
     let gate_code = if email_required {
         Some("email_required")
     } else if profile_required {
@@ -130,7 +137,9 @@ async fn build(ctx: &Context) -> Outcome {
     Outcome::ok(&Whoami {
         account_id,
         login,
+        username,
         nickname,
+        bio,
         avatar_url,
         department,
         grade_label,
@@ -153,11 +162,21 @@ fn render(data: &Value) {
     let department = data.get("department").and_then(Value::as_str);
     let grade_label = data.get("grade_label").and_then(Value::as_str);
     println!("登录名：{login}");
+    if let Some(username) = data.get("username").and_then(Value::as_str) {
+        println!("用户名：{username}");
+    }
     if let Some(nickname) = nickname {
         println!("昵称：{nickname}");
     }
     if let Some(department) = department {
         println!("部门：{department}");
+    }
+    if let Some(bio) = data
+        .get("bio")
+        .and_then(Value::as_str)
+        .filter(|bio| !bio.is_empty())
+    {
+        println!("简介：{bio}");
     }
     if let Some(grade_label) = grade_label {
         println!("年级：{grade_label}");

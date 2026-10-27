@@ -1,0 +1,288 @@
+{
+  "version": 1,
+  "issue": 274,
+  "kind": "business",
+  "summary": "操作记录像埋点一样覆盖全端（#274 重开后的收尾）：修好控制台操作记录页因为多传 limit 被服务端 activityQuery 契约拒绝的 400；POST /api/events 按来源（门户/论坛/控制台）分白名单，论坛和控制台各补上页面浏览等埋点；补上表情回应此前缺失的审计记录；控制台操作记录页的来源筛选与动作文案同步覆盖这些新动作。",
+  "applications": [
+    "console",
+    "forum",
+    "server"
+  ],
+  "domains": [
+    "audit",
+    "forum",
+    "permissions",
+    "identity",
+    "platform",
+    "organization",
+    "recruitment",
+    "feedback",
+    "competitions",
+    "gitlab",
+    "github",
+    "public_content"
+  ],
+  "flows": [
+    "flow:audit.events.report",
+    "flow:audit.console.activity.list",
+    "flow:forum.reactions.add",
+    "flow:forum.reactions.remove",
+    "flow:console.summary",
+    "flow:identity.callback",
+    "flow:documentation.list",
+    "flow:console.identity",
+    "flow:application.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "操作记录从只认门户、只有部分写路径补齐成按来源分流且三端都有埋点：事件白名单拆成门户/论坛/控制台三份，论坛和控制台新增埋点上报，表情回应补上缺失的审计写入，控制台操作记录页同步按真实服务端契约取数。",
+      "evidence": [
+        "app/server/src/lib/activity.ts",
+        "app/console/src/router.ts",
+        "app/forum/app/plugins/activity-beacon.client.ts"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "POST /api/events 的 body 加可选 surface 字段并按来源选白名单；forum-api/posts.ts 的表情回应新增与取消各补一次 recordActivity 写入。",
+      "evidence": [
+        "app/server/src/lib/activity.ts",
+        "app/server/src/routes/portal/events.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/forum-api/posts.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不新增、不修改任何权限节点、角色判定或可见范围；事件按来源分流和表情回应补审计都不改变原有的身份与授权判断。",
+      "evidence": [
+        "app/server/src/lib/activity.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "activity_events 表结构不变，只是新增写入点（forum.react）和按来源分流的白名单逻辑，不新增或修改表、列、索引或外键。",
+      "evidence": [
+        "app/server/src/lib/activity.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新增或升级任何依赖，论坛与控制台的埋点复用已有的 fetch keepalive 批量上报模式，不引入新包。",
+      "evidence": [
+        "app/server/src/routes/portal/events.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "服务端、控制台、论坛三份服务文档同步写上新模块、新埋点位置和按来源分流的说明；endpoint-contracts.md 改写 /api/events 一节并修正一处过期的匿名限流描述。",
+      "evidence": [
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/console/README.md",
+        "docs/services/forum/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增/更新的回归测试覆盖：控制台不再传 limit 且拒绝未知查询字段、按来源过滤、事件按 surface 分流与未知 surface 拒绝、表情回应落审计行、论坛换主题与插表情上报、埋点节流与刷新。",
+      "evidence": [
+        "tests/console/activity.test.ts",
+        "tests/server/events.test.ts",
+        "tests/server/forum.test.ts",
+        "app/forum/tests/activity-beacon.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "not-applicable",
+      "reason": "不改动部署配置、CI 工作流、Dockerfile 或构建配置，只是服务端/控制台/论坛三个应用内部的业务代码与文档改动，发布链路不变。",
+      "evidence": [
+        "app/forum/Dockerfile"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/console/src/lib/events.ts",
+        "app/console/src/pages/Activity.vue",
+        "tests/console/activity.test.ts"
+      ],
+      "domains": [
+        "audit"
+      ],
+      "nodes": [
+        "domain:audit",
+        "application:console"
+      ],
+      "reason": "控制台操作记录页改成不传 limit、按服务端 activityQuery 契约的字段集拼查询串；新增控制台页面浏览埋点库 lib/events.ts；回归测试覆盖越界查询被拒绝、按来源筛选论坛/控制台与不再传 limit。"
+    },
+    {
+      "paths": [
+        "app/console/src/lib/activity.ts",
+        "app/console/src/mock/console.ts",
+        "app/console/src/router.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "github",
+        "organization",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:github",
+        "domain:organization",
+        "domain:recruitment",
+        "application:console"
+      ],
+      "reason": "lib/activity.ts（查询串与动作文案）、mock/console.ts（整份 mock 后端）、router.ts（整份路由表）按模块归属覆盖控制台已有的六个业务域；这次改动只在查询参数、未知字段校验（和服务端 activityQuery 契约对齐）与一行页面浏览埋点上报里，其余五个域的现有行为不变。"
+    },
+    {
+      "paths": [
+        "app/forum/app/components/PostEditor.vue",
+        "app/forum/app/composables/useActivityBeacon.ts",
+        "app/forum/app/composables/useForumTheme.ts",
+        "app/forum/app/plugins/activity-beacon.client.ts",
+        "app/forum/tests/activity-beacon.test.ts",
+        "app/forum/tests/forum-theme.test.ts",
+        "app/forum/tests/post-editor.test.ts",
+        "app/forum/tests/support/post-editor.ts"
+      ],
+      "domains": [
+        "forum",
+        "audit"
+      ],
+      "nodes": [
+        "domain:forum",
+        "domain:audit",
+        "application:forum"
+      ],
+      "reason": "论坛新增批量上报组合式函数 useActivityBeacon 与按页面切换上报 page.view 的插件，换主题和插入表情各补一次上报；测试支持文件和既有用例补上 stub，验证换主题、插表情和埋点节流/刷新都按预期上报。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/activity.ts",
+        "app/server/src/routes/portal/contracts.ts",
+        "app/server/src/routes/portal/events.ts",
+        "tests/server/events.test.ts"
+      ],
+      "domains": [
+        "audit",
+        "competitions",
+        "feedback",
+        "gitlab",
+        "identity",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:competitions",
+        "domain:feedback",
+        "domain:gitlab",
+        "domain:identity",
+        "domain:platform",
+        "domain:public_content",
+        "domain:recruitment",
+        "application:server"
+      ],
+      "reason": "按来源拆分事件白名单：forum.theme.change 和新增的 forum.sticker.use 只在论坛白名单里生效，控制台只认 page.view；POST /api/events 的 body 加可选 surface 字段。contracts.ts 是门户全部路由的共用契约文件，按模块归属覆盖门户已有的全部业务域，这次只改动事件上报这一段契约，其余路由契约不变。回归测试覆盖按来源过滤、未知 surface 拒绝、原有无 surface 调用仍按门户走。"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/forum-api/posts.ts",
+        "tests/server/forum.test.ts"
+      ],
+      "domains": [
+        "forum",
+        "audit"
+      ],
+      "nodes": [
+        "domain:forum",
+        "domain:audit",
+        "application:server"
+      ],
+      "reason": "表情回应的新增与取消此前没写操作记录，补上 recordActivity(action: forum.react)；回归测试断言两种情况都落一条审计行。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "audit"
+      ],
+      "nodes": [
+        "domain:audit"
+      ],
+      "reason": "ownership.json 补上新文件的模块归属、事件上报流程的证据锚点和表情回应流程的审计域关联，pnpm catalog:generate 重新生成其余产物。"
+    },
+    {
+      "paths": [
+        "docs/services/console/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/README.md"
+      ],
+      "domains": [
+        "audit"
+      ],
+      "nodes": [
+        "domain:audit"
+      ],
+      "reason": "三端服务文档同步写上新模块和埋点位置，endpoint-contracts.md 改写 /api/events 一节说明按来源分流，并修正一处过期的匿名限流描述。"
+    },
+    {
+      "paths": [
+        "app/console/src/pages/Overview.vue",
+        "app/console/src/pages/Applications.vue"
+      ],
+      "domains": [
+        "audit",
+        "github",
+        "organization",
+        "recruitment",
+        "competitions",
+        "feedback"
+      ],
+      "nodes": [
+        "domain:audit",
+        "domain:recruitment",
+        "application:console",
+        "flow:console.identity",
+        "flow:application.list",
+        "flow:audit.console.activity.list"
+      ],
+      "reason": "控制台全量过一遍（所有者 2026-10-25 00:13「你去全量看看哪能有那么丑的啊」）时发现：概览「最近操作」请求操作记录带 `limit=6`，契约不认，整块 400，改成不带参数、只显示最新 6 条；投递列表在手机上横向溢出，窄于 640px 时换成一份一张卡。这两个页面在目录里登记在招新、组织、GitHub 等域下，本次只动操作记录读取和投递列表的窄屏显示。"
+    }
+  ],
+  "documents": [
+    "docs/services/console/README.md",
+    "docs/services/forum/README.md",
+    "docs/services/server/README.md",
+    "docs/services/server/endpoint-contracts.md"
+  ],
+  "tests": [
+    "tests/console/activity.test.ts",
+    "tests/server/events.test.ts",
+    "tests/server/forum.test.ts",
+    "app/forum/tests/activity-beacon.test.ts",
+    "app/forum/tests/forum-theme.test.ts",
+    "app/forum/tests/post-editor.test.ts"
+  ],
+  "compatibility": "现有调用 POST /api/events 不传 surface 时仍按门户来源处理，向后兼容；控制台不再传 limit，服务端本来就不读这个参数，不是破坏性变更。",
+  "migration": "不涉及数据库迁移：activity_events 表结构不变，只是新增 forum.react 的写入点和按来源分流的事件白名单逻辑，不新增或修改表、列或索引。",
+  "rollback": "回滚这次提交即可；回滚后控制台操作记录页会恢复发送 limit 从而重新触发 400，论坛和控制台也不再上报埋点，表情回应也不再写审计行。"
+}

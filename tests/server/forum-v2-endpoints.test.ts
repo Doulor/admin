@@ -33,7 +33,10 @@ async function setup() {
   const db = app.services.storage.db;
   const sids = new Map<string, string>();
   const as = (login: string) => {
-    if (!sids.has(login)) sids.set(login, signIn(app, login, GITHUB_IDS[login]));
+    if (!sids.has(login)) {
+      sids.set(login, signIn(app, login, GITHUB_IDS[login]));
+      expect(app.services.profiles.update(accountIdOf(app, login), { username: login }).ok).toBe(true);
+    }
     return { cookie: `sid=${sids.get(login)}` };
   };
   const setLevel = (login: string, groupId: string) => {
@@ -44,7 +47,7 @@ async function setup() {
   for (const login of ['mem', 'mem2', 'mod']) setLevel(login, 'level.member');
   grantPermNode(app, accountIdOf(app, 'mod'), 'forum.moderate.*', { category: ['c-exam', 'c-ai'] });
   as('reg'); // 默认落在 level.registered，不升级。
-  const call = (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, who?: string, payload?: unknown) =>
+  const call = (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, who?: string, payload?: object) =>
     app.inject({ method, url, ...(payload === undefined ? {} : { payload }), headers: who ? as(who) : {} });
   return { app, db, as, call };
 }

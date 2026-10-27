@@ -11,7 +11,7 @@ function setup(serverMode = true) {
   const listeners = new Map<string, () => void>()
   vi.stubGlobal('window', { addEventListener: (name: string, handler: () => void) => listeners.set(name, handler) })
   vi.stubGlobal('document', { addEventListener: (name: string, handler: () => void) => listeners.set(name, handler), visibilityState: 'visible' })
-  const fetch = vi.fn(async () => ({ ok: true }))
+  const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit): Promise<{ ok: boolean }> => ({ ok: true }))
   vi.stubGlobal('fetch', fetch)
   const { useActivityBeacon } = loadModule<{ useActivityBeacon: () => { report: (action: string, extra?: Record<string, unknown>) => void } }>('composables/useActivityBeacon.ts', {
     globals: { useContentSource: () => ({ serverMode }) },
@@ -35,8 +35,9 @@ describe('useActivityBeacon', () => {
     expect(beacon.fetch).toHaveBeenCalledOnce()
     const [url, init] = beacon.fetch.mock.calls[0]!
     expect(url).toBe('/api/events')
-    expect(init).toMatchObject({ method: 'POST', credentials: 'same-origin', keepalive: true })
-    expect(JSON.parse(init.body as string)).toEqual({
+    expect(init).toBeDefined()
+    expect(init!).toMatchObject({ method: 'POST', credentials: 'same-origin', keepalive: true })
+    expect(JSON.parse(init!.body as string)).toEqual({
       surface: 'forum',
       events: [
         { action: 'page.view', target_type: 'route', target_id: 't-id' },

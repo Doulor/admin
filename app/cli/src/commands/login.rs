@@ -39,8 +39,9 @@ struct OAuthError {
 }
 
 pub async fn run(origin: String, no_browser: bool, json: bool) -> i32 {
-    let interactive = login_anim::pick(crate::output::interactive(json));
-    match perform(&origin, no_browser, interactive).await {
+    let is_interactive = crate::output::interactive(json);
+    let interactive = login_anim::pick(is_interactive);
+    match perform(&origin, no_browser, !json && !is_interactive, interactive).await {
         Ok(outcome) => emit(&outcome, json, render),
         Err(error) => emit(
             &Outcome::err(
@@ -56,6 +57,7 @@ pub async fn run(origin: String, no_browser: bool, json: bool) -> i32 {
 async fn perform(
     origin: &str,
     no_browser: bool,
+    plain_prompt: bool,
     mut animation: Box<dyn LoginAnimation>,
 ) -> Result<Outcome> {
     let client = reqwest::Client::builder()
@@ -74,6 +76,12 @@ async fn perform(
     };
 
     let _ = animation.begin_waiting(&grant.user_code, &grant.verification_uri);
+    if plain_prompt {
+        println!(
+            "请在浏览器打开 {}，输入代码 {}",
+            grant.verification_uri, grant.user_code
+        );
+    }
     if !no_browser {
         open_browser(&grant.verification_uri_complete);
     }
@@ -218,8 +226,7 @@ async fn poll_until_done(
     }
 }
 
-/// 登录刚拿到的资料：昵称、部门、年级、头像都是给步骤 4 打招呼用的，邮箱或资料没补齐时只带
-/// 旗子和 `hint`，不强求拿到昵称。
+/// 昵称与头像优先来自公开 userinfo；旧后端的公开昵称从 console 补，资料关口关闭时只读 userinfo。
 struct WelcomeProfile {
     nickname: Option<String>,
     department: Option<String>,
@@ -233,8 +240,7 @@ struct WelcomeProfile {
 
 /// 登录成功后多拉一点资料给步骤 4 用。先读 `/auth/device/userinfo`（任何有效令牌都能用，带
 /// `email_required`/`profile_required`，#280）；缺邮箱或资料时 `/api/console/me` 会被同一个关口
-/// （bearer-auth.ts 的 `gateRefusal`）挡住，直接跳过，不发一个注定 403 的请求——降级成只打招呼
-/// 不带资料，附上去哪补的提示，不影响登录本身。
+/// （bearer-auth.ts 的 `gateRefusal`）挡住，只跳过部门查询，附上去哪补的提示，不影响登录本身。
 async fn fetch_profile(client: &reqwest::Client, origin: &str, token: &str) -> WelcomeProfile {
     let userinfo: Option<Value> = match client
         .get(format!("{origin}/auth/device/userinfo"))
@@ -261,9 +267,13 @@ async fn fetch_profile(client: &reqwest::Client, origin: &str, token: &str) -> W
         .and_then(Value::as_str)
         .map(str::to_string);
 
-    let mut nickname = None;
+    let mut nickname = userinfo
+        .as_ref()
+        .and_then(|v| v.get("display_name"))
+        .and_then(Value::as_str)
+        .filter(|name| !name.trim().is_empty())
+        .map(str::to_string);
     let mut department = None;
-    let mut avatar_bytes = None;
     if !email_required && !profile_required {
         let response = client
             .get(format!("{origin}/api/console/me"))
@@ -275,40 +285,44 @@ async fn fetch_profile(client: &reqwest::Client, origin: &str, token: &str) -> W
             Some(response) if response.status().is_success() => response.json().await.ok(),
             _ => None,
         };
-        // 新账号还没填过资料时 display_name 是空字符串（服务端真实行为，不是没取到）：落到登录名，
-        // 不要打招呼打出一个空昵称。
-        nickname = me
-            .as_ref()
-            .and_then(|v| v.get("display_name"))
-            .and_then(Value::as_str)
-            .filter(|name| !name.trim().is_empty())
-            .or_else(|| {
-                me.as_ref()
-                    .and_then(|v| v.get("login"))
-                    .and_then(Value::as_str)
-            })
-            .map(str::to_string);
+        if nickname.is_none() {
+            nickname = me
+                .as_ref()
+                .and_then(|v| v.get("display_name"))
+                .and_then(Value::as_str)
+                .filter(|name| !name.trim().is_empty())
+                .map(str::to_string);
+        }
         department = me
             .as_ref()
             .and_then(|v| v.get("department"))
             .and_then(|d| d.get("name"))
             .and_then(Value::as_str)
             .map(str::to_string);
-        let avatar_url = me
-            .as_ref()
-            .and_then(|v| v.get("avatar_url"))
-            .and_then(Value::as_str)
-            .filter(|url| !url.is_empty());
-        avatar_bytes = match avatar_url {
-            Some(url) => match client.get(url).send().await {
-                Ok(response) if response.status().is_success() => {
-                    response.bytes().await.ok().map(|bytes| bytes.to_vec())
-                }
-                _ => None,
-            },
-            None => None,
-        };
     }
+    let nickname = nickname.or_else(|| {
+        userinfo
+            .as_ref()
+            .and_then(|v| v.get("login"))
+            .and_then(Value::as_str)
+            .filter(|login| !login.is_empty())
+            .map(str::to_string)
+    });
+    let avatar_url = userinfo
+        .as_ref()
+        .and_then(|v| v.get("avatar_url"))
+        .and_then(Value::as_str)
+        .and_then(|url| resolve_avatar_url(origin, url));
+    // 头像是公开资源，不发送设备令牌；客户端不跟随重定向。
+    let avatar_bytes = match avatar_url {
+        Some(url) => match client.get(url).send().await {
+            Ok(response) if response.status().is_success() => {
+                response.bytes().await.ok().map(|bytes| bytes.to_vec())
+            }
+            _ => None,
+        },
+        None => None,
+    };
 
     let gate_code = if email_required {
         Some("email_required")
@@ -328,6 +342,28 @@ async fn fetch_profile(client: &reqwest::Client, origin: &str, token: &str) -> W
         profile_required,
         hint,
     }
+}
+
+fn resolve_avatar_url(origin: &str, raw: &str) -> Option<url::Url> {
+    if raw.is_empty()
+        || raw.trim() != raw
+        || raw.starts_with("//")
+        || raw.contains('\\')
+        || raw.chars().any(char::is_control)
+    {
+        return None;
+    }
+    let base = url::Url::parse(origin).ok()?;
+    let url = base.join(raw).ok()?;
+    if !url.username().is_empty()
+        || url.password().is_some()
+        || url.host().is_none()
+        || !(url.scheme() == "https"
+            || (url.scheme() == "http" && base.scheme() == "http" && url.origin() == base.origin()))
+    {
+        return None;
+    }
+    Some(url)
 }
 
 fn open_browser(url: &str) {

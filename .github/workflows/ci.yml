@@ -354,6 +354,15 @@ jobs:
             exit 1
           fi
 
+      - name: 构建并核对 CLI 五目标分发物料
+        shell: bash
+        # 固定 digest 的 cargo-zigbuild 容器内含 macOS SDK，不依赖 runner 临时安装的 Zig/Cargo 版本；
+        # 产物仍由仓库自己的 cli-dist.mjs 生成清单、安装脚本和 sha256，再做独立完整性核对。
+        run: |
+          set -eu
+          node scripts/cli-dist.mjs --container
+          node scripts/check-cli-dist.mjs
+
       - name: 构建 server 镜像
         shell: bash
         run: |
@@ -374,6 +383,7 @@ jobs:
           set -eu
           docker build \
             --file app/web/Dockerfile \
+            --build-context cli=dist/cli \
             --build-arg GEEK_DEPLOYMENT_ENVIRONMENT=production \
             --build-arg GEEK_RELEASE_VERSION="$GEEK_RELEASE_VERSION" \
             --build-arg GEEK_RELEASE_COMMIT="$GEEK_RELEASE_COMMIT" \
@@ -421,7 +431,7 @@ jobs:
       # 与 docker job 相同，以 build arg 传给 Dockerfile 的构建阶段。
       NPM_REGISTRY: ${{ vars.NPM_REGISTRY || 'https://registry.npmjs.org' }}
       # 只能是 scripts/static-cdn-base.mjs 里的 STATIC_CDN_BASE（下面第一步核对），与部署工作流 cdn-plan 打开时的输出相同。
-      STATIC_CDN_BASE: https://cdn.crosery.com/yzgc/static/site/
+      STATIC_CDN_BASE: https://cdn.yangtzeu.work/geek-public/static/site/
     steps:
       - name: 检出代码
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

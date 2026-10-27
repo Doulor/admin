@@ -53,8 +53,8 @@ describe("宣传片：挑播放方式", () => {
     expect(choosePlayback(none)).toBeNull();
   });
 
-  it("所有地址都在七牛 CDN 的 yzgc/static/promo/<版本>-<内容哈希>/ 下", () => {
-    expect(PROMO_BASE).toMatch(/^https:\/\/cdn\.crosery\.com\/yzgc\/static\/promo\/[a-z0-9-]+-[0-9a-f]{12}\/$/);
+  it("所有地址都在S3 CDN 的 geek-public/media/promo/<版本>-<内容哈希>/ 下", () => {
+    expect(PROMO_BASE).toMatch(/^https:\/\/cdn\.yangtzeu\.work\/geek-public\/media\/promo\/[a-z0-9-]+-[0-9a-f]{12}\/$/);
     for (const url of [PROMO.masters.av1, PROMO.masters.h264, PROMO.poster]) expect(url.startsWith(PROMO_BASE)).toBe(true);
     expect(PROMO.masters.av1).toMatch(/master-av1\.m3u8$/);
     expect(PROMO.masters.h264).toMatch(/master-h264\.m3u8$/);

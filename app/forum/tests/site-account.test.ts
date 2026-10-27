@@ -93,6 +93,7 @@ describe('useSiteAccount reading /auth/me', () => {
         useRoute: () => ({ query: {}, hash: '' }),
         useRouter: () => ({ replace: vi.fn() }),
         useContentSource: () => ({ serverMode: true, isSite: true }),
+        useForumStore: () => ({ state: { topics: [] } }),
         useForumServerStore: () => ({}),
         window: { location: { pathname: '/forum/t/7', search: '?page=2', hash: '#p3', assign } },
       },

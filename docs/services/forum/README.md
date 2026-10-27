@@ -12,21 +12,21 @@
 | `app/forum/app/components/` | 组合与展示；组件自动注册，不手工仿制同名 React 组件 |
 | `app/forum/app/composables/` `app/forum/app/stores/` | 交互状态与原仓数据操作（Pinia）；`useSiteAccount.ts` 读全站登录（同域 `/auth/me`，含 `console_link`；`email_required` 时跳绑定邮箱页，#273；邮箱不缺、`profile_required` 时跳补资料页 `/complete-profile`，#280）、退出、说明登录结果；`stores/forum-server.ts` 在极客班论坛里读写论坛后端；`useForumTheme.ts` 是主题（晴空、浅色、深色、跟随系统，#276）；`usePostDraft.ts` 把没发出去的正文存在浏览器里；`useStickers.ts` 读一次表情包；`useOrgTitles.ts` 读部门色调；`useForumActions.ts` 是页面唯一的写入口（服务端模式调接口，示例模式改本机 store）；`useSiteLinks.ts` 是登录、控制台、宣传主页三个站外地址；`useActivityBeacon.ts`（#274：批量上报操作记录埋点，`POST /api/events` 带 `surface: "forum"`，只在 `serverMode` 时发，示例与本机快照不发；换主题、插入表情各自调一次 `report()`，见下文「主题」「写正文」） |
 | `app/forum/app/data/` | 类型、示例种子、权限 helper 与序列化；`access.ts`（各模式下谁能写，注册用户还不能写时的说明）、`account-menu.ts`（头像菜单有哪些行）、`account-badges.ts`（账号旁的称号标签，#276） |
-| `app/forum/app/plugins/` | `persist.client.ts`（浏览器存储）、`local-snapshot.client.ts`（只读快照替换 store）、`site-state.client.ts`（极客班论坛：挂载前换成构建时的公开旧帖和游客会话，再向论坛后端要整份状态——帖子只有摘要，正文进话题页时按话题取，#156）、`activity-beacon.client.ts`（#274：每次路由切换上报一条 `page.view`，`target_id` 是 Nuxt 按文件路由生成的路由名，不带参数真实值） |
+| `app/forum/app/plugins/` | `persist.client.ts`（浏览器存储）、`local-snapshot.client.ts`（只读快照替换 store）、`site-state.client.ts`（极客班论坛：挂载前换成不含分类/用户/话题/正文的空投影，再向核心要当前身份的整份状态；身份变化先清空旧投影并丢弃迟到回答）、`activity-beacon.client.ts`（#274：每次路由切换上报一条 `page.view`，`target_id` 是 Nuxt 按文件路由生成的路由名，不带参数真实值） |
 | `app/forum/app/editor/` | `crepe-editor.ts`：Milkdown Crepe 编辑器的装配（表情、斜杠菜单、@ 提及、粘贴图片），写帖时才加载（#276）；`inline-stickers.ts`：表情留在行内、`[包名_名字]` 变成表情 |
 | `app/forum/server/routes/api/local-forum/` | dev 专用只读快照路由：`state`、`assets/[hash]` |
-| `app/forum/server/middleware/forum-markdown.ts` | 给 AI 读取的 `/t/<id>.md` 与 `/llms.txt`，`nuxt generate` 时逐个写成静态文件 |
-| `app/forum/shared/` | `content-source.ts`（按构建环境选内容来源、站名与登录方式）、`site-state.ts`（极客班论坛的初始状态）、`local-snapshot.ts`（投影校验）、`local-curation.ts`（编辑层）、`deployment.ts`（环境/版本展示）、`forum-markdown.ts`（话题 Markdown 与 llms.txt 的生成规则）、`forum-api.ts`（论坛后端的浏览器客户端与返回值校验；`topicPosts()` 与 `search()` 是 #156 加的两个读接口）、`post-markdown.ts`（帖子正文渲染前的转义、表情短码与图片互换、引用的写法）、`sticker-url.ts`（表情图片地址的白名单：同源或受控 CDN，#286）、`site-notice.ts`（极客班论坛现状的几句话，提示条、关于页与 llms.txt 共用） |
-| `app/forum/content/` | `curation.json` 与 `posts/*.md`，快照之上的人工编辑层；镜像的分类和标签也取自 `curation.json`；`guides/*.md` 是按身份写的使用说明，`guide-images/` 是说明里的截图（#281，只由 server 播种、截图走 CDN，不进论坛产物） |
+| `app/forum/server/middleware/forum-markdown.ts` | demo/本机快照继续按原来源生成 `/t/<id>.md` 与 `/llms.txt`；site 开发把 Markdown 与 `published/*.webp` 连同 cookie 代理到核心 `/forum/*` 授权出口 |
+| `app/forum/shared/` | `content-source.ts`（按构建环境选内容来源、站名与登录方式）、`site-state.ts`（site 的空初始状态）、`published.ts`（只供导出/确定性检查的旧帖源投影，不进 site 客户端）、`local-snapshot.ts`（投影校验）、`local-curation.ts`（编辑层）、`deployment.ts`（环境/版本展示）、`forum-markdown.ts`（话题 Markdown 与 llms.txt 的生成规则）、`forum-api.ts`（论坛后端的浏览器客户端与返回值校验；`topicPosts()` 与 `search()` 是 #156 加的两个读接口）、`post-markdown.ts`（帖子正文渲染前的转义、表情短码与图片互换、引用的写法）、`sticker-url.ts`（表情图片地址的白名单：同源或受控 CDN，#286）、`site-notice.ts`（极客班论坛现状的几句话，提示条、关于页与 llms.txt 共用） |
+| `app/forum/content/` | `curation.json` 与 `posts/*.md`，快照之上的人工编辑层；核心播种的分类、标签和旧帖源也取自这里，但 site 客户端不直接打包；`guides/*.md` 是按身份写的使用说明，`guide-images/` 是说明里的截图（#281，只由 server 播种、截图走 CDN，不进论坛产物） |
 | `app/forum/scripts/` | 上游样式 guard、路由 smoke、CDP 四套验证脚本；`csp-header.mjs`（本项目新增）在镜像构建时把产物里内联脚本的 sha256 加进站点 CSP，写成容器 nginx 的 `add_header` |
 | `app/forum/UPSTREAM.json` `ADOPTION.json` `LICENSE` | 上游文件摘要、本项目集成差异清单、MIT 声明（必须保留） |
-| `app/forum/Dockerfile` | Node ≥26 + pnpm 11.24.0 构建 Nuxt 静态产物 → 静态服务；镜像按 `GEEK_FORUM_SOURCE=site`（极客班论坛，见下文「内容来源」）和 `GEEK_FORUM_BASE_PATH=/forum/` 构建（资源与路由带前缀），构建内断言 `llms.txt` 写的是极客班论坛、公开旧帖有 `t/<id>.md` 而不公开的没有（逐条见下文「公开的旧帖」的断言）、产物里没有上游示例内容（`Tuff 2.5`、`CoreBox`），容器内监听 3000，不发布宿主端口；构建参数 `GEEK_DEPLOYMENT_ENVIRONMENT`/`GEEK_RELEASE_VERSION`/`GEEK_RELEASE_COMMIT` 会被校验，组合不符直接构建失败；容器 nginx 的页面路由是 `try_files $uri $uri/index.html /200.html`：预渲染过的路由（`users/`、`about/` …）带不带结尾斜杠都直接返回目录里的 `index.html`，不再 301 补斜杠（那条跳转没有 `/forum` 前缀，还带 `:3000`，#140），其余路径和没有 `index.html` 的目录回落 `200.html`；server 块 `absolute_redirect off` 兜底，万一再发跳转也只发相对地址，由 web 容器补回前缀；容器 nginx 把 `*.md` 发成 `text/markdown; charset=utf-8`、`llms.txt` 发成 `text/plain; charset=utf-8`，文件不存在时返回 404，不回落页面；页面带一份 CSP（站点策略取自 `deploy/nginx/production.conf` 的 map，加上本次产物内联脚本的哈希），宿主在 `/forum/` 下看到后不再叠加；页面与回落页都不缓存（`expires -1`）；`/_nuxt/` 用 `location ^~` 整个目录缓存一年（字体、图片也是，不被「图片、字体 7 天」的正则截走），其中唯一不带哈希的 `_nuxt/builds/latest.json` 精确匹配、不缓存（#146，`tests/tooling/hashed-asset-cache.test.ts`）；gzip 级别 6，与 web 容器一致（#146）；`nuxt.config.ts` 用 rolldown `codeSplitting` 把 `@talex-touch/*` 合成 `tuffex` 一个分包、论坛 `app/` 代码合成 `app` 一个分包，入口脚本从 70 个降到 6 个、请求 71→13，消除三层依赖瀑布（#217）；构建参数 `STATIC_CDN_BASE` 见下文「静态资源 CDN 开关」，构建内断言入口地址与开关一致 |
+| `app/forum/Dockerfile` | Node ≥26 + pnpm 11.24.0 构建 Nuxt 静态产物 → 静态服务；镜像按 `GEEK_FORUM_SOURCE=site`（极客班论坛，见下文「内容来源」）和 `GEEK_FORUM_BASE_PATH=/forum/` 构建（资源与路由带前缀），构建内删除并断言不存在 `llms.txt`、`t/*.md`、`published/` 和两篇旧帖原文，产物里没有上游示例内容（`Tuff 2.5`、`CoreBox`），容器内监听 3000，不发布宿主端口；构建参数 `GEEK_DEPLOYMENT_ENVIRONMENT`/`GEEK_RELEASE_VERSION`/`GEEK_RELEASE_COMMIT` 会被校验，组合不符直接构建失败；容器 nginx 的页面路由是 `try_files $uri $uri/index.html /200.html`：预渲染过的路由（`users/`、`about/` …）带不带结尾斜杠都直接返回目录里的 `index.html`，不再 301 补斜杠（那条跳转没有 `/forum` 前缀，还带 `:3000`，#140），其余路径和没有 `index.html` 的目录回落 `200.html`；server 块 `absolute_redirect off` 兜底，万一再发跳转也只发相对地址，由 web 容器补回前缀；容器 nginx 对 `llms.txt`、`t/*.md`、`published/*.webp` 直接返回 404、不回落页面；外部同名路径由 web nginx 直达核心；页面带一份 CSP（站点策略取自 `deploy/nginx/production.conf` 的 map，加上本次产物内联脚本的哈希），宿主在 `/forum/` 下看到后不再叠加；页面与回落页都不缓存（`expires -1`）；`/_nuxt/` 用 `location ^~` 整个目录缓存一年（字体、图片也是，不被「图片、字体 7 天」的正则截走），其中唯一不带哈希的 `_nuxt/builds/latest.json` 精确匹配、不缓存（#146，`tests/tooling/hashed-asset-cache.test.ts`）；gzip 级别 6，与 web 容器一致（#146）；`nuxt.config.ts` 用 rolldown `codeSplitting` 把 `@talex-touch/*` 合成 `tuffex` 一个分包、论坛 `app/` 代码合成 `app` 一个分包，入口脚本从 70 个降到 6 个、请求 71→13，消除三层依赖瀑布（#217）；构建参数 `STATIC_CDN_BASE` 见下文「静态资源 CDN 开关」，构建内断言入口地址与开关一致 |
 
 ## 静态资源 CDN 开关（#146）
 
-构建参数 `STATIC_CDN_BASE` 为空时与原来一样，`/forum/_nuxt/` 同源加载。等于 `https://cdn.crosery.com/yzgc/static/site/` 时（规则在仓库根的 `scripts/static-cdn-base.mjs`，别的非空值让构建失败），`nuxt.config.ts` 做三件事：
+构建参数 `STATIC_CDN_BASE` 为空时与原来一样，`/forum/_nuxt/` 同源加载。等于 `https://cdn.yangtzeu.work/geek-public/static/site/` 时（规则在仓库根的 `scripts/static-cdn-base.mjs`，别的非空值让构建失败），`nuxt.config.ts` 做三件事：
 
-- `app.cdnURL` 设为 `<base>forum/`，`_nuxt/` 下的文件从 `https://cdn.crosery.com/yzgc/static/site/forum/_nuxt/…` 加载，页面、`/api/forum/*`、公开旧帖图片与 `llms.txt` 仍走源站；
+- `app.cdnURL` 设为 `<base>forum/`，`_nuxt/` 下的文件从 `https://cdn.yangtzeu.work/geek-public/static/site/forum/_nuxt/…` 加载，页面、`/api/forum/*`、公开旧帖图片与 `llms.txt` 仍走源站；
 - `cdnURL` 也会改写代码里写的 `public/` 地址（如顶栏的 `/logo.png`），那是不带哈希的固定文件名，不上传。所以开关打开时加一个 Vite 插件 `hashPublicImports`：代码引用的 `public/` 文件按普通构建资源处理，带上内容哈希进 `_nuxt/`，和其它产物一起上传；
 - 关掉 Nuxt 的新版本检查（`experimental.checkOutdatedBuildInterval: false`）：它读 `_nuxt/builds/latest.json`，文件名固定、每次内容都变，上传只增不改，不传它。旧版本的哈希文件一直留在 CDN 上，开着的旧页面照样能加载自己的分块，刷新即拿到新版本。
 
@@ -75,7 +75,7 @@ app/server/assets/stickers/
 
 服务启动时 `lib/migrations/2026-10-sticker-packs.ts` 照清单把库里没有的包、表情和图片补进去，只增不改，可以重复执行：库里已有的包和表情整行不碰（站长改过的名字、排序、停用、换过的图都保留）；新包排在现有的包后面、启用；老包里新增的表情排在那个包的最后；图片按内容 sha256 去重，哈希按文件真实内容现算；清单里列了而目录里没有的图片跳过，记在迁移报告的 `stickers_missing_files` 里，不让启动失败。清单文件不存在算没有内置表情包，存在但读不出来或形状不对，服务拒绝启动。回滚就是部署上一个镜像，迁移只加行、不删行。`tests/server/sticker-packs-migration.test.ts` 用临时目录里的两个包跑：第一次启动建出两个包，站长改名、停用之后重启不被覆盖，第二次启动行数不变；另外拿仓库里的真实目录跑两遍：新库一次建出三个包、56 张表情，库里存的图片字节就是文件内容；只有极客娘的旧库升级后多出极客日常和聊天回应两个包、32 张表情，极客娘的包和 24 行表情（含站长改过的名字、排序、停用）一行不动，再启动一次行数不变。
 
-图片地址由服务端决定：`GET /api/forum/stickers`、控制台列表和表情回应里每个表情的 `url`。CDN 开关（`STATIC_CDN_BASE`，见上节与 [CICD](../../ops/CICD.md)）关闭时全是同源的 `/api/forum/stickers/<哈希>.webp`，按内容哈希，响应头一年 `immutable`，不压缩（WebP 本身已经压缩，宿主与两个容器的 `gzip_types` 都不含它）；打开时清单里的内置表情是 `https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp`，站长在控制台上传的、不在清单里的仍是同源地址（`tests/server/forum-sticker-cdn.test.ts`）。前端只认这两种写法（`shared/sticker-url.ts`，表情面板、编辑器、帖子正文和回应都从它取）：别的域名、`http`、路径穿越、`javascript:`、`data:`、带查询串或片段的都不进 `src`。同一张图的两种地址哈希相同，编辑器把图片存回短码时按哈希认，开关在两次页面加载之间变了，也不会把表情存成一条地址。
+图片地址由服务端决定：`GET /api/forum/stickers`、控制台列表和表情回应里每个表情的 `url`。CDN 开关（`STATIC_CDN_BASE`，见上节与 [CICD](../../ops/CICD.md)）关闭时全是同源的 `/api/forum/stickers/<哈希>.webp`，按内容哈希，响应头一年 `immutable`，不压缩（WebP 本身已经压缩，宿主与两个容器的 `gzip_types` 都不含它）；打开时清单里的内置表情是 `https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/<哈希>.webp`，站长在控制台上传的、不在清单里的仍是同源地址（`tests/server/forum-sticker-cdn.test.ts`）。前端只认这两种写法（`shared/sticker-url.ts`，表情面板、编辑器、帖子正文和回应都从它取）：别的域名、`http`、路径穿越、`javascript:`、`data:`、带查询串或片段的都不进 `src`。同一张图的两种地址哈希相同，编辑器把图片存回短码时按哈希认，开关在两次页面加载之间变了，也不会把表情存成一条地址。
 
 新增一个包：
 
@@ -83,6 +83,8 @@ app/server/assets/stickers/
 2. 运行 `node scripts/sticker-manifest.mjs write`，再用 `report` 看字节数；
 3. 提交目录和 `manifest.json`，`tests/tooling/sticker-manifest.test.ts` 核对两者一致；
 4. 部署后服务启动时补进库里；开关打开时图片由部署的 `cdn-upload` 一起上传，想提前上传见 [CICD](../../ops/CICD.md)「静态资源 CDN」。
+
+新存储路径、S3 上传与回滚边界见 [CDN 合同](../../ops/CDN.md)。新端点的 CORS/Range/MIME 需要真实验收，不沿用旧供应商的结果。
 
 ## 所有权与来源
 
@@ -100,14 +102,16 @@ UI 依照 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)，同�
 
 内容来源：构建时由 `shared/content-source.ts` 的 `selectContentSource`（单测 `tests/content-source.test.ts`）按环境变量决定，`nuxt.config.ts` 只调用它：`GEEK_FORUM_SOURCE=site` 是极客班论坛（`contentSource: site`，站名「极客班论坛」，不读任何内容目录）；`GEEK_FORUM_SOURCE=demo` 是上游示例种子（站名 Tuff Forum，压过任何快照目录）；不设置时 `GEEK_FORUM_CONTENT_DIR` 非空是本机只读快照（站名「极客班论坛」），否则是示例种子；其它取值直接让构建失败。
 
-极客班论坛（`contentSource: site`，预发布与正式镜像）：构建时的初始状态是 `shared/site-state.ts` 的 `siteForumState()` = 空状态 + `content/curation.json` 里的分类（按 `categoryOrder`：招新与机试、班级公告、使用说明、课程与作业、竞赛与项目、求职与升学、人工智能）和标签 + `shared/published.ts` 读出的公开旧帖（见下文「公开的旧帖」）。只按名字取 `categories`/`categoryOrder`/`tags` 三个字段，`curation.json` 里的快照话题标题和正文补丁不进浏览器产物（它们的作者只在私有快照里）。构建常量 `import.meta.env.GEEK_FORUM_SITE`（`nuxt.config.ts` 的 `vite.define`）让 `stores/forum.ts` 的初始状态直接是 `siteForumState()`，`createSeed` 与示例帖子整段不进产物；`app/plugins/site-state.client.ts` 在挂载前再换一次状态并把会话设为游客，示例种子一帧也不会出现；随后向论坛后端要真正的数据（见下文「服务端模式」）。`persist.client.ts` 不读也不写浏览器里的论坛状态和会话。页面文案：顶部提示、关于页和 `llms.txt` 的说明共用 `shared/site-notice.ts` 的几句，不写具体放出了哪几类帖子（公开的旧帖随 `content/published` 增减）：「旧论坛的一部分帖子已经搬过来，其余的还没有公开。」，没登录时（等 `/auth/me` 返回后，和顶栏登录按钮同时出现）再加「不登录只能看公开的帖子；发帖、回复、点赞、收藏和关注要先登录。」（#276 去掉游客回复），已登录不显示；论坛后端连不上时整句换成「论坛服务暂时连不上，现在只能看帖子，稍后刷新页面再试。」，请求太频繁（429）时换成「请求太频繁，稍后再试，论坛过一会儿会自动重新加载，现在可以看帖子。」。关于页是同样的现状加一行出处（基于开源项目 Tuff Forum，talex-touch/tuff-forum，MIT 许可），不显示用户/话题/帖子数字和管理团队；整个论坛没有话题时列表与类别总览的「最新」显示「还没有话题 / 极客班成员登录后可以发第一个话题。」，用户页没有用户时显示「还没有用户 / 成员登录过论坛后会出现在这里。」；系统通知写「来自极客班论坛的系统消息」。
+极客班论坛（`contentSource: site`，预发布与正式镜像）：`shared/site-state.ts` 的 `siteForumState()` 是纯空状态，不含分类、标签、用户、话题、摘要或正文；`app/plugins/site-state.client.ts` 挂载前再次替换为空状态并以游客开始，随后由 `stores/forum-server.ts` 请求核心 `/api/forum/state`。`shared/published.ts` 只把仓库保留的旧帖源转成确定性投影，供导出与源数据测试，不被 site 客户端、bootstrap 或静态产物导入。首次读取、身份重读或恢复读取没有权威回答时，不回退构建时正文；网络恢复后由核心重新返回当前身份本来允许读取的内容。
+
+账号刷新、退出、会话失效或核心回答的 viewer/可见话题集合变化时，客户端先递增投影版本、清空旧 state/正文/搜索/私有列表，再请求新投影；旧身份的 state、正文、搜索、写回答和表情回答即使迟到也丢弃。同一登录名仅做权限重验时保留浏览器中的未发送回复草稿，换账号或退出则清掉。普通失败与 429 都自动退避重试；提示只承诺保留当前身份已经确认的投影，不能把历史 source 当失败兜底。
 
 **公开的旧帖**（#87、#108）：共 17 篇，取自 2026-09-26 的快照 `geek-20260926`。旧论坛的 25 级、24 级机试文档和它们链到的入门资料 14 篇（`t73` `t72` `t71` `t9` `t35` 与 `t6` `t7` `t8` `t10` `t11` `t12` `t13` `t16` `t25`，#87）在「招新与机试」类别，`t73`、`t9` 置顶，标签「25级」「24级」「入门资料」；正式环境旧论坛上今年写的 3 篇 AI 帖子（#108）在「人工智能」类别：`t78`「LLM-WIKI搭建经验谈--来自2026/6/14晚i3egnner分享会」（标签「AI工作流」「分享会」）、`t84`「Vibecoding知识点整理，从大模型到Coding Agent；包含大模型基础、Agent原理、工具区分等内容」（「AICoding」「知识整理」），以及 09-13 之后新发的 `t89`「国内 Agent 工具安装指南」（「Agent」「AICoding」）。这三篇用原作者的原文：`t89` 里的第三方公益 API 密钥不公开；`t84` 的讲义链接地址里有空格，Markdown 不认成链接，导出时编成 `%20`；`t84` 的 8 张讲义截图原来放在 gitee 图床上，gitee 不给别的网站引用，导出成站内图片。`curation.json` 的 `topics` 里也有这三篇，只给本机快照模式用：`t78`、`t84` 在那里有改过的标题和正文（`content/posts/body-78.md`、`body-84.md`），`t89` 只有归类（它原来的分类 `c18` 被省略了）；这些改动不进镜像。作者统一是「极客班」（`u-geekclass`，管理员），原作者以后按 #58 认领，旧帖的回复不公开。以后再补新帖的步骤见 [数据保全](../../ops/FORUM-DATA-CAPTURE.md)「以后再补新帖」。
 
 - 清单是 `app/forum/content/published/manifest.json`：快照目录名（`source`）、话题编号、类别、标签、置顶，不公开的话题（`withheld`：`t5` 代理配置教程、`t15`），按图片地址的处理规则（`drop` 换成「（这张截图没有公开）」，`cover` 用灰块盖住矩形，`crop` 裁边；要编辑的外链图记原图 `sha256`，图床不给别的网站引用的外链图不编辑也记 `sha256`），以及按话题的替换规则（写模式和应命中的次数，不写被去掉的原文）。
 - `node scripts/forum-migration/export-published.mjs .tools/forum-runtime/<快照>` 按清单从私有快照导出 `content/published/topics.json`（快照目录名与采集时间，每篇的标题、时间、浏览数、首帖正文）和 `public/published/<哈希>.webp`（最宽 1600、有损 WebP），同一快照重跑结果逐字节相同；快照路径按主工作区解析，在 task worktree 里运行也读主工作区的私有快照，输出写进运行它的那份代码。改写规则在 `scripts/forum-migration/published-transform.mjs`：指向公开话题的链接改成相对地址 `./tN`（任何 base 下都能跳，链接文字只是旧站名时换成目标标题），指向不公开话题的链接变成「这篇没有公开」，旧论坛的分类和用户页链接只留文字，外部链接去掉分享人的追踪参数（B 站 `vd_source` 等、公众号 `sharer_*`，gitee 外链跳转换成目标地址），旧论坛里的图片和清单里记了 `sha256` 的外链图换成导出的 WebP，其余外链图片不动；Markdown 图片和 HTML `<img src>` 走同一套规则，导出记录逐篇列出换掉、去掉和留作外链的每一张。同一张原图在两个地址下写了不同的图片规则时导出直接失败；导出结果依赖 app/server 的 sharp 版本，换版本会得到不同的文件名。导出后正文里还有旧资产地址、旧归档链接、邮箱、写出来的账户或密码、API 密钥或令牌（代码块里的也算），或者代码块之外还有既不是站内 WebP 也不是 https 的图片，就直接失败。话题页只在 `<base>t/<id>` 下工作，带尾斜杠的地址由 `app/middleware/topic-trailing-slash.global.ts` 换成不带的，相对链接和图片才不会多一层；中间件同时将历史纯数字话题链接 `/t/84` 与老论坛归档链接 `/archive/t/7` 优雅兼容重定向至规范格式 `/t/t$1`（#173、#177）。偏好设置页（`preferences.vue`）将个人资料、头像设置、通知与外观合并为单一连续卡片面板，采用纯 UnoCSS 响应式控制输入宽度（#173、#175）。
-- `shared/published.ts` 把 `topics.json` 变成用户、话题和首帖，`siteForumState()` 与 `nuxt.config.ts` 的 `markdownTopicIds` 都从这里取。
-- 断言：`tests/site-state.test.ts` 核对 17 篇的类别、标签、置顶、作者和编号小于 1000（论坛后端按编号导入旧帖，新话题从 `t1001` 起，#57），站内链接只指向公开话题、图片文件都在，正文里没有邮箱、写出来的账户和 API 密钥；镜像构建断言 `t/t73.md`、`t/t9.md`、`t/t78.md`、`t/t84.md`、`t/t89.md` 存在，`t/t5.md`、`t/t15.md` 不存在，`published/` 里至少有一张 webp 图片，产物的文本文件里没有邮箱地址和 `sk-` 开头的密钥（`grep -I` 跳过图片和字体）；JS 包里的邮箱另用一条规则，只认后缀是 2–24 个同为小写或同为大写字母的地址，因为编辑器（#276）带的 CodeMirror 语法表压缩后有形似邮箱的串（例 `QpOAN@wO.NiQdO`），其余文本文件仍用原规则。
+- `shared/published.ts` 把 `topics.json` 变成只供导出/源数据检查的用户、话题和首帖投影；核心仍用源文件播种数据库，但 site 客户端与 `nuxt.config.ts` 不从这里生成 bootstrap 或 Markdown 路由。
+- 断言：`tests/site-state.test.ts` 核对 17 篇的类别、标签、置顶、作者和编号小于 1000（论坛后端按编号导入旧帖，新话题从 `t1001` 起，#57），站内链接只指向公开话题、图片文件都在，正文里没有邮箱、写出来的账户和 API 密钥；镜像构建断言 site 产物不存在 `llms.txt`、任何 `t/*.md`、`published/`、`极客班25级机试考核文档` 与 `国内 Agent 工具安装指南`；产物的文本文件里没有邮箱地址和 `sk-` 开头的密钥（`grep -I` 跳过图片和字体）；JS 包里的邮箱另用一条规则，只认后缀是 2–24 个同为小写或同为大写字母的地址，因为编辑器（#276）带的 CodeMirror 语法表压缩后有形似邮箱的串（例 `QpOAN@wO.NiQdO`），其余文本文件仍用原规则。
 
 示例登录（`loginMode=demo`）：`app/stores/session.ts` 的 login 只是选择示例用户；`app/plugins/persist.client.ts` 使用 localStorage 保存示例状态。没有真实认证、服务端权限、共享数据库、附件存储或邮件服务。界面权限和 store 测试仅验证演示行为，不承担安全边界。不得加载旧论坛会话或向后台传递示例 role 以取得真实权限。
 
@@ -136,7 +140,7 @@ UI 依照 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)，同�
 
 `data/access.ts` 的 `forumAccess(mode, status, user)` 决定谁能写：示例登录（`demo`）写本机 store；极客班论坛（`server`）读写论坛后端；快照与统一登录下的示例种子（`read-only`）只能看。页面的写操作都经 `useForumActions()`，组件里没有两条分支。
 
-- **加载**：`site-state.client.ts` 挂载前调 `stores/forum-server.ts` 的 `load()` → `GET /api/forum/state`（`credentials: same-origin`，带全站的 `sid`）。成功就用返回的 `state` 整体 `replaceState`，会话设成 `state.viewer.userId`（游客是 `null`），并记下 `viewer.capabilities`；这份状态里的帖子**只有服务端截好的一行摘要 `excerpt`，没有正文**（#156），进话题页再按话题取正文（见下）；`LocalSnapshotGate.vue` 在回答到达（或失败）之前显示「正在加载极客班论坛…」，新发的话题不会先 404。失败（网络错误、10 秒没有回答（`STATE_TIMEOUT_MS`，`AbortSignal.timeout`）、非 JSON、形状不对，`shared/forum-api.ts` 的 `parseServerSnapshot` 校验）保留构建时的公开旧帖，所有写操作关闭，顶部提示、`/new` 与话题页写「论坛服务暂时连不上」。401 `session_expired` 也不算连不上：这是服务端自己答的（cookie 到期，或会话在别的标签页结束），`load()` 按游客再读一次，读到就照常显示公开的帖子，再失败才按连不上处理；说明见下文「失败」。429 `rate_limited` 不算连不上：已经显示的内容不动，弹一次「请求太频繁，稍后再试」（之后重试和记浏览数再被拒都不再弹，直到状态重新读到），隔 10、20、40 秒、之后每分钟再读一次；第一次读就被拒时状态是 `busy`，页面先显示构建时的公开旧帖、写操作关闭，读到之后恢复。这几句提示在 `data/access.ts` 的 `UNAVAILABLE_COPY`，各页面共用。
+- **加载**：`site-state.client.ts` 挂载前调 `stores/forum-server.ts` 的 `load()` → `GET /api/forum/state`（`credentials: same-origin`，带全站的 `sid`）。成功就用返回的 `state` 整体 `replaceState`，会话设成 `state.viewer.userId`（游客是 `null`），并记下 `viewer.capabilities`；这份状态里的帖子**只有服务端截好的一行摘要 `excerpt`，没有正文**（#156），进话题页再按话题取正文（见下）；`LocalSnapshotGate.vue` 在回答到达（或失败）之前显示「正在加载极客班论坛…」，新发的话题不会先 404。失败（网络错误、10 秒没有回答（`STATE_TIMEOUT_MS`，`AbortSignal.timeout`）、非 JSON、形状不对，`shared/forum-api.ts` 的 `parseServerSnapshot` 校验）不恢复任何构建时旧帖，所有写操作关闭，顶部提示、`/new` 与话题页写「论坛服务暂时连不上」。401 `session_expired` 也不算连不上：这是服务端自己答的（cookie 到期，或会话在别的标签页结束），`load()` 按游客再读一次，读到就照常显示公开的帖子，再失败才按连不上处理；说明见下文「失败」。429 `rate_limited` 不算连不上：已经显示的内容不动，弹一次「请求太频繁，稍后再试」（之后重试和记浏览数再被拒都不再弹，直到状态重新读到），隔 10、20、40 秒、之后每分钟再读一次；第一次读就被拒时状态是 `busy`，页面保持空投影、写操作关闭，读到之后恢复当前 viewer 可见内容。这几句提示在 `data/access.ts` 的 `UNAVAILABLE_COPY`，各页面共用。
 - **写**：每个写操作调一个接口，服务端只回这次改动的记录（`{ changes, viewer }`，#145；#276 去掉了 `guestPolicy`，形状见 [API](../../architecture/API.md)「论坛」「写接口的回答」）。`shared/forum-api.ts` 的 `parseWriteResult` 先查形状，哪里不对整份不收、当作失败；`stores/forum.ts` 的 `applyChanges` 按编号并进手里的状态：已有的记录逐字段改、对象不换，新记录追加，取消的书签和关注按 `removed` 去掉，所以点一次赞只重画这一个按钮，不再换掉整个 store、整页重画。`viewer` 只在变了时才换；回答里的 `viewer` 换了人（登录在别处变了）时再读一次状态。回答里只有这次写入动到的记录，不再顺带带回别人的新动态：别人刚发的回复、别人给你的通知和未读数，要等页面重新读状态才出现，而重读只在打开页面（或刷新）、退出、回 401、429 之后重试、`viewer` 换人时发生，没有定时重读，也不在切回标签页时重读。所以两个人在同一个话题里，B 先回复、A 再回复，A 的页面上看不到 B 的回复，A 自己的回复按页面上已有的帖子排楼层（刷新后可能往后挪一层；「回复 @x」的链接不带楼层号，不受影响），B 给 A 的通知也要刷新才有。这不丢数据，也不会让谁看到不该看的；#156 定的轻量重读是：进话题页时按话题取这个话题的帖子（见下文「话题正文」），切回标签页仍不重读，写接口也不恢复成回整份状态。
 - **话题正文**（#156）：首屏不再带全部帖子的正文，`t/[id].vue` 挂载时调 `stores/forum-server.ts` 的 `loadTopic(topicId)` → `GET /api/forum/topics/:topic_id/posts`，回答里的每条帖子按编号并进列表已经显示的那几条（`applyChanges` 就地合并，对象不换），正文就落在同一批记录上。正文到之前，`PostCard` 显示服务端给的摘要一行加「正在读取正文…」；读失败（连不上、429）保持摘要并显示「正文没有读出来，刷新页面再试。」，不弹提示——列表本身还能看。读取失败或被拒后的编辑都用服务端最后一次发的正文（`remember()` 把话题页的回答也记进 `serverPosts`），所以被拒的编辑不会把页面上的正文弄没。同一话题的两个挂载共用一个在路上的请求；每次挂载都会再问一次，所以刷新页面（或别人在这期间回复）之后走进这个话题能看到新回复；列表页不发这个话题的请求，点进话题才发。
 - **搜索**（#156）：`/search` 不再在浏览器里对全部正文做子串匹配（首屏已经没有正文了），改调 `GET /api/forum/search?q=`；服务端按话题标题、帖子正文、用户名与昵称匹配，帖子结果带以命中位置为中心的一行摘要，页面按同一套 `<mark>` 高亮它。请求在词语去抖（250 ms）后发出，作答期间显示「正在搜索…」；被拒（429、网络）显示提示并按「没有找到」处理，旧的一问一答里只让最后一次落地。示例种子与快照模式仍在浏览器里搜（`searchAll`），两种路径给同一个形状，页面不分叉。
@@ -144,7 +148,7 @@ UI 依照 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)，同�
 - **失败**：页面回到服务端上次确认的样子，弹 Tuffex toast（标题说哪件事没成，比如「没有赞上」「没有移出书签」「回复没有发出去」，正文是服务端的中文 `message`，没有时按状态码给一句）；编辑失败时编辑框带着刚才写的内容重新打开；等回答时又改了一次再保存，两次共用一个请求、拿到同一个结果，`PostCard` 给保存编号，只让最后一次处理：「帖子已更新」只弹一次，被拒时编辑框带着最后一次的文字打开。回复失败时，回复框带着那条回复重新打开，回复的还是原来那一楼（`ReplyComposer` 发 `update:replyTo`，话题页用 `v-model:reply-to`）：框里这时已经有字（等回答时又点了别的楼的「回复」、写了下一条）就把被拒的放在前面、空一行；连着被拒几条，几条都在；几条写给不同的楼、或者框里的草稿写给另一楼时，文字都在，回复对象换成最后被拒那条的那一楼，标题随之改变；发出以后离开了话题页，下次打开这个话题时回复框自己带着它打开。被拒的回复先交给 `stores/forum-server.ts` 的 `refusedReplies`，由这个话题的回复框取回，所以不靠组件还在不在（`tests/forum-optimistic-components.test.ts`）。退回的只是这件事自己改的字段，值取服务端最后一次回答里的（`steer` 的 `confirmed`：帖子的正文与删除、通知的已读记在 `serverPosts`、`serverReads` 里，不从页面读），同一条记录上别的还在路上的事随后照样显示：先改后删同一帖、两个都失败时回到服务端的原文且没删；先标一条已读再点全部已读、两个都失败时两条都回到未读；连点两次赞、第二次失败时停在第一次服务端确认的样子，而不是点之前的样子（`tests/forum-optimistic.test.ts`）。页面上的变化点下就有；成功提示（「已加入书签」「话题已置顶」「话题已关闭」「帖子已删除」「回复已发布」「帖子已更新」「资料已保存」等）都等服务端确认后才弹，被拒时只有失败提示（#162）。书签、置顶、关闭、删除的提示按记录带 id（如 `forum-bookmark:<postId>`），快速连点几次等的是同一个结果，也只留一条提示，说的是服务端最后确认的状态。回复被拒时，说明原因的提示先弹、回复框随后打开：Tuffex 的提示和抽屉共用一个 z-index 计数器，后打开的抽屉连同遮罩会盖住提示，所以回复框打开后让提示宿主再取一次 z-index（Tuffex 0.9.1 的写法是 `toastStore.raised++`，`TxToastHost` 看到它变了就取下一个），提示回到最上面；回复框开着时提示显示在顶部居中（`useShell().composerOpen`，`app.vue` 的 `TxToastHost`），不压住回复框右下角的「取消」「回复」。回 401 时页面马上换成游客（先清掉 viewer 和会话，重读碰上 429 也不留成员按钮），再读一次状态。成员的写操作碰到 401（按发出时是不是成员算，页面先换成游客之后才回来的另一条写操作也算）不弹上面那条失败提示，交给 `LoginModal.vue` 说：服务端答的是 `session_expired`（cookie 到期，或会话在别的标签页结束）就直接弹一条，标题仍是哪件事没成，正文「登录已失效，请重新登录。不登录只能看公开的帖子。」，带「登录」按钮（`data/access.ts` 的 `signinLapsedToast`），顶栏头像同时换回登录按钮；答的是别的 401（如 `signin_required`）先重读一次 `/auth/me`，等回答时顶栏先按没登录算（不会先说「这个账号现在不能在论坛里发帖」），已经没登录就弹同一条「登录已失效」；还登录着（账号在会话开始之后被停用，#274 review round 1：这是唯一会让登录了的账号仍按游客处理的情形，和 GitHub 组织无关）就弹「<哪件事没成> / 这个极客班账号已经停用，和没登录一样只能看公开的帖子。」（`refusedNotMemberToast`），之后按「这个账号现在不能在论坛里发帖」处理；首次读状态在 `LoginModal` 挂载之前，那时结束的登录在它挂载时补说一次，重新挂载不重复（`stores/forum-server.ts` 的 `signinLapse`，`tests/forum-server-store.test.ts`、`tests/login-modal.test.ts`）。429 与其它错误一样回到确认的样子并提示，服务端的限流（#126）不变。浏览数用 `POST /api/forum/topics/:id/view`（同一浏览器会话每个话题只报一次，服务端再按 IP 一小时去重），失败不提示。退出后重新读一次状态，书签和通知随之清空。
 - **游客**（没登录）：只能看公开的帖子，不能回复（#276 去掉游客回复，回复框的昵称、工作量证明、Turnstile 和蜜罐字段随之删掉，`shared/pow.ts`、`shared/turnstile.ts`、`TurnstileBox.vue` 不再有）。看不到「新话题」；`/new` 显示「登录后才能发帖」和「登录」按钮；话题页底部写「登录后参与讨论 / 登录后可以回复、点赞和收藏。没登录只能看公开的帖子。」；「赞」「书签」「关注」弹 toast「登录后才能继续」并带「登录」按钮；书签、通知、资料页显示「登录后才能……」和登录按钮。以前留下的游客回复照旧显示，署名后面跟一个「游客」。
 - **注册用户**（登录了、还没填邀请码）：能看公开的和「只给注册用户看」的话题，不能写；回复和新话题的位置换成一句说明（`data/access.ts` 的 `MEMBER_ONLY_COPY`：「成为极客班成员后可以回复。在桌面右上角的账号资料里填邀请码。」），不放一个只会失败的按钮。
-- **分级可见**（#276）：话题的可见范围是公开、注册用户、成员三档，默认跟随分类，版务可以在「话题管理」里单独改（「只给注册用户看」「只给成员看」「跟随分类的可见范围」，提示「可见范围已更新」）；不公开的话题在标题旁标「注册用户可见」「成员可见」。看不到的话题服务端在查询时就滤掉；直接打开地址时页面说明谁能看（「登录后可看 / 这个话题只给注册用户看，登录后就能打开。」或「成员可看 / ……填邀请码，成为成员后就能打开。」），不显示标题和正文，也不当成找不到。分类的可见范围在控制台「论坛管理 → 分类」里改。`llms.txt` 与 `.md` 只有公开的话题。
+- **分级可见**（#276）：话题的可见范围是公开、注册用户、成员三档，默认跟随分类，版务可以在「话题管理」里单独改（「只给注册用户看」「只给成员看」「跟随分类的可见范围」，提示「可见范围已更新」）；不公开的话题在标题旁标「注册用户可见」「成员可见」。看不到的话题服务端在查询时就滤掉；直接打开地址时页面说明谁能看（「登录后可看 / 这个话题只给注册用户看，登录后就能打开。」或「成员可看 / ……填邀请码，成为成员后就能打开。」），不显示标题和正文，也不当成找不到。分类的可见范围在控制台「论坛管理 → 分类」里改。`llms.txt`、`.md` 与旧帖图片都由核心按请求中的当前 viewer 重算：游客只见 public，注册用户与成员按各自等级；显式 public 例外仍可读，继承分类收紧的话题立即消失。
 - **登录了但被当作游客**：全站登录还在（`/auth/me` 是已登录），但这个极客班账号在会话开始之后被停用了，服务端按游客回答（`viewer.kind: 'guest'`，#274 review round 1：这是唯一的成因，不再有「不在组织里」这一种——任何没停用的账号登录后就是真实的论坛成员，和邀请码、GitHub 组织无关）。这时不再给「登录」（登了也一样），`/new`、书签、通知、资料页与点赞等提示「这个账号现在不能在论坛里发帖」，和游客一样只能看公开的帖子。
 - **成员**（已登录、填过邀请码、账号没被停用）：发新话题（标题 ≤120、标签 ≤5、正文 ≤20000）、回复、引用、编辑和删除自己的帖子（话题第一帖不能删）、点赞、用表情回应、收藏、关注、看通知并标为已读。
 - **表情与回应**（#276）：表情包由服务端发（`GET /api/forum/stickers`，`useStickers.ts` 一页读一次），默认有三个包、共 56 张：24 张极客娘 Q 版表情，其中 15 张图上带一两个字（嗨～、赞！、啊？、收到……，所有者 2026-10-25：「他们的表情包都是带点小文字的 看着更可爱一点」），画面本身就能看懂的 9 张不带；还有「极客日常」「聊天回应」各 16 张（#286，见上文「表情包」）；控制台「论坛管理 → 表情」能新建表情包、改名、排序、停用和上传。写帖时点「表情」按钮或在斜杠菜单里选「表情」插入，正文里存成 `:短码:`，帖子里渲染成两个字高的图片、底部和文字底部对齐，悬停显示它的写法。图片地址由服务端的表情列表给，前端只认两种写法（同源，或 CDN 开关打开时内置表情的 CDN 地址，见下文「表情包」）。照 B 站，每张表情还能写成 `[包名_名字]`（例如 `[极客娘_打招呼]`）：聊天框里打出来就变成表情，帖子里、粘贴进来的也按表情显示，存的时候换回短码；后面紧跟 `(`、`[`、`:` 的不换（那是 Markdown 链接）。所以同一个包里名字不重复，表情包也不重名（控制台拦下）。表情面板照 B 站做（所有者 2026-10-24：「表情包的表现可以学习b站的表现，因为我看了这些表情包我不知道都是代表什么，太糊了，看不清」）：一次显示一个表情包，顶部左边写包名、右边提示「输入 [包名_名字] 也能发」，中间每行 4 个、每张 64px，图下面写名字；底部一排页签，每个包一个，封面是包里第一张；浏览器用过表情后最前面多一个「最近」页签（时钟图标，最近 8 个，键 `forum:stickers:recent`，只存短码，被停用的自动不显示）；打开时停在第一个包。没有表情的包不出页签（`StickerPicker.vue`，`tests/sticker-picker.test.ts`）。服务端发的表情列表里没有的短码按原文字显示。帖子操作栏有「回应」，点开同一个表情面板，选一个就给帖子加上这个表情的回应（`PUT /api/forum/posts/:id/reactions/:sticker_id`），帖子下面显示每个表情的计数，再选一次取消（`DELETE`）；和点赞一样先显示再发请求，被拒时回到原样并提示。
@@ -188,17 +192,18 @@ UI 依照 [Tuffex 使用政策](../../components/tuffex/USAGE-POLICY.md)，同�
 
 ## 契约：给 AI 读取的 Markdown
 
-帖子正文本来就是 Markdown，页面把它渲染成 HTML。在话题地址后面加 `.md` 拿到的是同一份原文，供 AI 和脚本读取；`llms.txt` 按 [llms.txt](https://llmstxt.org/) 约定列出全部话题。
+帖子正文本来就是 Markdown，页面把它渲染成 HTML。site 模式的话题地址加 `.md`、`llms.txt` 和旧帖正文引用的 `published/<hash>.webp` 均由核心按本次请求的 `sid`、读取等级和 `COALESCE(topic.visibility, category.visibility, 'public')` 实时提供；文本与图片都带 `private, no-store`，静态镜像不含原文。demo 与明确本机快照模式保留原来的本地生成合同，与 site 隔离。
 
 | 地址（线上前缀 `/forum`） | 类型 | 内容 |
 |---|---|---|
-| `/forum/t/<id>.md` | `text/markdown; charset=utf-8` | YAML 头（`title`、`category`、`author`、`author_username`、`created` ISO 8601、有标签时 `tags`、`replies`、`url` 为话题页地址），然后是标题、首帖原文，最后 `## 回复` 下按楼层排列的回复，每条以 `### #<楼层> <显示名> (@<用户名>) · <时间>` 开头；回复某一楼时下一行写明「回复 #<楼层>」；已删除的帖子只写「（此帖已被删除）」 |
-| `/forum/llms.txt` | `text/plain; charset=utf-8` | 标题、一段说明，然后每个分类一节，每个话题一行 `- [标题](.md 地址): 首帖摘要`；置顶在前，其余按发帖时间从新到旧 |
-| 话题页 `<head>` | — | `<link rel="alternate" type="text/markdown" href="/forum/t/<id>.md">`，只在该话题有 `.md` 文件时出现 |
+| `/forum/t/<id>.md` | `text/markdown; charset=utf-8` | 当前 viewer 可见时，YAML 头、标题、首帖原文与回复；未知 id 404，匿名缺等级 401，已登录等级不足 403，拒绝体不含标题或正文 |
+| `/forum/llms.txt` | `text/plain; charset=utf-8` | 只列本次请求可见的话题与首帖摘要；无可见话题返回空态说明 |
+| `/forum/published/<16位hash>.webp` | `image/webp` | 仅当至少一篇当前 viewer 可见、未删除的正文引用该文件时返回；非法名、文件不存在或仅隐藏话题引用统一 404 |
+| 话题页 `<head>` | — | site 的当前可见话题都输出动态 Markdown alternate；demo/快照仍按各自原合同 |
 
-正文与回复原样输出页面渲染用的 Markdown，不转成 HTML；标题、显示名、摘要这类纯文本字段转义 Markdown 符号。生成规则只在 `shared/forum-markdown.ts` 一处，由 `tests/forum-markdown.test.ts` 覆盖转义、代码块原样保留、楼层顺序和无回复的情况。链接的站点前缀取自环境契约：正式与预发布构建是 `https://<域名>/forum/…`，本机是站点相对路径。
+核心 formatter 在 `app/server/src/lib/forum-markdown.ts`，输入是 `forum-store` 已过滤的 state/正文，不 cross-import Vue/Nitro；site 开发由 `server/middleware/forum-markdown.ts` 代理相同 `/forum/*` 出口，生产由 web nginx 保留 URI 与 cookie 直达 core。标题、名字、摘要转义 Markdown 符号，正文保留原 Markdown。论坛镜像构建后删除 `llms.txt`、`t/*.md` 与 `published/`，并扫描客户端/静态产物不得含旧帖原文；直接访问 forum 容器同名路径为 404。
 
-**限制**：静态产物里只有 `nuxt generate` 时写出的文件：极客班论坛（镜像）是每篇公开旧帖的 `t/<id>.md` 加一份 `llms.txt`；示例种子的构建是每个话题（`t1`…`tN`）加一份 `llms.txt`，有 `.md` 的话题编号经运行时配置 `markdownTopicIds` 传给页面。极客班论坛里之后发的话题和回复存在核心服务，示例模式里新发的只存在该浏览器的 localStorage，两者都没有对应的 `.md`，请求会得到 404，这类话题页也不输出 `alternate` 链接；极客班论坛的 `llms.txt` 说明里写明它只列构建时公开的旧帖。已有种子话题在浏览器里新增的回复、编辑、删除同样不会出现在 `.md` 里，文件内容停在构建时刻，时间也按构建时刻推算。本机 dev 服务器配置了只读快照时，`.md` 与 `llms.txt` 按请求从快照生成，覆盖快照里的全部话题；快照不进静态产物。接入真实后端后改由服务端按数据库生成。
+旧帖源文件与历史帖子保留，核心 server 镜像复制原图片供授权后读取，不删除真实内容、不自动改 category/topic visibility。已经被浏览器或外部代理公开缓存过的旧静态内容无法由新代码回收；新响应和新镜像只保证之后不再共享缓存或无条件携带这些内容。
 
 ## 环境与版本显示
 
@@ -213,7 +218,7 @@ pnpm forum:status    # contentSource、mode、snapshotConfigured
 pnpm forum:stop
 ```
 
-工具链选择见 [TUFF-FORUM](../../ops/TUFF-FORUM.md)；容器内由 `yzgc-<environment>/forum` 镜像提供静态产物，web 容器以 `proxy_pass http://forum:3000/`（尾斜杠剥离 `/forum` 前缀）反代，论坛发出的相对跳转由 `proxy_redirect / /forum/` 补回前缀。镜像的构建阶段 `node:26-bookworm-slim` 与运行阶段 `nginx:1.31-alpine` 在 `app/forum/Dockerfile` 里按 digest 固定（`<tag>@sha256:<digest>`，#97）；换基础镜像的步骤见 [DEPLOY](../../ops/DEPLOY.md)「基础镜像按 digest 固定」。
+工具链选择见 [TUFF-FORUM](../../ops/TUFF-FORUM.md)；容器内由 `yzgc-<environment>/forum` 镜像提供页面静态产物，web 容器把动态文档/旧帖图片直达 core，其余 `/forum/*` 以 `proxy_pass http://forum:3000/`（尾斜杠剥离 `/forum` 前缀）反代，论坛发出的相对跳转由 `proxy_redirect / /forum/` 补回前缀。镜像的构建阶段 `node:26-bookworm-slim` 与运行阶段 `nginx:1.31-alpine` 在 `app/forum/Dockerfile` 里按 digest 固定（`<tag>@sha256:<digest>`，#97）；换基础镜像的步骤见 [DEPLOY](../../ops/DEPLOY.md)「基础镜像按 digest 固定」。
 
 ## 验证命令
 
@@ -221,8 +226,8 @@ pnpm forum:stop
 
 ```bash
 pnpm forum:check     # Nuxt 类型、测试类型、ESLint、样式 guard、Vitest
-pnpm forum:generate  # 静态构建（默认示例种子），产物含每个种子话题的 t/<id>.md 与 llms.txt
-GEEK_FORUM_SOURCE=site GEEK_FORUM_BASE_PATH=/forum/ node scripts/forum.mjs generate  # 按镜像的方式构建极客班论坛，产物含每篇公开旧帖的 t/<id>.md 与 llms.txt
+pnpm forum:generate  # 默认示例种子仍生成本地 t/<id>.md 与 llms.txt
+GEEK_FORUM_SOURCE=site GEEK_FORUM_BASE_PATH=/forum/ node scripts/forum.mjs generate  # site 产物必须不含 llms.txt、t/*.md、published/ 或旧帖原文
 pnpm forum:verify    # guard 自测 + 原仓 CDP 四套交互 + 全路由 smoke
 node scripts/check-forum-adoption.mjs   # 上游文件摘要、集成差异与批准过的依赖
 ```
@@ -231,12 +236,26 @@ CDP 使用独立临时浏览器，只清理本次进程组。原仓单测与旧 
 
 资料表单的 `TxBlockInput` 行按内容自动撑高，窄屏标签与控件上下排列；控件宽度约束指向实际的 `tx-block-slot__slot`，不依赖不存在的 `tx-block-input__control`。签名的多行输入与长说明不得越出所属行或覆盖下一字段。`scripts/lib/preferences-layout.mjs` 在真实页面量取标签、控件和行的几何，供原 CDP 验证与隔离真实页面验收共用：必须量到昵称、个人签名、所在地、个人网站（示例模式显示「网站」）四行和八个 label/control 矩形；缺元素、零尺寸、非有限数、行外、视口越界、页面横向溢出或相互重叠都失败，不能让空测量冒充通过。无横向溢出不是无重叠的替代证据。本树不改变资料 DTO、保存协议、编辑器或 CLI 行为。
 
+**真实编辑器与保存读回回归**（GitHub #274，不是历史 GitLab 同号事项）：`crepe-editor.ts` 在创建编辑器前移除 Milkdown 的 `remarkPreserveEmptyLinePlugin`。它原先将空段落写成原始 HTML `<br />`，与论坛“原始 HTML 显示为文字”的安全边界冲突。现在空段落输出 Markdown 段落间隔，soft/hard break 仍用原来的节点序列化；首尾和连续空段落重新打开后按 CommonMark 合并，不承诺保留额外空段的个数。不替换用户写出的 `<br />` 或代码中的同名文字，不改旧帖子，不放开 HTML 渲染。本树未修改核心服务端接口、统一资料 DTO 或账号资料布局。
+
+在根目录用已经准备好的两套工具链运行以下**一条命令**（`node` 必须是 Node 22；两个路径分别指向 Node ≥26 原生可执行文件和 pnpm 11.24.0 的 `pnpm.cjs`）：
+
+```bash
+FORUM_NODE=/path/to/node26 FORUM_PNPM=/path/to/pnpm.cjs node tests/integration/forum-editor/run.mjs
+```
+
+启动编排和 HTTP 夹具的完整源码在 `tests/integration/forum-editor/`，真实 Crepe / Tuffex DOM 用例在 `app/forum/tests/crepe-markdown.spec.ts`，配置是同目录的 `crepe-markdown.config.ts`。需要根工作区现有开发依赖 `jsdom`、核心 Node 22 依赖和论坛独立依赖；没有新增依赖。启动器自动绑定随机 loopback 端口、等待夹具就绪，再调用根 `scripts/forum.mjs test`，不需要手工启动服务或填写端口。默认将 `fixture.log`、`tests.log`、`http.json`、`runtime.json`、`result.json` 写到输出中显示的临时目录；`--evidence-dir <尚不存在的目录>` 可指定归档位置，不覆盖旧证据。仅需复用另一份已经安装依赖的核心 checkout 时可加 `--core-root <路径>`：启动前逐文件核对核心源码、测试 helper/内容夹具、清单和根锁文件与当前 checkout 完全一致，有差异即非零退出。
+
+核心夹具独立运行在 Node 22：真实 `buildApp` / Fastify 路由与内存 SQLite，只建合成成员、合成话题，外部 HTTP / GitHub / 发信默认拒绝，不读 `.env` 或业务库，也不复制内部 handler。论坛 Vitest 独立运行在 Node ≥26：真实 `createCrepeEditor` → `createForumApi` 的 POST → GET 正文 → Tuffex `TxMarkdownView` / DOMPurify → 重新打开编辑器；覆盖引用、空段、soft/hard break、@ 查询与 Enter 完成、图片/表情 Markdown 互换、原始 HTML 与代码字面值的安全边界。jsdom 只补缺失的 Range 几何和 IntersectionObserver，不能据此认定布局、可视性或真实浏览器交互通过。测试失败、夹具启动失败或运行中退出都非零退出；退出时只结束本次子进程组，并在 `result.json` 记录退出码及 listener 清理检查。
+
+这不是默认 `tests/**/*.test.ts` 的 Node 单测：现有 CI 的 core job 只有 Node 22 核心依赖，forum job 只有 Node 26 论坛依赖；不能让 Node 26 加载 Node 22 的 SQLite 二进制，也不能将根 jsdom 偷加进论坛生产依赖。此改动没有修改 CI，**默认 `pnpm test` / `pnpm forum:check` 与现有 CI 均不运行这套跨工具链回归**；需单独执行上述根命令并留存结果，默认 CI 绿标不能作为它已运行的证据。原有 PostEditor 替身用例仍只证明组件接线；实际 @ 建议下拉、⌘/Ctrl+Enter 发送、文件选择/粘贴上传、图片加载与响应式布局仍需真实页面验收。
+
 偏好页的 CDP 验证按当前连续表单操作：资料改动保存前不进入 store，头像颜色与通知开关随「保存更改」写入并在重载后保留；别人的偏好页不渲染表单；390px 下输入控件不越出视口。不再要求已退役的四个偏好页页签或 `tabpanel` 结构。
 
 ## 已知限制与生产准入
 
 - 快照投影仍在 `.tools/` 私有目录，不进 Git、CI 缓存或发布包；`pnpm forum:generate` 产物中不存在 dev 专用路由。
-- 镜像（预发布、正式）是极客班论坛：站名、分类和标签是自己的，数据来自核心服务的 `/api/forum/*`（#57 的服务端与 #107 的前端都合入后才可用；只有前端时页面按「论坛服务暂时连不上」只读显示公开旧帖）。从旧论坛公开的旧帖共 17 篇（#87 的招新机试文档与入门资料，#108 的 3 篇 AI 帖子，见「公开的旧帖」）。快照不进镜像，上游示例内容也不进。
-- 之后发的话题和回复没有静态 `.md`（见上文「给 AI 读取的 Markdown」）；旧帖的原作者认领见 #58。
+- 镜像（预发布、正式）是极客班论坛页面壳，site bootstrap 为空，分类、标签、用户、话题、正文与文档都来自核心当前 viewer 投影；核心不可用时不显示构建时旧帖。仓库仍保留 17 篇旧帖源供核心播种（#87、#108），快照和上游示例内容不进 site 镜像。
+- site 的现有与之后新增话题都通过动态 `.md` 出口读取；demo 和本机快照仍按各自原合同生成。旧帖的原作者认领见 #58。
 - 原始数据库和附件已按后续明确授权拉到 Mac 私有备份目录，见 [数据保全](../../ops/FORUM-DATA-CAPTURE.md)；由 `prepare.py` 生成的只读投影可按上文快照模式在本机显示，但未导入可写数据库、未激活旧会话。
 - 目标数据模型转换、身份认领和上线仍需另行设计/验收，不删除源数据。**未做**：旧论坛账号（包括当年用 GitHub 登录过的）还没有和现在的 GitHub 登录关联，改过的姓名也没有同步，登录后不会自动认领旧帖子。
