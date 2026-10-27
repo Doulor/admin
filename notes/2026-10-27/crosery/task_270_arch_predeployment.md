@@ -36,6 +36,12 @@
 - 做了什么：Arch docker pull固定摘要返回not found；独立查询官方ghcr镜像清单确认实际OCI摘要，保留原失败日志，修正后继续真实容器验证
 - 结果：原d8313491不可拉取；官方latest当前index为eb5578cf、amd64清单9f266ba0，尚未把拉取或构建标为通过
 
+## 03:54:19 +08:00 · 验收 · #270 · CLI五目标Linux容器编译与启动通过
+
+- 执行者：agent-claude-completion-5a（Claude Code）
+- 做了什么：核实官方OCI index后固定eb5578cf摘要，整合宿主metadata目录及容器构建目录；Arch独立临时目录执行真实cli-dist --container及物料检查，单独无网络只读容器运行Linux产物
+- 结果：5目标编译成功、13207140字节、全部SHA一致；Linux x86_64 geek 0.1.0与help成功；78发布接线回归通过，六个原站点容器与GitLab仍healthy。仅构建器入口使用Arch现有Node26编排，业务编译/运行均在Linux容器；未部署或创建发布tag
+
 ## 04:02:05 +08:00 · 方案 · #270 · CLI同版本产物改为内容寻址避免一年缓存碰撞
 
 - 执行者：agent-codex-cli-release（Codex，Sol）
@@ -209,3 +215,15 @@
 - 做了什么：把只读子代理对 6962e023 的独立审查与作者的逐条处理写成评论发到 MR !33（评论 1465），含 1 条应修、2 条建议，全部已在 4eb91893 修复，附证据、未验证项和残余风险。
 - 结果：增量结论：无未决阻塞或应修条目；整个 MR 仍为阻塞，原因是继承的 K10 与备份落点裁决，K10 裁决前不合并 !33。
 - 下一步：等所有者对 K10 与 GitHub stage 同步方式裁决
+
+## 22:11:28 +08:00 · 提交 · #270 · 合并 gitlab/stage(74b6d64a) 进 task/270，提交 fa624164
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：合并冲突 9 个文件：DEPLOY.md 头部取本分支一行，docs/INDEX.md、catalog/*、notes/INDEX.md 按合并后源码重新生成；合并提交只含冲突块取舍，无其他改动。
+- 结果：docs-index --check、check-secrets、check:catalog、check-doc-sync/architecture(--base gitlab/stage) 通过，garage-archive 与 storage-cdn-config 测试共 31 条通过；check:notes 仍报继承的 K10。
+
+## 22:11:28 +08:00 · 审查 · #270 · MR !33 合并前复核：fa624164
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：对合并提交 fa624164 复核并把结论写成评论 1478 发到 MR !33，列出门禁实测、上一轮两个 Spec 阻塞项的处理、继承的 K10 与未验证项。
+- 结果：代码轴无未决阻塞；机器门禁只剩继承的 K10。所有者 10-27 要求全部并入 stage，据此合并，K10 仍待所有者裁决。

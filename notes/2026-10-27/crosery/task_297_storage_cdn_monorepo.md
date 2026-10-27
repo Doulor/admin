@@ -64,3 +64,15 @@
 - 做了什么：对独立审查之后的增量做了核对并发到 MR !34（评论 1469）：git diff --stat 63d9dc45 3fb242a8 只有 STORAGE-CDN.md 一行重复说明和本 task 的执行记录，deploy、tests、scripts、docs/changes/297.json 与被审版本逐字相同；CORS 头加了又整体撤回，净增量为零。增量审查人是作者本人，评论里已写明不是独立审查。文档核对：docs/ops/STORAGE-CDN.md 已是现行内容，不用再改——本次只补记录。
 - 结果：check-secrets、check-doc-sync --base gitlab/stage、check-architecture --base gitlab/stage、docs-index --check 通过，storage-cdn-config 11 passed；note check 仍只有历史 K10 一处。结论：通过。
 - 下一步：合并 !34 进 GitLab stage，随后把 GitHub stage 同步到合并后的提交
+
+## 21:50:40 +08:00 · 合并 · #297 · MR !34 合并进 GitLab stage，GitHub stage 同步到合并提交
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：所有者 2026-10-27 说香港对象存储的配置作为 monorepo 落盘进仓库。按 sha=a0989b0f 用 merge commit 合并 !34（GitLab API，删源分支），合并提交 74b6d64adee7；随后在临时克隆里把 GitHub stage 的 enforce_admins 临时关闭、快进到 74b6d64adee7、立即恢复。
+- 结果：git ls-remote 两侧 stage 都是 74b6d64adee7、main 都是 61da3fea76f6；GitHub stage 保护恢复后与改前逐项相同；推送只触发 ci.yml，没有部署 workflow；GitLab #297 已写关闭记录（评论 1474）并关闭。
+
+## 21:51:38 +08:00 · 收尾 · #297 · 手工清理 task/297 的 worktree 与本地分支
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：task.mjs finish 297 因 gh 查不到 issue 状态拒绝清理（该 issue 在 GitLab，GitHub 的 297 是另一件事）。改为手工核对后清理：worktree 无未提交改动，分支 a0989b0f 已整体包含在 gitlab/stage 里，远端分支在 MR 合并时已删；然后 git worktree remove 与 git branch -D。
+- 结果：git worktree list 不再有 task-297，git branch --list 'task/*' 只剩 task/270；GitLab #297 已关闭。

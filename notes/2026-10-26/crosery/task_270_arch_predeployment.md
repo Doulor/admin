@@ -20,6 +20,12 @@
 - 做了什么：逐项读取env/CI/manual及测试diff，首轮打回删除关键断言与回滚脚本未发货；Sol补回后父级重跑7文件145用例及actionlint。独立核对GitLab28文件hash、8头像及脚本语法；台账DeepSeek两轮失败后改交全新Astra并亲跑其核对脚本
 - 结果：145/145 tests passed，actionlint exit0，GitLab28/28 hash与8/8头像匹配；60需求26包109边25映射差复核通过。运行时Caddy默认带旧github域已打回；身份、K10、历史基线声明和发布/迁移授权仍阻塞，未发外部评论或Git写
 
+## 01:40:53 +08:00 · 验收 · #270 · 核心隔离回归与构建通过，核实原生模型接入
+
+- 执行者：agent-codex-geek-control（Codex，总协调）
+- 做了什么：统一运行server/web/console隔离测试与核心构建；按所有者提供的网关问题只读核对OMP/Codex配置、环境注入凭据调用models和最小API请求，并实际创建Sol/Gemini/DeepSeek原生子代理握手后读取运行元数据
+- 结果：核心1489/1489通过，pnpm build exit0；备份/恢复/旧库23用例通过。网关57模型，原生gpt-6.1-sol max、gemini-3.8-flash-high high、deepseek-v4.1-flash max全部ROUTE_OK且元数据吻合；未改默认配置或保存新密钥。以上不替代新机、全量verify与人工验收
+
 ## 02:21:00 +08:00 · 方案 · #270 · R06集成检查发现Rust构建脚本严格lint失败
 
 - 执行者：agent-codex-geek-control（Codex，总协调）
@@ -67,3 +73,9 @@
 - 执行者：agent-claude-migration-5a（Claude Code）
 - 做了什么：完成GitHub32项配置与现行连接入口；保存精确差异和验证日志到主工作区.tools/handoff/2026-10-26-release-target/RESULTS.md；复核分支保护和部署审批未变
 - 结果：剩余阻塞为task270跨仓2363文件的历史集成、GitLab/GitHub同号宏观声明归属、已收尾notes后追加；不能改历史或放宽checker。新workflow未进远端，新回滚脚本未随获批tag到货，GitHub端到端发布未验证；issue保持打开
+
+## 23:20:55 +08:00 · 验收 · #270 · 最终健康复查补充隧道重入active的观察
+
+- 执行者：agent-claude-migration-5a（Claude Code）
+- 做了什么：只读核对宿主uptime、systemctl ActiveEnterTimestamp和容器StartedAt；再次访问公开两环境healthz和release.json
+- 结果：发现hk-tunnel于22:47:52、Compose于22:48重新active，六容器启动时间更新，宿主与Docker未重启；具体触发原因未调查，本轮未执行重启命令。最终六容器healthy、两环境healthz成功、版本仍正式0.1.0和preview rc25；不把未主动重启表述为期间从未重启
