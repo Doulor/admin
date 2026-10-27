@@ -434,7 +434,7 @@ try {
 
 if (-not ($env:Path -split ";" | Where-Object { $_ -eq $InstallDir })) {
   Write-Host "[geek] 把下面这行加进 PowerShell 配置文件才能直接用 geek："
-  Write-Host "  \$env:Path = \\"$InstallDir;\$env:Path\\""
+  Write-Host ('  $env:Path = "{0};$env:Path"' -f $InstallDir)
 }
 
 Write-Host "[geek] 下一步：geek login"

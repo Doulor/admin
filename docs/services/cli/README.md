@@ -2,7 +2,7 @@
 
 > 极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
 
-状态：`current` · 更新：2026-10-27 · 源码：`app/cli/` · 产物：`dist/cli/`（随环境镜像 `yzgc-production/web` 或 `yzgc-preview/web` 的 `/cli/` 路径分发）；本合同不证明某个已发布镜像实际含 CLI。
+状态：`current` · 更新：2026-10-28 · 源码：`app/cli/` · 产物：`dist/cli/`（随环境镜像 `yzgc-production/web` 或 `yzgc-preview/web` 的 `/cli/` 路径分发）；本合同不证明某个已发布镜像实际含 CLI。
 
 ## 源码地图
 
@@ -170,6 +170,6 @@ geek --env preview logout
 
 - 没有 `geek self update`：这是旧仓库（`~/work_file/geek_cli`）设计过但本次没有实现的功能，不依赖 GitHub Releases；升级就是重新跑一次安装脚本。
 - Linux 的 `aarch64`/`x86_64` 都发 musl 静态二进制，没有单独的 glibc 构建；多数发行版能直接跑 musl 二进制，个别极旧的发行版未测试。
-- `install.ps1` 的 manifest 选择规则与 Shell/分发核验器共用同一行为回归；当前开发机没有 `pwsh`，未在真实 Windows/PowerShell 运行下载、校验和替换流程，仍标记未验证。
+- `install.ps1` 的 manifest 选择规则与 Shell/分发核验器共用同一行为回归。有 `pwsh` 的环境（GitHub CI 的 runner、本机装了 PowerShell 7 时）里，`tests/tooling/cli-release-wiring.test.ts` 会用真实 PowerShell 解析生成的脚本并跑恶意 manifest 用例，没有 `pwsh` 就跳过；PowerShell 的转义符是反引号，不是反斜杠，生成脚本里要打印带引号的行时用单引号字符串加 `-f`（#300 修的就是 `\"` 写法导致整份脚本解析失败）。在真实 Windows 机器上下载、校验和替换二进制的完整流程仍未验证。
 - 比赛、论坛、投递相关命令只接入现状端点（`GET /api/me/applications` 除外，是这次新开的）；以后这些业务扩展了新的接口，CLI 对应的子命令需要跟着扩展，不在这次范围内。
 - `geek status` 的 `server_reachable`/`token_valid` 各自独立发一次 `GET /healthz`/`GET /auth/device/userinfo`，不共用缓存；高频轮询（例如 CI 里每次调用前都先跑一次 `geek status`）会在这两个接口上多打一次请求，目前没有限流以外的额外保护。

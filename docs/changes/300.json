@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "issue": 300,
+  "kind": "engineering",
+  "summary": "cli-dist.mjs 生成的 install.ps1 里打印 PATH 提示的那一行改成单引号字符串加 -f，修掉 PowerShell 解析失败（\\\" 不是转义）；测试新增用真实 pwsh 解析生成脚本的用例；CLI 合同的已知限制同步改写。",
+  "applications": [
+    "cli"
+  ],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不改登录、论坛、比赛或投递的任何规则；只改 Windows 安装脚本里一行提示文字的写法。",
+      "evidence": [
+        "scripts/cli-dist.mjs"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不新增应用 HTTP 接口、数据库表或服务端代码。",
+      "evidence": [
+        "scripts/cli-dist.mjs"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不涉及权限节点、令牌或 scope。",
+      "evidence": [
+        "scripts/cli-dist.mjs"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不读写业务数据；安装脚本的 manifest 校验、下载与替换逻辑不变。",
+      "evidence": [
+        "scripts/cli-dist.mjs"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增依赖；测试只在本机有 pwsh 时额外运行，没有就跳过，与已有用例一致。",
+      "evidence": [
+        "tests/tooling/cli-release-wiring.test.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "CLI 合同的已知限制改为：有 pwsh 的环境里已用真实 PowerShell 解析并跑恶意 manifest 用例，Windows 真机完整流程仍未验证。",
+      "evidence": [
+        "docs/services/cli/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增一条用真实 pwsh 解析生成脚本的用例；改前该用例与恶意路径用例失败，改后 34 个用例全部通过。",
+      "evidence": [
+        "tests/tooling/cli-release-wiring.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "GitHub core 作业不再因 install.ps1 解析失败而红，且 Windows 用户拿到的安装脚本可以解析；不改部署工作流，不建 tag。",
+      "evidence": [
+        "scripts/cli-dist.mjs"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "scripts/cli-dist.mjs",
+        "tests/tooling/cli-release-wiring.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "生成 install.ps1 的模板里一行提示改成合法的 PowerShell 写法，并用真实 pwsh 解析和打印回归。"
+    },
+    {
+      "paths": [
+        "docs/services/cli/README.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "CLI 合同的已知限制与更新日期同步改写，如实写出哪些已在 pwsh 下验证、哪些仍未验证。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "CLI 合同与 cli-dist.mjs 更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
+    }
+  ],
+  "documents": [
+    "docs/services/cli/README.md"
+  ],
+  "tests": [
+    "tests/tooling/cli-release-wiring.test.ts"
+  ],
+  "compatibility": "安装脚本的行为与校验逻辑不变，只有结尾提示用户把安装目录加进 PATH 的那一行输出由「解析失败」变为可粘贴的命令。",
+  "migration": "不涉及数据或接口迁移：没有表结构、接口或配置变化；已发布的 install.ps1 在 web 镜像里随下一次构建更新。",
+  "rollback": "回滚本次改动即可，生成的 install.ps1 回到有语法错误的状态。"
+}
