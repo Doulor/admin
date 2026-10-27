@@ -2,7 +2,7 @@
 
 > 极客班命令行 `geek`（Rust）：设备码登录、论坛/比赛/代码仓库只读与写操作、给 Claude Code/Codex/omp 装一份极客班技能（#277）。独立工具链，不进 Node 工作区；产物不单独成镜像，随 `app/web` 镜像的 `/cli/` 路径分发。
 
-状态：`current` · 更新：2026-10-25 · 源码：`app/cli/` · 产物：`dist/cli/`（随 `yzgc/web` 镜像的 `/cli/` 路径分发）
+状态：`current` · 更新：2026-10-27 · 源码：`app/cli/` · 产物：`dist/cli/`（随 `yzgc/web` 镜像的 `/cli/` 路径分发）
 
 ## 源码地图
 
@@ -40,7 +40,7 @@
 
 | 命令 | 端点 | 说明 |
 |---|---|---|
-| `geek whoami` | `GET /auth/device/userinfo` + `GET /api/console/me` | 账号、昵称、部门、年级；邮箱或资料没补齐时跳过第二个请求，打印提示 |
+| `geek whoami` | `GET /auth/device/userinfo` + `GET /api/console/me` | 账号、公开用户名/昵称/简介/头像、部门、年级；新版公开资料优先 userinfo，邮箱或资料没补齐时仅跳过部门查询、仍展示可用公开资料并打印提示 |
 | `geek status` | `GET /healthz` + `GET /auth/device/userinfo` | 不要求已登录；本机令牌来源、源站、服务端连通性、令牌是否有效 |
 | `geek forum list` | `GET /api/forum/state` | 板块与话题摘要 |
 | `geek forum show <topic_id>` | `GET /api/forum/topics/:topic_id/posts` | 一个话题的全部帖子（含正文），不需要登录 |
@@ -56,6 +56,14 @@
 | `geek team apply` | `POST /api/teams/{id}/apply` | 报名 |
 | `geek repo list` | `GET /api/public/gitlab/projects` | 公开代码仓库列表 |
 | `geek apply status` | `GET /api/me/applications`（新） | 按登录邮箱匹配招新投递；没绑邮箱是空列表，只回 id/status/created_at |
+
+## 公开资料与头像消费者（GitHub #271）
+
+`login` 与 `whoami` 优先从 `/auth/device/userinfo` 读统一公开资料：`username/display_name/bio/avatar_url`，保留 `account_id/login/scope` 等旧字段。空昵称回退登录名，不打印 real_name；`/api/console/me` 用于补部门。邮箱/资料闸为 true 时只跳过会被拒绝的部门请求，不让公开昵称与头像一起消失。`whoami --json` 新增 username/bio，人读输出增加用户名与非空简介；其 avatar_url 保留服务端字符串，可能是相对路径。
+
+登录动画下载头像时用源站 URL 解析相对路径，公开下载不带设备 Bearer，HTTP client 不跟随跳转。拒绝空值、首尾空白、协议相对 `//`、反斜线、控制字符和 URL 凭据；接受 HTTPS，HTTP 只用于本身就是 HTTP 的本地源站且必须同源。下载失败仅不画头像，不改变登录结果/权限/业务错误退出码。此下载校验不等于 `whoami` JSON 输出 URL 的校验。
+
+源码为 `commands/login.rs`、`whoami.rs`；定向消费者回归 `app/cli/tests/profile_consumers.rs`，服务端对应 `tests/server/public-profile-consumers.test.ts`。缺新增字段的旧版响应仍从 console/me 补昵称、无昵称再退登录名；TCP 集成测试需要独立本地监听许可，禁止监听的环境只运行编译/非网络单测并显式留未验证项。真实终端图像协议及线上登录需另按实际验收记录确认，不以本文宣称已通过。
 
 ## 登录动画（SPEC §6）
 

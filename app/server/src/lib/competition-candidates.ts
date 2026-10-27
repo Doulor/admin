@@ -72,7 +72,7 @@ type GitlabReader = {
   readonly mode: "off" | "dry-run" | "on";
   readonly url: string | null;
   readApi(path: string): Promise<{ status: number; data: unknown; nextPage: number | null }>;
-  accountForGitlabUser(gitlabUserId: number): string | null;
+  accountForGitlabUser(gitlabUserId: number): Promise<string | null>;
 };
 type Logger = { info(details: Record<string, unknown>, message: string): void; error(details: Record<string, unknown>, message: string): void };
 type GitlabItem = {
@@ -213,15 +213,22 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       if (budget-- <= 0) throw Object.assign(new Error("budget"), { code: "request_budget_exhausted" });
       return deps.gitlab.readApi(path);
     };
-    const readList = async (path: string): Promise<GitlabItem[]> => {
-      const items: GitlabItem[] = [];
+    const accountFor = async (userId: number) => {
+      if (budget-- <= 0) throw Object.assign(new Error("budget"), { code: "request_budget_exhausted" });
+      return deps.gitlab.accountForGitlabUser(userId);
+    };
+    const readList = async <T = GitlabItem>(path: string): Promise<T[]> => {
+      const items: T[] = [];
       let page: number | null = 1;
       for (let count = 0; page && count < LIST_PAGES_MAX; count++) {
         const result = await read(`${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`);
         if (result.status !== 200 || !Array.isArray(result.data)) throw Object.assign(new Error("list"), { code: `gitlab_http_${result.status}` });
-        items.push(...(result.data as GitlabItem[]));
-        page = result.nextPage;
+        items.push(...(result.data as T[]));
+        const next: number | null = result.nextPage ?? (result.data.length === 100 ? page + 1 : null);
+        if (next !== null && next !== page + 1) throw Object.assign(new Error("pagination"), { code: "gitlab_pagination_incomplete" });
+        page = next;
       }
+      if (page !== null) throw Object.assign(new Error("pagination"), { code: "gitlab_pagination_incomplete" });
       return items;
     };
     const signedUp = new Set(deps.signups.activeSignups(record.id).map(person => person.account_id));
@@ -235,18 +242,26 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       if (typeof value === "string" && /^https?:\/\/[^\s]+$/.test(value)) return value.slice(0, 500);
       return `${deps.gitlab.url ?? ""}/${project}/-/${kind === "pr" ? "merge_requests" : "issues"}/${iid}`;
     };
-    const labelsOf = (item: GitlabItem) => Array.isArray(item.labels) ? item.labels.filter((label): label is string => typeof label === "string") : [];
+    const labelsOf = (item: GitlabItem): string[] => {
+      if (!Array.isArray(item.labels) || item.labels.some(label => typeof label !== "string")) {
+        throw Object.assign(new Error("labels"), { code: "gitlab_data_incomplete" });
+      }
+      return item.labels;
+    };
 
     type LatestLabel = { action: "add" | "remove"; userId: number | null; username: string | null };
-    /** 资源标签事件里每个标签最后一次是谁、加还是拿掉；读不到事件为 null。 */
-    async function latestLabelEvents(project: string, kind: "pr" | "issue", iid: number): Promise<Map<string, LatestLabel> | null> {
+    /** 完整事件中每个标签最后一次是谁、加还是拿掉；坏事件不能被跳过后把旧事件误认成最新。 */
+    async function latestLabelEvents(project: string, kind: "pr" | "issue", iid: number): Promise<Map<string, LatestLabel>> {
       const resource = kind === "pr" ? "merge_requests" : "issues";
-      const result = await read(`/projects/${encodeURIComponent(project)}/${resource}/${iid}/resource_label_events?per_page=100`);
-      if (result.status !== 200 || !Array.isArray(result.data)) return null;
+      const events = await readList<LabelEvent>(`/projects/${encodeURIComponent(project)}/${resource}/${iid}/resource_label_events`);
       const latest = new Map<string, LabelEvent>();
-      for (const event of result.data as LabelEvent[]) {
-        const name = event.label?.name;
-        if (typeof name !== "string" || (event.action !== "add" && event.action !== "remove")) continue;
+      for (const event of events) {
+        const name = event?.label?.name;
+        if (!event || !Number.isSafeInteger(event.id) || Number(event.id) <= 0
+          || !Number.isFinite(Date.parse(String(event.created_at ?? "")))
+          || typeof name !== "string" || !name || (event.action !== "add" && event.action !== "remove")) {
+          throw Object.assign(new Error("event"), { code: "gitlab_data_incomplete" });
+        }
         const known = latest.get(name);
         const at = Date.parse(String(event.created_at ?? ""));
         const knownAt = known ? Date.parse(String(known.created_at ?? "")) : -Infinity;
@@ -260,8 +275,8 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
     }
 
     /** 一个标签最后一次是不是由能审核积分、又不是作者的人加上的：是就给账号，不是就给未计分的原因。 */
-    function labelAdder(row: CandidateRow, name: string, event: LatestLabel | undefined): { account: string } | { note: string } {
-      const reviewer = event?.action === "add" && event.userId !== null ? deps.gitlab.accountForGitlabUser(event.userId) : null;
+    async function labelAdder(row: CandidateRow, name: string, event: LatestLabel | undefined): Promise<{ account: string } | { note: string }> {
+      const reviewer = event?.action === "add" && event.userId !== null ? await accountFor(event.userId) : null;
       if (!event || event.action !== "add") return { note: `有「${name}」标签，但读不到是谁加的，先留在待确认` };
       if (!reviewer) return { note: `「${name}」标签由 GitLab 用户 ${event.username ?? event.userId} 添加，对不上极客班账号，未计分` };
       if (reviewer === row.account_id) return { note: `「${name}」标签是作者自己加的，未计分` };
@@ -285,13 +300,19 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           return;
         }
         const events = await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid);
-        if (!events) { keep("有「有用」标签，但读不到是谁加的，先留在待确认"); return; }
-        const useful = labelAdder(row, USEFUL_LABEL, events.get(USEFUL_LABEL));
+        const useful = await labelAdder(row, USEFUL_LABEL, events.get(USEFUL_LABEL));
         if ("note" in useful) { keep(useful.note); return; }
+        const reviewers = new Set([useful.account]);
         // 两档标签也要审核人加，作者自己改成「关键」「核心」不算
         for (const name of [`${IMPORTANCE_LABEL_PREFIX}${IMPORTANCE_LABELS[levels.importance]}`, `${CORE_LABEL_PREFIX}${CORE_LABELS[levels.core]}`]) {
-          const adder = labelAdder(row, name, events.get(name));
+          const adder = await labelAdder(row, name, events.get(name));
           if ("note" in adder) { keep(adder.note); return; }
+          reviewers.add(adder.account);
+        }
+        // 核验其它身份需要等待 HTTP，之前的审核人可能已被停用或撤权。
+        if ([...reviewers].some(accountId => !deps.canReview(accountId))) {
+          keep("标签审核人的当前权限已变化，未计分");
+          return;
         }
         const reviewer = useful.account;
         const username = events.get(USEFUL_LABEL)?.username ?? null;
@@ -312,9 +333,9 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
         return;
       }
       if (!labeled && row.status === "accepted" && row.accepted_via === "label" && row.score_event_id) {
-        const event = (await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid))?.get(USEFUL_LABEL);
-        if (event && event.action === "add") return; // 列表还没刷新到，等下一轮
-        const remover = event?.userId != null ? deps.gitlab.accountForGitlabUser(event.userId) : null;
+        const event = (await latestLabelEvents(row.gitlab_project, row.kind, row.gitlab_iid)).get(USEFUL_LABEL);
+        if (!event || event.action !== "remove") return; // 缺证据或列表还没刷新到，不把未知当撤销。
+        const remover = event.userId != null ? await accountFor(event.userId) : null;
         const eventId = row.score_event_id;
         db.transaction(() => {
           revokeEvent.run(remover, clock(), "GitLab 上的「有用」标签被移除", eventId);
@@ -343,9 +364,9 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
       return selectByKey.get(record.id, kind, project, iid) as CandidateRow;
     }
 
-    const authorAccount = (item: GitlabItem) => {
+    const authorAccount = async (item: GitlabItem) => {
       const id = item.author?.id;
-      const account = typeof id === "number" ? deps.gitlab.accountForGitlabUser(id) : null;
+      const account = typeof id === "number" ? await accountFor(id) : null;
       return account && signedUp.has(account) ? account : null;
     };
 
@@ -358,7 +379,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           const mergedAt = inWindow(item.merged_at);
           if (mergedAt === null) continue;
           run.fetched++;
-          const account = authorAccount(item);
+          const account = await authorAccount(item);
           if (!account) { run.skipped++; continue; }
           const row = upsert("pr", project, item, account, mergedAt);
           await syncLabel(row, labelsOf(item));
@@ -379,7 +400,7 @@ export function createCompetitionCandidates(db: Database.Database, deps: {
           }
           if (!qualifies) continue;
           run.fetched++;
-          const account = authorAccount(item);
+          const account = await authorAccount(item);
           if (!account) { run.skipped++; continue; }
           const row = upsert("issue", project, item, account, createdAt);
           await syncLabel(row, labels);

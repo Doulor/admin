@@ -115,13 +115,16 @@ const deviceProfile = object({
   sub: text(64, 1),
   account_id: text(64, 1),
   login: text(40),
+  username: text(40),
+  display_name: text(80),
+  bio: text(200),
   avatar_url: nullableText(500),
   scope: text(200),
   grade: { anyOf: [selectableGrade, choices("graduated"), { type: "null" }] },
   grade_label: { anyOf: [text(8, 1), { type: "null" }] },
   email_required: { type: "boolean" },
   profile_required: { type: "boolean" },
-}, ["sub", "account_id", "login", "avatar_url", "scope", "grade", "grade_label", "email_required", "profile_required"]);
+}, ["sub", "account_id", "login", "username", "display_name", "bio", "avatar_url", "scope", "grade", "grade_label", "email_required", "profile_required"]);
 
 export const identityContracts: RouteContracts = {
   "GET /auth/providers": {
