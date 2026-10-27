@@ -87,7 +87,7 @@ ufw status verbose; fail2ban-client status sshd
 
 - `validate` 通过不等于口令可用：`S3MANAGER_ADMIN_HASH` 缺失或为空时 Caddy 会拒绝启动（失败关闭），但填一个**不是 bcrypt 的字符串**照样能过校验，上线后控制台永远 401。部署前自检 `[[ $S3MANAGER_ADMIN_HASH =~ ^\$2[aby]\$ ]] || exit 1`。
 - **handle 块按文件顺序生效**（`caddy adapt` 实测：把公共对象块前移，路由顺序真的变了）。所以「S3 签名 → 桶策略 → 控制台 → 公共对象 → 兜底」这个顺序是合同的一部分，`tests/tooling/storage-cdn-config.test.ts` 里有断言守着，不要为了可读性调换。
-- 改 `garage.toml`（不是 Caddyfile）必须 `systemctl restart garage`：Garage 不热加载，且改之前先用副本 `garage server --config` 试跑一遍。改 garage.toml 必须 restart `garage`，且先在本地 `garage server --config` 试跑一份副本。
+- 改 `garage.toml`（不是 Caddyfile）必须 `systemctl restart garage`：Garage 不热加载，改之前先用副本 `garage server --config` 试跑一遍。
 
 容量与内存：`garage` 的 cgroup 上限 250M、`caddy` 120M、`s3manager` 80M、bridge 50M；常驻约 309 MB，另配 2.5 GB swap。不要把大文件反复拖进控制台预览（会走内存缓冲）。
 
