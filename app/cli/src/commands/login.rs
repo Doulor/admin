@@ -39,8 +39,9 @@ struct OAuthError {
 }
 
 pub async fn run(origin: String, no_browser: bool, json: bool) -> i32 {
-    let interactive = login_anim::pick(crate::output::interactive(json));
-    match perform(&origin, no_browser, interactive).await {
+    let is_interactive = crate::output::interactive(json);
+    let interactive = login_anim::pick(is_interactive);
+    match perform(&origin, no_browser, !json && !is_interactive, interactive).await {
         Ok(outcome) => emit(&outcome, json, render),
         Err(error) => emit(
             &Outcome::err(
@@ -56,6 +57,7 @@ pub async fn run(origin: String, no_browser: bool, json: bool) -> i32 {
 async fn perform(
     origin: &str,
     no_browser: bool,
+    plain_prompt: bool,
     mut animation: Box<dyn LoginAnimation>,
 ) -> Result<Outcome> {
     let client = reqwest::Client::builder()
@@ -74,6 +76,12 @@ async fn perform(
     };
 
     let _ = animation.begin_waiting(&grant.user_code, &grant.verification_uri);
+    if plain_prompt {
+        println!(
+            "请在浏览器打开 {}，输入代码 {}",
+            grant.verification_uri, grant.user_code
+        );
+    }
     if !no_browser {
         open_browser(&grant.verification_uri_complete);
     }

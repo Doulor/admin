@@ -229,6 +229,11 @@ mod tests {
 
     #[test]
     fn geek_token_env_wins_without_touching_disk() {
+        if !crate::test_env::isolated(
+            "token_store::tests::geek_token_env_wins_without_touching_disk",
+        ) {
+            return;
+        }
         std::env::set_var("GEEK_TOKEN", "gk_from_env");
         let loaded = load_with_source("https://example.test").unwrap().unwrap();
         assert_eq!(loaded.0.access_token, "gk_from_env");
@@ -237,6 +242,10 @@ mod tests {
 
     #[test]
     fn load_with_source_reports_env_then_file() {
+        if !crate::test_env::isolated("token_store::tests::load_with_source_reports_env_then_file")
+        {
+            return;
+        }
         std::env::set_var("GEEK_TOKEN", "gk_from_env");
         let (stored, source) = load_with_source("https://example.test").unwrap().unwrap();
         assert_eq!(stored.access_token, "gk_from_env");
@@ -273,6 +282,11 @@ mod tests {
 
     #[test]
     fn geek_no_keyring_forces_keyring_entry_to_none() {
+        if !crate::test_env::isolated(
+            "token_store::tests::geek_no_keyring_forces_keyring_entry_to_none",
+        ) {
+            return;
+        }
         std::env::set_var("GEEK_NO_KEYRING", "1");
         assert!(keyring_entry("https://example.test").is_none());
         std::env::remove_var("GEEK_NO_KEYRING");

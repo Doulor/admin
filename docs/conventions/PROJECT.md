@@ -2,13 +2,13 @@
 
 > 项目定位、授权边界、统一入口和完成定义。
 
-状态：`current` · 更新：2026-10-18
+状态：`current` · 更新：2026-10-27
 
 ## 身份与入口
 
 所有 AI 进入项目第一步先确认当前分支（`git branch --show-current`），再读 [AGENT-START](AGENT-START.md) 及 docs 必读规范；未完成之前不做业务操作。分支与发布唯一规则见 [BRANCHING](BRANCHING.md) 与 [RELEASES](RELEASES.md)：只有 `main`（正式）与 `stage`（预发布）两条长期分支，发版只靠打 tag（`vX.Y.Z-rc.N` 预发布、`vX.Y.Z` 正式），人工验收先于合入 `main` 和打正式 tag，版本号不自动提升。
 
-仓库工作区为 `geek_main`，产品和包的既有标识保持兼容（`yzgc-admin`、`@yzgc/web`、`@yzgc/server`）。所有开发与验收命令从根目录运行。四个源码应用是 `app/server`、`app/web`、`app/console`、`app/forum`，各自的合同见 [docs/services](../services/README.md)；控制台产物随 web 镜像交付，因此每套部署只有 web/server/forum 三个运行单元。`app/web/shared` 是适配层，不是独立产品。整体关系与接口、数据、权限入口见[项目目录](../architecture/catalog/README.md)。
+仓库工作区为 `geek_main`，产品和包的既有标识保持兼容（`yzgc-admin`、`@yzgc/web`、`@yzgc/server`）。所有开发与验收命令从根目录运行。五个源码应用是 `app/server`、`app/web`、`app/console`、`app/forum`、`app/cli`，各自的合同见 [docs/services](../services/README.md)；控制台产物与独立 Cargo 构建的 CLI 分发文件随 web 镜像交付，每套部署仍只有 web/server/forum 三个运行单元。`app/web/shared` 是适配层，不是独立产品。整体关系与接口、数据、权限入口见[项目目录](../architecture/catalog/README.md)。
 
 ## 变更边界
 

@@ -73,6 +73,9 @@ mod tests {
 
     #[test]
     fn default_is_production() {
+        if !crate::test_env::isolated("config::tests::default_is_production") {
+            return;
+        }
         std::env::remove_var("GEEK_ORIGIN");
         assert_eq!(resolve_origin(None).unwrap(), PRODUCTION_ORIGIN);
     }

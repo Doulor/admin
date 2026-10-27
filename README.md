@@ -46,7 +46,7 @@
 
 ## 一句话
 
-`geek_main` 是极客班的统一仓库：`app/` 下四个服务，`docs/` 下全部规范，`deploy/` 下两套一模一样的 Docker 栈（正式、预发布）。包名沿用 `yzgc-admin`、`@yzgc/web`、`@yzgc/server`，不为改名而改名。
+`geek_main` 是极客班的统一仓库：`app/` 下五个源码应用（含 Rust CLI），`docs/` 下全部规范，`deploy/` 下两套一模一样的 Docker 栈（正式、预发布）。包名沿用 `yzgc-admin`、`@yzgc/web`、`@yzgc/server`，不为改名而改名。
 
 > [!IMPORTANT]
 > **每个环境是一套互相隔离的完整 Docker 栈**：web、server（Fastify 与本环境的 SQLite）、forum。官网、控制台和论坛共用 GitHub 登录及 host-only `sid`；论坛发帖、回复、资料、通知等数据由核心 `/api/forum/*` 提供，并非只有浏览器存储。本机演示和只读快照是另外的运行模式，不作为真实认证或持久化证据。登录后的 3D Hub 尚未实现。当前线上运行的版本以目标环境 `/release.json` 和对应验收记录为准，不由当前分支或本页推断。
@@ -96,6 +96,7 @@
 
 - 核心（web / console / server）：`.nvmrc` 里的 Node 22（至少 22.13），pnpm 9.15.9。
 - 论坛：Node ≥26，pnpm 11.24.0，只经根目录的 `forum:*` 命令使用，不混进核心依赖。
+- CLI：独立 Cargo 工具链，不是 Node workspace 包；根目录运行 `pnpm cli:build`、`pnpm cli:test`、`pnpm cli:dist`，源码、锁文件和内嵌技能都在 `app/cli/`。分发与安装见 [CLI 合同](docs/services/cli/README.md)。
 - 切换 Node 后不要复用另一个版本编译出的 SQLite 二进制。论坛工具链的准备见 [TUFF-FORUM](docs/ops/TUFF-FORUM.md)。
 
 ### 2. 安装并打开
