@@ -25,3 +25,9 @@
 - 执行者：agent-sol-a6（Codex，gpt-6.1-sol；agent-sol-A6）
 - 做了什么：补齐 OMP_PROFILE/PI_PROFILE/PI_CONFIG_DIR 与显式 agent 目录的真实优先级、名称拒绝，以及 Claude 配置目录去空白；每片均先红后绿。同步 app/cli/README.md 和 docs/services/cli/README.md 的默认路径、覆盖、幂等和 skipped 契约。
 - 结果：独立 skill_install 六项通过；既有 cli::tests 九项通过；cargo fmt --check 与 git diff --check 通过。定向 clippy --test skill_install -D warnings 在未改动 build.rs:94 的 manual_checked_ops 失败，按授权边界保留，未放宽校验。
+
+## 08:25:30 +08:00 · 验收 · #273 · A6 真实 OMP 默认 URI 发现与原文件保护局部验收
+
+- 执行者：agent-sol-a6（Codex，gpt-6.1-sol；agent-sol-A6）
+- 做了什么：隔离 HOME、仓库外 cwd，真实 OMP 18.12.6 原生 read skill://geek 九种默认/覆盖/profile 场景全部通过且全出站禁用；默认完整引擎仅一次 read(skill://geek) 成功，无目录覆盖、无 Claude/Codex 回退。凭据仅 crosery-ct 环境注入，模型链路经只允许 responses 的 loopback 代理；未落 raw 或隐藏推理。
+- 结果：引擎 exit0、isError=false，准确返回 H1 与 geek status，未执行业务命令；三轮重装六个已有文件 SHA256/mtime/inode/mode 一致，四进程并发仅新建三个文件。6/6 新测试与9/9相邻回归通过；clippy 既有 build.rs 问题单列。未 commit/push/merge/tag/deploy，完整 CLI build 留给父级统一执行。

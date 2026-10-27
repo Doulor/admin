@@ -31,3 +31,10 @@
 - 执行者：agent-sol-a4（Codex，gpt-6.1-sol；任务身份agent-sol-A4）
 - 做了什么：移除Crepe默认空段HTML占位插件，未改ForumMarkdown/安全转义；加入tests/integration/forum-editor/run.mjs和http-fixture.mts，149个核心源码/夹具/清单文件一致才复用已准备核心依赖；Node22后端和Node26真实Crepe分进程，随机端口、IPC就绪、失败退出和自有进程组清理；同步forum合同。
 - 结果：28-final-integrated-green.log：6/6真实Crepe→HTTP POST201/GET200→真实Tuffex/DOMPurify→重开通过；21-nearby-tests.log：6文件193项通过；24 ESLint及30定向类型检查通过；27故意无效Vitest选项实际exit=1且cleanup=true。25全论坛测试类型仍报HEAD未改activity-beacon.ts测试3处类型错，32文档索引与全量notes门禁有基线问题，未越界修改。
+
+## 08:46:38 +08:00 · 验收 · #274 · A4本地机器验收与精确未验项
+
+- 执行者：agent-sol-a4（Codex，gpt-6.1-sol；任务身份agent-sol-A4）
+- 做了什么：在task/274/editor_linebreaks工作区执行仓库内一条跨工具链命令；6次真实合成发帖读回、199项定向断言用例通过（6项真实DOM集成与193项邻近回归）；停止经命令行和health双重识别的旧自有内存夹具PID51346，其余新夹具已由启动器清理。
+- 结果：证据在.tools/handoff/2026-10-26-repairs/evidence/A4；更正上一条全量类型失败的精确文件为app/forum/tests/activity-beacon.test.ts:36/39，与HEAD一致。真实浏览器引用刷新/重新编辑、完整@HTTP下拉、⌘/Ctrl+Enter即时发送、图片文件上传/加载和手机布局尚未验，由父级集成；不代表所有者或预发布验收。默认CI不含独立集成套件，合同已明确入口。
+- 下一步：父级对本次编辑器切片做真实页面集成，连同A5布局独立验收；本次不提交推送发布。

@@ -2,7 +2,7 @@
 
 > 每个人、每个 agent 做的每一步，都按北京时间写进仓库里的 `notes/<日期>/<GitHub 用户名>/<链路>.md`；开发前先记开工，开发后记到收尾，链路不完整的 PR 不能合并。
 
-状态：`current` · 更新：2026-10-18 · 适用：所有在本仓库开发的人和 agent（含委派出去的子代理），所有 `task/<issue>/<slug>` 分支。
+状态：`current` · 更新：2026-10-28 · 适用：所有在本仓库开发的人和 agent（含委派出去的子代理），所有 `task/<issue>/<slug>` 分支。
 
 ## §1 为什么要有
 
@@ -72,7 +72,7 @@ notes/
 | 发布 | 打 rc 或正式 tag、部署运行号 |
 | 验收 | 在哪个环境按哪几步看到了什么 |
 | 阻塞 | 卡住了：缺授权、缺凭据、等别人 |
-| 收尾 | 链路的最后一条（`task.mjs finish` 自动写），之后不能再记 |
+| 收尾 | 链路的最后一条（`task.mjs finish` 自动写），之后不能再记（只有 §6 里的一条历史例外） |
 
 ## §4 前后必须执行
 
@@ -118,3 +118,9 @@ node scripts/task.mjs finish 91                      # 写「收尾」
 ## §7 与其它规范的关系
 
 issue、PR 评论的格式见 [TRACKING](TRACKING.md)，PR 正文见 [PULL-REQUESTS](PULL-REQUESTS.md)，task 分支和 worktree 见 [BRANCHING](BRANCHING.md)。实现在 `scripts/note.mjs`，`scripts/task.mjs` 的 start / finish 调用它；测试在 `tests/tooling/notes.test.ts`。
+
+## §6 收尾之后的历史例外
+
+`crosery/task_276_forum_image_scan` 在 2026-10-24 21:52:18 记了「收尾」，22:03:16 又记了一条「发布」（`notes/2026-10-24/crosery/task_276_forum_image_scan.md:47`）。这条记录是真实发生过的事，按「只追加、不改字节」的规矩不能删，也不能改，但按 §3 它违反「收尾之后不能再记」，`note.mjs check` 因此一直报红。所有者 2026-10-28 同意只放过这一条（GitLab #298）。
+
+`scripts/note.mjs` 里的 `CLOSED_CHAIN_EXCEPTIONS` 按用户、链路、文件、时刻和阶段五项一起匹配这一条记录。别的链路、同一链上的别的记录、之后新追加的任何记录，收尾之后再记仍然报错；`--pr` 模式的只追加核对不变。要加第二条例外，必须由所有者另行裁决并改这张表和本节。
