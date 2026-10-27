@@ -332,6 +332,11 @@ describe('GitLab Garage backup wiring', () => {
     expect(text).not.toMatch(/find[\s\S]+-delete|rm -rf "\/srv\/gitlab\/backups-enc/);
   });
 
+  it('prunes to the newest three backup dates only after the verified upload', () => {
+    const text = readFileSync(backup, 'utf8');
+    expect(text).toMatch(/put-tree[\s\S]+prune-runs --role gitlab-backup --keep-dates 3 --apply/);
+  });
+
   it('preserves the date selector, downloads one immutable run and verifies full SHA-256 before decrypting', () => {
     const text = readFileSync(restore, 'utf8');
     expect(text).not.toMatch(/QINIU_|provider=Qiniu|RCLONE_CONFIG_QN_/i);

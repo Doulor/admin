@@ -104,18 +104,18 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 
 ### 备份合同
 
-[backup.sh](../../deploy/gitlab/backup.sh) 使用 `flock`、`umask 077`，由 [timer](../../deploy/gitlab/gitlab-backup.timer) 每日 `03:30 Asia/Shanghai` 调用。它先 `gitlab-backup create SKIP=registry STRATEGY=copy CRON=1`，再分别 GPG 公钥加密数据 tar 与配置 tar，写 `SHA256SUMS`，最后调用共享 [garage-archive.mjs](../../deploy/remote/garage-archive.mjs) 归档。适配器固定 `https://cdn.yangtzeu.work`、region `garage`、path-style 和私有桶 `geek-backup`；上传前完整 GET 已有对象，逐字相同才复用，不同则失败，新增后再次完整 GET 核对 SHA-256。它没有覆盖、删除、移动、sync 或 purge 接口。
+[backup.sh](../../deploy/gitlab/backup.sh) 使用 `flock`、`umask 077`，由 [timer](../../deploy/gitlab/gitlab-backup.timer) 每日 `03:30 Asia/Shanghai` 调用。它先 `gitlab-backup create SKIP=registry STRATEGY=copy CRON=1`，再分别 GPG 公钥加密数据 tar 与配置 tar，写 `SHA256SUMS`，最后调用共享 [garage-archive.mjs](../../deploy/remote/garage-archive.mjs) 归档。适配器固定 `https://cdn.yangtzeu.work`、region `garage`、path-style 和私有桶 `geek-backup`；上传前完整 GET 已有对象，逐字相同才复用，不同则失败，新增后再次完整 GET 核对 SHA-256。它没有覆盖、移动、sync 或 purge 接口。香港机空间有限，上传核验之后脚本接着执行 `prune-runs --keep-dates 3 --apply`：只保留最近 3 个带完整 `SHA256SUMS` 的备份日期，更早的整日 run 先删清单再删对象；有效日期不足 3 个、最新一份 run 的清单与对象列表对不上、目录结构出现意外对象时一律零删除。缺省（不带 `--apply`）只列出会删什么。所有者 2026-10-27 16:08 指示备份要记得清理快照，这条保留策略据此生效。
 
 - GitLab 路径为 `gitlab/YYYY-MM-DD/<run>/`。恢复必须点名 run：`restore-drill.sh --run YYYY-MM-DD/<run>` 只核对被点名的这一个 run，不带 `--run` 时只列候选并退出 1，**不再**自动挑“字典序最新”的那一个；`--day YYYY-MM-DD` 只是列候选时的过滤器。旧 `gitlab/YYYY-MM-DD/` 单层目录不再由新备份写入，也不会出现在候选列表里（适配器只认 `<日期>/<run>/SHA256SUMS`）；要恢复这类历史对象只能先把它们重新归档成 `<日期>/<run>/` 形状，不能靠改选择器绕过。
 - 凭据只从 `/etc/gitlab-backup/env` 或进程环境的 `GITLAB_BACKUP_S3_ACCESS_KEY_ID`、`GITLAB_BACKUP_S3_SECRET_ACCESS_KEY` 注入；endpoint、region、桶和 path-style 不接受环境改写。凭据不得进入配置归档、日志、argv 或源码。
 - 配置候选恰为 `/srv/gitlab/config`、Compose、backup/restore 两脚本及三个 systemd unit，只归档存在项；不是缺任一项都会失败。`config` 必须含原 `gitlab-secrets.json` 与 `yzgc-oidc-secret`，另含头像恢复副本才能宣称可恢复这些内容。
 - `/etc/gitlab-backup/env`、七牛 AK/SK、GPG 私钥/口令不在配置归档内；GitLab 配置包本身**包含运行 secret**，仅允许加密保存，绝不能导入源码仓库。明文配置 tar 在加密后及退出 trap 中删除；这不是磁盘块级安全擦除。
-- 换源不授权清理：新脚本不删除旧明文 tar、本地加密运行或任何远端对象。旧供应商材料与既有恢复证据保留；保留周期、清理和迁移另行批准。平台的一键系统备份见 [BACKUP](BACKUP.md)，不能用 GitLab 备份代替。
+- 换源不授权清理：新脚本不删除旧明文 tar、本地加密运行或旧供应商的任何对象；唯一的删除是 `geek-backup` 里 `gitlab/` 与 `platform/<环境>/` 下早于最近 3 个备份日期的整日 run。旧供应商材料与既有恢复证据保留；旧材料的清理和迁移另行批准。平台的一键系统备份见 [BACKUP](BACKUP.md)，不能用 GitLab 备份代替。
 - Garage 不提供服务端 WORM、对象锁或 `If-None-Match` 原子创建。客户端完整 GET/比对/写后读回与单次脚本锁只能防止本程序主动覆盖，不能隔离跨进程竞态或恶意写入者；桶级最小权限、串行写入与外部独占网关须在真实环境另验。
 
 ### 平台快照异机归档
 
-`platform-maintenance.sh backup` 仍只在 `platform-backup@.service` 的 `RestrictAddressFamilies=AF_UNIX` 沙箱里生成本地快照、SHA-256 和收据，不联网。收据新增固定目标 `geek-backup/platform/<production|preview>/<北京日期>/<run>/`。独立 [platform-archive.sh](../../deploy/remote/platform-archive.sh) 在获批的可联网、最小权限执行环境中重新核对本地三份 SHA，打成明文 tar 后用 `PLATFORM_BACKUP_GPG_RECIPIENT` 加密，仅把 `.gpg` 与其 `SHA256SUMS` 交给共享归档器；明文 tar 退出时删除，本地原快照不删除。正式与预发布分别只接受 `PLATFORM_PRODUCTION_BACKUP_S3_*`、`PLATFORM_PREVIEW_BACKUP_S3_*`，不能共用默认凭据或从业务 `.env` 读取。
+`platform-maintenance.sh backup` 仍只在 `platform-backup@.service` 的 `RestrictAddressFamilies=AF_UNIX` 沙箱里生成本地快照、SHA-256 和收据，不联网。收据新增固定目标 `geek-backup/platform/<production|preview>/<北京日期>/<run>/`。独立 [platform-archive.sh](../../deploy/remote/platform-archive.sh) 在获批的可联网、最小权限执行环境中重新核对本地三份 SHA，打成明文 tar 后用 `PLATFORM_BACKUP_GPG_RECIPIENT` 加密，仅把 `.gpg` 与其 `SHA256SUMS` 交给共享归档器；明文 tar 退出时删除，本地原快照不删除。上传核验之后同样按 3 个备份日期清理本环境在 `geek-backup` 里的旧 run，不碰另一个环境。正式与预发布分别只接受 `PLATFORM_PRODUCTION_BACKUP_S3_*`、`PLATFORM_PREVIEW_BACKUP_S3_*`，不能共用默认凭据或从业务 `.env` 读取。
 
 发布生成的 0600 私有内容索引由同一归档器写入 `geek-production-private` 或 `geek-preview-private` 的 `indexes/content/<40位commit>/sha256.json`，凭据分别是 `PRODUCTION_PRIVATE_INDEX_S3_*` 与 `PREVIEW_PRIVATE_INDEX_S3_*`。索引 schema、权限、键和完整读回均在上传前后核对；同键不同字节失败，runner 临时文件未归档时不得称持久追溯完成。
 

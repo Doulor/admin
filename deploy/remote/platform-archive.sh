@@ -126,7 +126,9 @@ NODE
 chmod 0600 "${ENCRYPTED}" "${OUTPUT}/SHA256SUMS"
 
 UPLOAD_JSON=$(node "${HERE}/garage-archive.mjs" put-tree --role "${ROLE}" --source "${OUTPUT}" --prefix "${PREFIX}")
-node --input-type=module - "${ENVIRONMENT}" "${PREFIX}" "${UPLOAD_JSON}" <<'NODE'
-const [environment, prefix, upload] = process.argv.slice(2);
-console.log(JSON.stringify({ environment, prefix, upload: JSON.parse(upload) }));
+# 香港对象存储空间有限：这份上传并读回核验之后，只保留本环境最近 3 个备份日期，更早的整日 run 由适配器核对后删除。
+PRUNE_JSON=$(node "${HERE}/garage-archive.mjs" prune-runs --role "${ROLE}" --keep-dates 3 --apply)
+node --input-type=module - "${ENVIRONMENT}" "${PREFIX}" "${UPLOAD_JSON}" "${PRUNE_JSON}" <<'NODE'
+const [environment, prefix, upload, prune] = process.argv.slice(2);
+console.log(JSON.stringify({ environment, prefix, upload: JSON.parse(upload), prune: JSON.parse(prune) }));
 NODE

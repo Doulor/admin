@@ -183,3 +183,9 @@
 - 做了什么：git push gitlab task/270/arch_predeployment（新分支，12 笔提交）；MR !33 → stage，正文按九段契约并已填三轴审查结论
 - 结果：推送成功：https://git.yangtzeu.work/geek/admin/-/merge_requests/33；pre-push 的 worktree 生命周期检查通过（1 个在做，1 个状态未知仅警告）
 - 下一步：等 MR 审查与合并；K10 历史记录仍待所有者裁决
+
+## 16:21:12 +08:00 · 提交 · #270 · 私有桶备份加三日期保留：prune-runs，上传核验后清理旧 run
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：garage-archive.mjs 新增 prune-runs（缺省只列清单，--apply 才删）；backup.sh 与 platform-archive.sh 在上传读回核验之后各调用一次，保留最近 3 个带完整 SHA256SUMS 的备份日期；所有者 2026-10-27 16:08 指示香港空间有限、备份要清理快照。文档核对：docs/ops/GITLAB.md、docs/ops/BACKUP.md 已改。
+- 结果：vitest tests/tooling/garage-archive（含 7 条新增清理用例）、platform-archive、gitlab-backup-storage 共 3 个文件 32 passed；shellcheck、check-secrets、check-doc-sync、check-architecture 通过。清理对象只限 geek-backup 的 gitlab/ 与 platform/<环境>/；有效日期不足 3 个、最新 run 清单对不上、目录结构异常均零删除。线上 geek-backup 目前没有可清理的真备份（3 个探针/演练对象），未对线上桶执行清理。

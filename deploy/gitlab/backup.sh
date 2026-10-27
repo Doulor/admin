@@ -96,3 +96,7 @@ chmod 0600 "${STAGE_DIR}"/*
 
 node "${ARCHIVE_TOOL}" put-tree --role gitlab-backup --source "${STAGE_DIR}" --prefix "gitlab/${DAY}/${STAMP}/" >/dev/null
 echo "OK gitlab/${DAY}/${STAMP}/ $(find "${STAGE_DIR}" -maxdepth 1 -type f | wc -l | tr -d ' ') files"
+# 香港对象存储空间有限：这份上传并读回核验之后，只保留最近 3 个备份日期，更早的整日 run 由适配器核对后删除。
+# 清理失败时本脚本退出非零（单元显示失败，磁盘不会悄悄涨满），刚上传的这份已经完整可用。
+PRUNE_JSON=$(node "${ARCHIVE_TOOL}" prune-runs --role gitlab-backup --keep-dates 3 --apply)
+echo "PRUNE ${PRUNE_JSON}"

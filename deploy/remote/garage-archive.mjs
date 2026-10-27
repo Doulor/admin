@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Garage 私有归档适配器：复用 rclone 的 S3/SigV4 实现，只新增、完整读回核验，不提供覆盖或删除命令。
+// Garage 私有归档适配器：复用 rclone 的 S3/SigV4 实现，只新增、完整读回核验，不提供覆盖命令。
+// 唯一的删除入口是 prune-runs：备份桶在一台小机器上，空间有限，只清理备份角色名下早于保留窗口的整日 run。
 import { createHash } from 'node:crypto';
 import {
   createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync,
@@ -22,12 +23,12 @@ const ROLES = Object.freeze({
   'platform-preview-backup': {
     bucket: 'geek-backup', access: 'PLATFORM_PREVIEW_BACKUP_S3_ACCESS_KEY_ID', secret: 'PLATFORM_PREVIEW_BACKUP_S3_SECRET_ACCESS_KEY',
     key: /^platform\/preview\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/[A-Za-z0-9._/-]+$/,
-    prefix: /^platform\/preview\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/$/,
+    prefix: /^platform\/preview\/(?:\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/)?$/,
   },
   'platform-production-backup': {
     bucket: 'geek-backup', access: 'PLATFORM_PRODUCTION_BACKUP_S3_ACCESS_KEY_ID', secret: 'PLATFORM_PRODUCTION_BACKUP_S3_SECRET_ACCESS_KEY',
     key: /^platform\/production\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/[A-Za-z0-9._/-]+$/,
-    prefix: /^platform\/production\/\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/$/,
+    prefix: /^platform\/production\/(?:\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\/)?$/,
   },
   'preview-content-index': {
     bucket: 'geek-preview-private', access: 'PREVIEW_PRIVATE_INDEX_S3_ACCESS_KEY_ID', secret: 'PREVIEW_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY',
@@ -50,10 +51,11 @@ function parseArgs(argv) {
     'get-tree': ['--role', '--prefix', '--destination'],
     'resolve-gitlab-run': ['--run'],
     'list-gitlab-runs': ['--day'],
+    'prune-runs': ['--role', '--keep-dates'],
   };
-  // 无值布尔开关：恢复路径必须显式要求清单校验，缺省下载保持通用
-  const flagsByCommand = { 'get-tree': ['--require-manifest'] };
-  requireThat(Object.hasOwn(allowedByCommand, command), '用法：garage-archive.mjs put-tree|put-file|get-tree|resolve-gitlab-run|list-gitlab-runs');
+  // 无值布尔开关：恢复路径必须显式要求清单校验，缺省下载保持通用；清理缺省只列清单，--apply 才删除
+  const flagsByCommand = { 'get-tree': ['--require-manifest'], 'prune-runs': ['--apply'] };
+  requireThat(Object.hasOwn(allowedByCommand, command), '用法：garage-archive.mjs put-tree|put-file|get-tree|resolve-gitlab-run|list-gitlab-runs|prune-runs');
   const allowed = new Set(allowedByCommand[command]);
   const flags = new Set(flagsByCommand[command] ?? []);
   const options = Object.create(null);
@@ -72,6 +74,7 @@ function parseArgs(argv) {
     'get-tree': ['--role', '--prefix', '--destination'],
     'resolve-gitlab-run': [],
     'list-gitlab-runs': [],
+    'prune-runs': ['--role'],
   };
   for (const key of requiredByCommand[command]) requireThat(options[key], `缺少 ${key}`);
   return { command, options };
@@ -353,8 +356,72 @@ function resolveGitlabRun(run, env = process.env) {
   return { day: target.day, run: target.run, prefix: target.prefix, objects: objects.map(({ path, bytes }) => ({ path, bytes })) };
 }
 
+const PRUNE_FAMILIES = Object.freeze({
+  'gitlab-backup': 'gitlab/',
+  'platform-preview-backup': 'platform/preview/',
+  'platform-production-backup': 'platform/production/',
+});
+const DEFAULT_KEEP_DATES = 3;
+
+function catText(role, key) {
+  const result = spawnSync('rclone', ['cat', remotePath(role, key)], { encoding: 'utf8', maxBuffer: 1024 * 1024, env: role.childEnv });
+  requireThat(result.status === 0 && !result.error, `rclone cat ${key} 失败`);
+  return result.stdout;
+}
+
+// 保留最近 N 个「有完整清单的备份日期」，更早的整日 run 删除。
+// 任何前置核对不过都零删除：目录结构意外、有效日期不足 N 个、最新一份 run 的 SHA256SUMS 与对象列表对不上。
+// 每个 run 先删 SHA256SUMS：中途失败时它变成无清单的残缺 run，恢复路径不会再选它，下一次清理会收走剩余对象。
+function pruneRuns(role, { keepDates = DEFAULT_KEEP_DATES, apply = false } = {}) {
+  const family = PRUNE_FAMILIES[role.name];
+  requireThat(family, '该角色不支持清理');
+  requireThat(Number.isSafeInteger(keepDates) && keepDates >= 1 && keepDates <= 30, '--keep-dates 必须是 1 到 30 的整数');
+  const runs = new Map();
+  for (const item of listPrefix(role, family)) {
+    const match = /^(\d{4}-\d{2}-\d{2})\/([A-Za-z0-9._-]+)\/(.+)$/.exec(item.path);
+    requireThat(match, `${item.key}：不在 <日期>/<run>/ 结构内，拒绝清理`);
+    requireThat(Number.isSafeInteger(item.bytes) && item.bytes >= 0, `${item.key}：对象长度无效`);
+    const id = `${match[1]}/${match[2]}`;
+    const entry = runs.get(id) ?? { date: match[1], run: match[2], prefix: `${family}${id}/`, objects: [] };
+    entry.objects.push({ key: item.key, name: match[3], bytes: item.bytes });
+    runs.set(id, entry);
+  }
+  const byAge = (a, b) => a.date.localeCompare(b.date, 'en') || a.run.localeCompare(b.run, 'en');
+  const complete = [...runs.values()].filter(entry => entry.objects.some(object => object.name === MANIFEST_NAME)).sort(byAge);
+  const validDates = [...new Set(complete.map(entry => entry.date))];
+  const kept = validDates.slice(-keepDates);
+  const result = { bucket: role.bucket, family, mode: apply ? 'apply' : 'dry-run', keepDates, keptDates: kept, removedRuns: [], objects: 0, bytes: 0 };
+  if (validDates.length <= keepDates) return result;
+
+  const newest = complete.at(-1);
+  const entries = parseManifest(catText(role, `${newest.prefix}${MANIFEST_NAME}`));
+  const listed = new Map(newest.objects.filter(object => object.name !== MANIFEST_NAME).map(object => [object.name, object]));
+  requireThat(listed.size === entries.size && [...entries.keys()].every(name => listed.get(name)?.bytes > 0),
+    `${newest.prefix} 最新一份 run 的 SHA256SUMS 与对象列表不一致，拒绝清理`);
+
+  const cutoff = kept[0];
+  const doomed = [...runs.values()].filter(entry => entry.date < cutoff).sort(byAge);
+  for (const entry of doomed) {
+    const ordered = [...entry.objects].sort((a, b) => Number(b.name === MANIFEST_NAME) - Number(a.name === MANIFEST_NAME));
+    for (const object of ordered) {
+      if (apply) {
+        const deleted = spawnSync('rclone', ['deletefile', remotePath(role, object.key)], { encoding: 'utf8', env: role.childEnv });
+        requireThat(deleted.status === 0 && !deleted.error, `rclone deletefile ${object.key} 失败`);
+      }
+      result.objects += 1;
+      result.bytes += object.bytes;
+    }
+    result.removedRuns.push(entry.prefix);
+  }
+  return result;
+}
+
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const { command, options } = parseArgs(argv);
+  if (command === 'prune-runs') {
+    const keepDates = options['--keep-dates'] === undefined ? DEFAULT_KEEP_DATES : Number(options['--keep-dates']);
+    return pruneRuns(roleConfig(options['--role'], env), { keepDates, apply: options['--apply'] === true });
+  }
   if (command === 'list-gitlab-runs') return { runs: listGitlabRuns(options['--day'], env) };
   if (command === 'resolve-gitlab-run') {
     if (!options['--run']) {

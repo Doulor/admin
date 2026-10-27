@@ -69,7 +69,7 @@ describe('platform encrypted off-host archive step', () => {
     const before = ['manifest.json', 'manifest.json.sha256', 'receipt.json', 'receipt.json.sha256', 'system-backup.tar.gz', 'system-backup.tar.gz.sha256'];
     const result = f.run();
     expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ environment: 'preview', prefix: f.prefix });
+    expect(JSON.parse(result.stdout)).toMatchObject({ environment: 'preview', prefix: f.prefix, prune: { mode: 'apply', keepDates: 3, removedRuns: [] } });
     expect(readFileSync(join(f.objects, 'geek-backup', f.prefix, 'platform-backup.tar.gpg')).subarray(0, 10).toString()).toBe('encrypted:');
     expect(readFileSync(join(f.objects, 'geek-backup', f.prefix, 'SHA256SUMS'), 'utf8')).toMatch(/platform-backup\.tar\.gpg/);
     expect(before.every(name => existsSync(join(f.source, name)))).toBe(true);

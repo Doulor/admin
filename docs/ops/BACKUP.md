@@ -105,7 +105,7 @@ bash /opt/yzgc/tools/deploy/remote/platform-maintenance.sh backup \
 
 `deploy/maintenance/platform-backup@.service` / `.timer` 是待安装的两环境实例模板，每日北京时间04:00、随机延后最多20分钟，只调用离线 Docker 导出器，不替代应用栈。本轮仅核验目标 `systemd-analyze calendar` 的日历表达式，未安装、启用或验证完整 unit。`status` 退出0仅表示采样完成，不代表全部健康。
 
-平台异机私有加密目标、接收公钥指纹、最小权限凭据、留存/删除政策和真实恢复范围仍须明确批准；GitLab的私有桶/三日期策略不能自动当成平台授权。先验合成数据的加密上传、私有下载、解密和恢复，再按批准范围操作真实备份。
+平台异机私有加密目标、接收公钥指纹、最小权限凭据、和真实恢复范围仍须明确批准。留存政策：所有者 2026-10-27 指示香港对象存储空间有限、备份要清理快照，`platform-archive.sh` 上传核验后保留本环境最近 3 个备份日期（规则同 GitLab，见 [GITLAB](GITLAB.md)），删除只发生在 `geek-backup` 的 `platform/<环境>/` 下。先验合成数据的加密上传、私有下载、解密和恢复，再按批准范围操作真实备份。
 
 ## 已知限制
 
