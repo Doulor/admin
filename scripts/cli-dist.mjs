@@ -73,8 +73,8 @@ function sha256File(path) {
 
 /** cargo zigbuild 需要 zig 和 cargo-zigbuild 都在 PATH 上；只在子进程的环境变量里加，不改调用者的 shell。 */
 function buildTarget(root, rustTarget, env) {
-  console.log(`$ (cd ${CLI_DIR} && cargo zigbuild --release --target ${rustTarget})`);
-  execFileSync("cargo", ["zigbuild", "--release", "--target", rustTarget], {
+  console.log(`$ (cd ${CLI_DIR} && cargo zigbuild --locked --jobs 2 --release --target ${rustTarget})`);
+  execFileSync("cargo", ["zigbuild", "--locked", "--jobs", "2", "--release", "--target", rustTarget], {
     cwd: resolve(root, CLI_DIR),
     stdio: "inherit",
     env,
@@ -100,6 +100,9 @@ function main() {
   const version = cliVersion(root);
   const { zigDir, cargoZigbuildDir } = toolchainPaths(root);
   const env = { ...process.env, PATH: `${cargoZigbuildDir}:${zigDir}:${process.env.PATH ?? ""}` };
+  const metadata = JSON.parse(execFileSync("cargo", ["metadata", "--locked", "--offline", "--no-deps", "--format-version", "1"], {
+    cwd: resolve(root, CLI_DIR), env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }));
 
   const outDir = resolve(root, "dist/cli", version);
   mkdirSync(outDir, { recursive: true });
@@ -110,7 +113,7 @@ function main() {
     const assetName = `geek-${rustTarget}${windows ? ".exe" : ""}`;
     try {
       buildTarget(root, rustTarget, env);
-      const builtPath = resolve(root, CLI_DIR, "target", rustTarget, "release", windows ? "geek.exe" : "geek");
+      const builtPath = resolve(metadata.target_directory, rustTarget, "release", windows ? "geek.exe" : "geek");
       const outPath = resolve(outDir, assetName);
       copyFileSync(builtPath, outPath);
       const sha256 = sha256File(outPath);
@@ -195,7 +198,12 @@ case ":\${PATH}:" in
   *) info "把下面这行加进 shell 配置文件才能直接用 geek："; info "  export PATH=\\"\${INSTALL_DIR}:\\\$PATH\\"" ;;
 esac
 
-"\${INSTALL_DIR}/geek" --version 2>/dev/null && ok "下一步：geek login" || true
+if "\${INSTALL_DIR}/geek" --version; then
+  ok "下一步：geek login"
+else
+  err "已下载的 geek 无法运行"
+  exit 1
+fi
 `;
 }
 
@@ -231,6 +239,8 @@ Write-Host "[geek] sha256 校验通过"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $dest = Join-Path $InstallDir "geek.exe"
 Move-Item -Force $tmp $dest
+& $dest --version
+if ($LASTEXITCODE -ne 0) { throw "已下载的 geek 无法运行" }
 Write-Host "[geek] 已安装：$dest"
 
 if (-not ($env:Path -split ";" | Where-Object { $_ -eq $InstallDir })) {

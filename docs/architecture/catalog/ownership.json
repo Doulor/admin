@@ -4122,6 +4122,10 @@
         {
           "path": "app/server/src/lib/forum-content.ts",
           "needle": "export function loadForumContent(dir: string): ForumContent {"
+        },
+        {
+          "path": "app/forum/shared/site-state.ts",
+          "needle": "export function siteForumState"
         }
       ],
       "tests": [
@@ -4201,6 +4205,10 @@
         {
           "path": "app/server/src/lib/forum-content.ts",
           "needle": "export function loadForumContent(dir: string): ForumContent {"
+        },
+        {
+          "path": "app/forum/shared/forum-markdown.ts",
+          "needle": "export function forumLlmsTxt"
         }
       ],
       "tests": [
@@ -4264,6 +4272,10 @@
         {
           "path": "app/server/src/lib/access.ts",
           "needle": "export function createAccess("
+        },
+        {
+          "path": "app/forum/app/pages/search.vue",
+          "needle": "server.search"
         }
       ],
       "tests": [
@@ -5116,6 +5128,10 @@
         {
           "path": "app/forum/app/pages/u/[username]/preferences.vue",
           "needle": "<script setup lang=\"ts\">"
+        },
+        {
+          "path": "app/forum/app/composables/useSiteAccount.ts",
+          "needle": "function refresh"
         }
       ],
       "tests": [

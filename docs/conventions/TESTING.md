@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-27
 
 ## 根入口和分工
 
@@ -17,6 +17,17 @@
 论坛上游测试操作确定性种子和浏览器 localStorage。每次 CDP 使用自己创建的临时 profile，不打开用户已有浏览器配置，不清理用户示例数据。只关闭本次创建的进程组，禁止广泛 pkill。其登录/权限测试证明演示交互，不证明真实身份或服务器授权。`forum:verify` 只对示例种子运行；3456 上若是快照模式或 site 模式（极客班论坛）预览，先 `forum:stop`。快照解析规则用虚构夹具单测（`app/forum/tests/local-snapshot.test.ts`），不读取真实投影。
 
 ## 回归矩阵
+
+CLI（`app/cli`）独立使用 Cargo：根 `pnpm cli:build`/`pnpm cli:test` 固定 locked 与 jobs=2，
+`pnpm check:cli` 保留 fmt/Clippy/全量测试门禁。环境变量单测通过测试二进制的独立子进程执行，
+每例清空继承环境、隔离 HOME、禁用钥匙串，避免并行修改 `GEEK_TOKEN`/`GEEK_NO_KEYRING` 相互影响。
+`app/cli/tests/skill_install.rs` 通过真实 CLI 核对发现目录、profile、显式覆盖、符号链接、
+并发与 JSON 退出码；`offline_credentials.rs` 核对无令牌和网络失败；
+`device_protocol.rs` 使用合成 loopback HTTP 验证 pending/denied/expired、资料、撤销后401和非TTY验证码，
+需要允许绑定 loopback，权限不足必须记失败，不能跳过或算通过。
+`tests/tooling/cli-distribution.test.ts` 验证 Cargo 产物路径及安装脚本的校验和、真实本机二进制安装与执行失败；
+下载边界使用合成 curl 响应，不声称真实站点分发或跨平台构建通过。
+OMP 原生 `read skill://geek` 另用隔离 HOME、仓库外 cwd 验收，不运行模型、也不改用户 global profile。
 
 项目目录（#257）：`tests/server/catalog.test.ts` 观测真实应用的根路由、循环注册和头像子插件，核对启用观测后健康、公开文档与未登录拒绝路径不变；`tests/tooling/project-catalog.test.ts` 从真实应用和内存 SQLite 提取结构，覆盖全部注册项、最终 Schema、自动 HEAD、物理外键和部分索引、能力蕴含、业务声明、Nitro 静态声明、来源摘要确定性、环境变量隔离、重复与悬空引用失败，以及入库目录过期。生成器不监听、不读 `.env`/业务库/私有快照，不发外部请求，不执行被链接的业务测试；`pnpm check:catalog` 独立核对生成物，`pnpm typecheck:catalog` 核对工具类型（也在根 typecheck 中）。目录通过不等于权限、业务或线上验收通过，维护规则见[项目目录](../architecture/catalog/README.md)。
 

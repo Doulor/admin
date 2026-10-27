@@ -4319,6 +4319,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "id": "flow:forum.state",
@@ -4406,6 +4410,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "id": "flow:forum.topic_posts",
@@ -4472,6 +4480,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "id": "flow:forum.search",
@@ -5366,6 +5378,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "id": "flow:forum.profile.update",
@@ -16319,7 +16335,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "896bc51a07678ec0287ef81ceee1d239a3c374c08a57e77294c18e5a691a2d1d",
+    "fingerprint": "6086733694c62805d780f3e93cf70309c447d8e30c03bf971f34fb9e72c8e8ce",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18231,7 +18247,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "680b94cdc1e159ddc4866385285dc551f0b5ae2dbaf23a1bfbc5ee0ef02fe8a1"
+        "sha256": "04fc853e3d3a2c820607d7221c179879e36daee573b7a73f737de360267174dd"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18267,7 +18283,7 @@
       },
       {
         "path": "docs/services/cli/README.md",
-        "sha256": "4ad4d308dedb0dcdf1bba8a83b0f7ecc57642b36241d4f60baeccc2836d054c2"
+        "sha256": "e17f1ec7d24d14052f1b1cf4b713d14d76e424159c19cadc53920f87e89881d6"
       },
       {
         "path": "docs/services/console/README.md",
@@ -57042,6 +57058,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57070,6 +57090,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57098,6 +57122,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57126,6 +57154,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57154,6 +57186,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57182,6 +57218,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57210,6 +57250,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57244,6 +57288,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57272,6 +57320,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57300,6 +57352,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -57328,6 +57384,10 @@
         {
           "line": 1,
           "path": "app/forum/app/pages/u/[username]/preferences.vue"
+        },
+        {
+          "line": 31,
+          "path": "app/forum/app/composables/useSiteAccount.ts"
         }
       ],
       "from": "flow:forum.profile.update",
@@ -58340,6 +58400,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58364,6 +58428,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58388,6 +58456,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58412,6 +58484,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58436,6 +58512,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58460,6 +58540,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58484,6 +58568,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58508,6 +58596,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58538,6 +58630,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58562,6 +58658,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58586,6 +58686,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58610,6 +58714,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58634,6 +58742,10 @@
         {
           "line": 30,
           "path": "app/server/src/lib/access.ts"
+        },
+        {
+          "line": 58,
+          "path": "app/forum/app/pages/search.vue"
         }
       ],
       "from": "flow:forum.search",
@@ -58742,6 +58854,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -58826,6 +58942,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -58910,6 +59030,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -58994,6 +59118,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59078,6 +59206,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59162,6 +59294,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59246,6 +59382,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59330,6 +59470,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59414,6 +59558,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59498,6 +59646,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59582,6 +59734,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59666,6 +59822,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59750,6 +59910,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59840,6 +60004,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -59924,6 +60092,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -60008,6 +60180,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -60092,6 +60268,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -60176,6 +60356,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 21,
+          "path": "app/forum/shared/site-state.ts"
         }
       ],
       "from": "flow:forum.state",
@@ -60580,6 +60764,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60620,6 +60808,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60660,6 +60852,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60700,6 +60896,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60740,6 +60940,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60780,6 +60984,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60820,6 +61028,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60860,6 +61072,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60906,6 +61122,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60946,6 +61166,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -60986,6 +61210,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -61026,6 +61254,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",
@@ -61066,6 +61298,10 @@
         {
           "line": 181,
           "path": "app/server/src/lib/forum-content.ts"
+        },
+        {
+          "line": 131,
+          "path": "app/forum/shared/forum-markdown.ts"
         }
       ],
       "from": "flow:forum.topic_posts",

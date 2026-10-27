@@ -3,6 +3,8 @@ mod cli;
 mod commands;
 mod config;
 mod output;
+#[cfg(test)]
+mod test_env;
 mod token_store;
 mod ui;
 
@@ -33,6 +35,7 @@ fn main() {
 async fn dispatch(command: Command, origin: String, json: bool) -> i32 {
     match command {
         Command::Login { no_browser } => commands::login::run(origin, no_browser, json).await,
+        Command::Skill(SkillCommand::Install { target }) => commands::skill::install(target, json),
         other => {
             let ctx = match commands::Context::load(origin) {
                 Ok(ctx) => ctx,
@@ -48,7 +51,7 @@ async fn dispatch(command: Command, origin: String, json: bool) -> i32 {
                 }
             };
             match other {
-                Command::Login { .. } => unreachable!(),
+                Command::Login { .. } | Command::Skill(_) => unreachable!(),
                 Command::Logout => commands::logout::run(&ctx, json).await,
                 Command::Whoami => commands::whoami::run(&ctx, json).await,
                 Command::Status => commands::status::run(&ctx, json).await,
@@ -92,9 +95,6 @@ async fn dispatch(command: Command, origin: String, json: bool) -> i32 {
                 }
                 Command::Repo(RepoCommand::List) => commands::repo::list(&ctx, json).await,
                 Command::Apply(ApplyCommand::Status) => commands::apply::status(&ctx, json).await,
-                Command::Skill(SkillCommand::Install { target }) => {
-                    commands::skill::install(target, json)
-                }
             }
         }
     }

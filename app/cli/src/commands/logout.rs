@@ -12,9 +12,27 @@ pub async fn run(ctx: &Context, json_output: bool) -> i32 {
 
 async fn revoke_and_clear(ctx: &Context) -> Outcome {
     if ctx.token.is_some() {
-        if let Ok(client) = ctx.client() {
-            let _: Result<crate::api::ApiOutcome<Value>, _> =
-                client.post_json("/auth/device/revoke", &json!({})).await;
+        let client = match ctx.client() {
+            Ok(client) => client,
+            Err(error) => {
+                return Outcome::err(
+                    ExitCode::Other,
+                    ErrorBody::new("client_error", error.to_string()),
+                )
+            }
+        };
+        match client
+            .post_json::<_, Value>("/auth/device/revoke", &json!({}))
+            .await
+        {
+            Ok(crate::api::ApiOutcome::Ok(_)) => {}
+            Ok(outcome) => return crate::api::into_outcome(&ctx.origin, outcome),
+            Err(error) => {
+                return Outcome::err(
+                    ExitCode::Other,
+                    ErrorBody::new("revoke_failed", error.to_string()),
+                )
+            }
         }
     }
     match token_store::clear(&ctx.origin) {

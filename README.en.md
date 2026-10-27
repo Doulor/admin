@@ -59,6 +59,7 @@ The canonical entry is [docs/architecture/catalog/](docs/architecture/catalog/RE
 | Console | `app/console` | GitHub sign-in; pages shown by title: applications, people and permissions, feedback, audit, GitHub org admin | Vue 3.5 · Tuffex 0.6 · Vite 7 | [console](docs/services/console/README.md) |
 | Forum | `app/forum` | MIT-licensed Tuff Forum integrated with the core backend; separate local demo and read-only snapshot modes | Nuxt 4 · Tuffex 0.6 · Node >=26 · pnpm 11.24.0 | [forum](docs/services/forum/README.md) |
 | Server | `app/server` | GitHub OAuth, sessions, invite links, applications, feedback, console and forum APIs | Fastify 5 · better-sqlite3 · Node 22 | [server](docs/services/server/README.md) |
+| CLI | `app/cli` | Device authorization, profile queries, token revocation, forum/competition/repository commands and Agent skill installation | Rust · Cargo | [cli](docs/services/cli/README.md) |
 
 ## Architecture
 
@@ -75,6 +76,10 @@ The internal [project catalog](docs/architecture/catalog/README.md) links applic
 ## Quick start
 
 Core packages use Node 22 (at least 22.13) and pnpm 9.15.9. The forum needs Node >=26 and pnpm 11.24.0 and is driven only through the root `forum:*` scripts.
+
+The Rust CLI is an independent Cargo application in this monorepo, not a Node workspace package.
+Run `pnpm cli:build`, `pnpm cli:test` and `pnpm cli:dist` from the repository root.
+Distribution and installation use this checkout's `app/cli/`; no separate CLI checkout is required.
 
 ```bash
 pnpm install --frozen-lockfile

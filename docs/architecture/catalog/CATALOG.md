@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-25 · 自动生成，不手工编辑。
 
-来源摘要：`896bc51a07678ec0287ef81ceee1d239a3c374c08a57e77294c18e5a691a2d1d`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`6086733694c62805d780f3e93cf70309c447d8e30c03bf971f34fb9e72c8e8ce`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1077,7 +1077,7 @@
 - 数据与副作用：读论坛表与公开内容分类；GET也可能通过forumViewer刷新本人用户；不发送邮件、不写帖子。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:20](../../../app/forum/app/composables/useForumTheme.ts#L20) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:47](../../../app/forum/app/stores/forum-server.ts#L47) · [app/forum/shared/forum-api.ts:14](../../../app/forum/shared/forum-api.ts#L14) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181)
+源码：[app/server/src/routes/forum-api/topics.ts:22](../../../app/server/src/routes/forum-api/topics.ts#L22) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/app.vue:1](../../../app/forum/app/app.vue#L1) · [app/forum/app/components/TitleBadge.vue:1](../../../app/forum/app/components/TitleBadge.vue#L1) · [app/forum/app/components/TopicListNav.vue:1](../../../app/forum/app/components/TopicListNav.vue#L1) · [app/forum/app/composables/useCurrentUser.ts:16](../../../app/forum/app/composables/useCurrentUser.ts#L16) · [app/forum/app/composables/useForumTheme.ts:20](../../../app/forum/app/composables/useForumTheme.ts#L20) · [app/forum/app/composables/useOrgTitles.ts:16](../../../app/forum/app/composables/useOrgTitles.ts#L16) · [app/forum/app/data/account-badges.ts:16](../../../app/forum/app/data/account-badges.ts#L16) · [app/forum/app/data/permissions.ts:11](../../../app/forum/app/data/permissions.ts#L11) · [app/forum/app/data/titles.ts:27](../../../app/forum/app/data/titles.ts#L27) · [app/forum/app/data/types.ts:12](../../../app/forum/app/data/types.ts#L12) · [app/forum/app/pages/users.vue:1](../../../app/forum/app/pages/users.vue#L1) · [app/forum/app/plugins/opaque-surfaces.ts:12](../../../app/forum/app/plugins/opaque-surfaces.ts#L12) · [app/forum/app/stores/forum-server.ts:47](../../../app/forum/app/stores/forum-server.ts#L47) · [app/forum/shared/forum-api.ts:14](../../../app/forum/shared/forum-api.ts#L14) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181) · [app/forum/shared/site-state.ts:21](../../../app/forum/shared/site-state.ts#L21)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1095,7 +1095,7 @@
 - 数据与副作用：按话题读取帖子及点赞投影；软删正文为空；不把全论坛正文再次塞进首屏。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/components/ForumMarkdown.vue:1](../../../app/forum/app/components/ForumMarkdown.vue#L1) · [app/forum/app/pages/t/[id].vue:1](../../../app/forum/app/pages/t/[id].vue#L1) · [app/forum/shared/post-markdown.ts:31](../../../app/forum/shared/post-markdown.ts#L31) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181)
+源码：[app/server/src/routes/forum-api/topics.ts:34](../../../app/server/src/routes/forum-api/topics.ts#L34) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/components/ForumMarkdown.vue:1](../../../app/forum/app/components/ForumMarkdown.vue#L1) · [app/forum/app/pages/t/[id].vue:1](../../../app/forum/app/pages/t/[id].vue#L1) · [app/forum/shared/post-markdown.ts:31](../../../app/forum/shared/post-markdown.ts#L31) · [app/server/src/lib/forum-content.ts:181](../../../app/server/src/lib/forum-content.ts#L181) · [app/forum/shared/forum-markdown.ts:131](../../../app/forum/shared/forum-markdown.ts#L131)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1113,7 +1113,7 @@
 - 数据与副作用：标题、正文、username/displayName按转义的LIKE搜索，各类限量；返回帖子命中摘要，不将%当通配符。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30)
+源码：[app/server/src/routes/forum-api/topics.ts:50](../../../app/server/src/routes/forum-api/topics.ts#L50) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/pages/search.vue:58](../../../app/forum/app/pages/search.vue#L58)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 
@@ -1346,7 +1346,7 @@
 - 数据与副作用：昵称NFKC与冒名检查后保存；冒名来源含已有成员/官方用户名、指派和登录过的组织账号；只更新提交字段，不更改GitHub资料。
 - 身份条件副作用：forumViewer仅在当前仍为组织成员时创建/刷新forum_users的角色、称号和GitHub头像；sid过期删除会话，上游拒绝token经全局处理时删会话并审计；游客不刷新成员记录。
 
-源码：[app/server/src/routes/forum-api/people.ts:45](../../../app/server/src/routes/forum-api/people.ts#L45) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/pages/u/[username]/preferences.vue:1](../../../app/forum/app/pages/u/[username]/preferences.vue#L1)
+源码：[app/server/src/routes/forum-api/people.ts:45](../../../app/server/src/routes/forum-api/people.ts#L45) · [app/server/src/lib/forum-store.ts:224](../../../app/server/src/lib/forum-store.ts#L224) · [app/server/src/routes/forum-api/viewer.ts:55](../../../app/server/src/routes/forum-api/viewer.ts#L55) · [app/server/src/lib/access.ts:30](../../../app/server/src/lib/access.ts#L30) · [app/forum/app/pages/u/[username]/preferences.vue:1](../../../app/forum/app/pages/u/[username]/preferences.vue#L1) · [app/forum/app/composables/useSiteAccount.ts:31](../../../app/forum/app/composables/useSiteAccount.ts#L31)
 
 测试入口：[tests/server/forum.test.ts](../../../tests/server/forum.test.ts)。生成器未执行这些测试。
 

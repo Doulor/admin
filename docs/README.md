@@ -26,6 +26,7 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 | `app/web/`（`sites/portal`、`shared`） | [services/web](services/web/README.md) · [portal](services/web/portal.md) · [shared](services/web/shared.md) · [admin（已迁出）](services/web/admin.md) | [DESIGN](design/DESIGN.md)、[STACK](design/STACK.md)、[TESTING](conventions/TESTING.md) |
 | `app/console/` | [services/console](services/console/README.md) | [DESIGN](design/DESIGN.md)、[Tuffex 使用政策](components/tuffex/USAGE-POLICY.md)、[TESTING](conventions/TESTING.md) |
 | `app/forum/` | [services/forum](services/forum/README.md) | [TUFF-FORUM](ops/TUFF-FORUM.md)、[Tuffex 使用政策](components/tuffex/USAGE-POLICY.md)、[ADR-0003](decisions/0003-adopt-tuff-forum.md) |
+| `app/cli/` | [services/cli](services/cli/README.md) | [TESTING](conventions/TESTING.md)、[SECURITY](architecture/SECURITY.md) |
 | `deploy/` | [ops/DEPLOY](ops/DEPLOY.md) · [ops/ENVIRONMENTS](ops/ENVIRONMENTS.md) · [ops/CICD](ops/CICD.md) | [RELEASES](conventions/RELEASES.md)、[BRANCHING](conventions/BRANCHING.md) |
 | `docs/`（本文档树） | [INDEX](INDEX.md)（生成物） | [DOCUMENTATION](conventions/DOCUMENTATION.md) |
 | `scripts/`、`tests/` | [TESTING](conventions/TESTING.md) · [ops/CICD](ops/CICD.md) | [CONTRIBUTING](conventions/CONTRIBUTING.md)、[CODE-REVIEW](conventions/CODE-REVIEW.md) |
