@@ -2,287 +2,195 @@
   "version": 1,
   "issue": 274,
   "kind": "business",
-  "summary": "操作记录像埋点一样覆盖全端（#274 重开后的收尾）：修好控制台操作记录页因为多传 limit 被服务端 activityQuery 契约拒绝的 400；POST /api/events 按来源（门户/论坛/控制台）分白名单，论坛和控制台各补上页面浏览等埋点；补上表情回应此前缺失的审计记录；控制台操作记录页的来源筛选与动作文案同步覆盖这些新动作。",
+  "summary": "修正论坛所见即所得编辑器的 Markdown 空段落序列化：新编辑内容不再把空行保存成会被安全渲染器显示为文字的 br 标签，并保留引用、软硬换行、提及、图片、表情与原始 HTML 转义边界。",
   "applications": [
-    "console",
-    "forum",
-    "server"
+    "forum"
   ],
   "domains": [
     "audit",
-    "forum",
-    "permissions",
     "identity",
-    "platform",
     "organization",
-    "recruitment",
-    "feedback",
-    "competitions",
-    "gitlab",
-    "github",
-    "public_content"
+    "forum"
   ],
   "flows": [
-    "flow:audit.events.report",
-    "flow:audit.console.activity.list",
-    "flow:forum.reactions.add",
-    "flow:forum.reactions.remove",
-    "flow:console.summary",
-    "flow:identity.callback",
-    "flow:documentation.list",
-    "flow:console.identity",
-    "flow:application.list"
+    "flow:forum.topics.create",
+    "flow:forum.posts.reply",
+    "flow:forum.posts.edit"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "操作记录从只认门户、只有部分写路径补齐成按来源分流且三端都有埋点：事件白名单拆成门户/论坛/控制台三份，论坛和控制台新增埋点上报，表情回应补上缺失的审计写入，控制台操作记录页同步按真实服务端契约取数。",
+      "reason": "新话题、回复与编辑共用的 Crepe 编辑器不再把空段落输出为原始 HTML 占位；用户主动输入的 br 标签和代码块仍按文字保存，旧帖子不批量改写。",
       "evidence": [
-        "app/server/src/lib/activity.ts",
-        "app/console/src/router.ts",
-        "app/forum/app/plugins/activity-beacon.client.ts"
+        "app/forum/app/editor/crepe-editor.ts",
+        "app/forum/tests/crepe-markdown.spec.ts"
       ]
     },
     "backend": {
-      "status": "changed",
-      "reason": "POST /api/events 的 body 加可选 surface 字段并按来源选白名单；forum-api/posts.ts 的表情回应新增与取消各补一次 recordActivity 写入。",
+      "status": "unchanged",
+      "reason": "POST /api/forum/posts 与 GET /api/forum/topics/:topic_id/posts 的方法、字段、状态码和服务端实现均未修改；集成夹具只通过真实现有路由保存和读回合成内容。",
       "evidence": [
-        "app/server/src/lib/activity.ts",
-        "app/server/src/routes/portal/events.ts",
-        "app/server/src/routes/portal/contracts.ts",
-        "app/server/src/routes/forum-api/posts.ts"
+        "tests/integration/forum-editor/http-fixture.mts",
+        "tests/integration/forum-editor/run.mjs"
       ]
     },
     "permissions": {
       "status": "unchanged",
-      "reason": "不新增、不修改任何权限节点、角色判定或可见范围；事件按来源分流和表情回应补审计都不改变原有的身份与授权判断。",
+      "reason": "没有新增身份、能力或资源范围；夹具建立合成成员并沿用 forum.reply.create 的既有服务端授权，外部请求全部拒绝。",
       "evidence": [
-        "app/server/src/lib/activity.ts"
+        "tests/integration/forum-editor/http-fixture.mts"
       ]
     },
     "data": {
       "status": "unchanged",
-      "reason": "activity_events 表结构不变，只是新增写入点（forum.react）和按来源分流的白名单逻辑，不新增或修改表、列、索引或外键。",
+      "reason": "没有表、字段、事务或迁移变化；只改变今后由编辑器产生的 Markdown 文本，测试数据库为内存 SQLite，旧帖子不回写。",
       "evidence": [
-        "app/server/src/lib/activity.ts"
+        "app/forum/app/editor/crepe-editor.ts",
+        "tests/integration/forum-editor/http-fixture.mts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增或升级任何依赖，论坛与控制台的埋点复用已有的 fetch keepalive 批量上报模式，不引入新包。",
+      "reason": "复用 Milkdown 现有 remarkPreserveEmptyLinePlugin 导出、根 jsdom 与既有论坛依赖；未改 package.json、论坛锁文件或生产依赖。",
       "evidence": [
-        "app/server/src/routes/portal/events.ts"
+        "app/forum/app/editor/crepe-editor.ts",
+        "app/forum/tests/crepe-markdown.config.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "服务端、控制台、论坛三份服务文档同步写上新模块、新埋点位置和按来源分流的说明；endpoint-contracts.md 改写 /api/events 一节并修正一处过期的匿名限流描述。",
+      "reason": "论坛服务合同记录空段落、原始 HTML 安全边界、双工具链回归入口及其非浏览器验收边界；旧 GitLab #274 声明逐字归档，当前入口只描述 GitHub #274。",
       "evidence": [
-        "docs/services/server/README.md",
-        "docs/services/server/endpoint-contracts.md",
-        "docs/services/console/README.md",
-        "docs/services/forum/README.md"
+        "docs/services/forum/README.md",
+        "docs/history/changes/gitlab/274.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "新增/更新的回归测试覆盖：控制台不再传 limit 且拒绝未知查询字段、按来源过滤、事件按 surface 分流与未知 surface 拒绝、表情回应落审计行、论坛换主题与插表情上报、埋点节流与刷新。",
+      "reason": "新增真实 createCrepeEditor 到 Fastify POST/GET、TxMarkdownView/DOMPurify 和重新打开编辑器的隔离回归，覆盖引用、空段、软硬换行、@、图片、表情与 HTML/XSS 边界；jsdom 几何补丁不等于真实浏览器，父级浏览器验收仍单列。",
       "evidence": [
-        "tests/console/activity.test.ts",
-        "tests/server/events.test.ts",
-        "tests/server/forum.test.ts",
-        "app/forum/tests/activity-beacon.test.ts"
+        "app/forum/tests/crepe-markdown.spec.ts",
+        "app/forum/tests/crepe-markdown.config.ts",
+        "tests/integration/forum-editor/http-fixture.mts",
+        "tests/integration/forum-editor/run.mjs"
       ]
     },
     "delivery": {
       "status": "not-applicable",
-      "reason": "不改动部署配置、CI 工作流、Dockerfile 或构建配置，只是服务端/控制台/论坛三个应用内部的业务代码与文档改动，发布链路不变。",
+      "reason": "未改 Dockerfile、构建参数、环境变量、CI、版本或发布物布局；本地回归入口不加入默认 CI，也不构成部署或预发布验收。",
       "evidence": [
-        "app/forum/Dockerfile"
+        "docs/services/forum/README.md",
+        "tests/integration/forum-editor/run.mjs"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/console/src/lib/events.ts",
-        "app/console/src/pages/Activity.vue",
-        "tests/console/activity.test.ts"
+        "app/forum/app/editor/crepe-editor.ts"
       ],
       "domains": [
-        "audit"
+        "forum"
       ],
       "nodes": [
-        "domain:audit",
-        "application:console"
-      ],
-      "reason": "控制台操作记录页改成不传 limit、按服务端 activityQuery 契约的字段集拼查询串；新增控制台页面浏览埋点库 lib/events.ts；回归测试覆盖越界查询被拒绝、按来源筛选论坛/控制台与不再传 limit。"
-    },
-    {
-      "paths": [
-        "app/console/src/lib/activity.ts",
-        "app/console/src/mock/console.ts",
-        "app/console/src/router.ts"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:audit",
-        "domain:competitions",
-        "domain:feedback",
-        "domain:github",
-        "domain:organization",
-        "domain:recruitment",
-        "application:console"
-      ],
-      "reason": "lib/activity.ts（查询串与动作文案）、mock/console.ts（整份 mock 后端）、router.ts（整份路由表）按模块归属覆盖控制台已有的六个业务域；这次改动只在查询参数、未知字段校验（和服务端 activityQuery 契约对齐）与一行页面浏览埋点上报里，其余五个域的现有行为不变。"
-    },
-    {
-      "paths": [
-        "app/forum/app/components/PostEditor.vue",
-        "app/forum/app/composables/useActivityBeacon.ts",
-        "app/forum/app/composables/useForumTheme.ts",
-        "app/forum/app/plugins/activity-beacon.client.ts",
-        "app/forum/tests/activity-beacon.test.ts",
-        "app/forum/tests/forum-theme.test.ts",
-        "app/forum/tests/post-editor.test.ts",
-        "app/forum/tests/support/post-editor.ts"
-      ],
-      "domains": [
-        "forum",
-        "audit"
-      ],
-      "nodes": [
+        "application:forum",
         "domain:forum",
-        "domain:audit",
-        "application:forum"
+        "flow:forum.topics.create",
+        "flow:forum.posts.reply",
+        "flow:forum.posts.edit"
       ],
-      "reason": "论坛新增批量上报组合式函数 useActivityBeacon 与按页面切换上报 page.view 的插件，换主题和插入表情各补一次上报；测试支持文件和既有用例补上 stub，验证换主题、插表情和埋点节流/刷新都按预期上报。"
+      "reason": "共用编辑器装配移除空段 HTML 占位插件；不改渲染器、接口、权限或其它编辑器行为。"
     },
     {
       "paths": [
-        "app/server/src/lib/activity.ts",
-        "app/server/src/routes/portal/contracts.ts",
-        "app/server/src/routes/portal/events.ts",
-        "tests/server/events.test.ts"
+        "app/forum/tests/crepe-markdown.config.ts",
+        "app/forum/tests/crepe-markdown.spec.ts",
+        "tests/integration/forum-editor/http-fixture.mts",
+        "tests/integration/forum-editor/run.mjs"
       ],
       "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "gitlab",
-        "identity",
-        "platform",
-        "public_content",
-        "recruitment"
+        "forum"
       ],
       "nodes": [
-        "domain:audit",
-        "domain:competitions",
-        "domain:feedback",
-        "domain:gitlab",
-        "domain:identity",
-        "domain:platform",
-        "domain:public_content",
-        "domain:recruitment",
-        "application:server"
-      ],
-      "reason": "按来源拆分事件白名单：forum.theme.change 和新增的 forum.sticker.use 只在论坛白名单里生效，控制台只认 page.view；POST /api/events 的 body 加可选 surface 字段。contracts.ts 是门户全部路由的共用契约文件，按模块归属覆盖门户已有的全部业务域，这次只改动事件上报这一段契约，其余路由契约不变。回归测试覆盖按来源过滤、未知 surface 拒绝、原有无 surface 调用仍按门户走。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/forum-api/posts.ts",
-        "tests/server/forum.test.ts"
-      ],
-      "domains": [
-        "forum",
-        "audit"
-      ],
-      "nodes": [
+        "application:forum",
         "domain:forum",
-        "domain:audit",
-        "application:server"
+        "flow:forum.posts.reply",
+        "flow:forum.topic_posts"
       ],
-      "reason": "表情回应的新增与取消此前没写操作记录，补上 recordActivity(action: forum.react)；回归测试断言两种情况都落一条审计行。"
+      "reason": "以两套 Node 工具链隔离真实论坛编辑器和核心路由，验证保存、读回、渲染、重开与安全失败边界；不接业务库或外部网络。"
     },
     {
       "paths": [
-        "docs/architecture/catalog/catalog.json",
+        "docs/services/forum/README.md"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum",
+        "domain:forum",
+        "flow:forum.posts.reply"
+      ],
+      "reason": "同步当前本树已实现的编辑器空行契约、验证入口和未验证边界，不宣称其它任务实现或真实浏览器通过。"
+    },
+    {
+      "paths": [
+        "docs/history/changes/gitlab/274.json",
+        "docs/history/changes/gitlab/274.md"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "application:forum",
+        "domain:forum"
+      ],
+      "reason": "逐字保全基线中的旧 GitLab 同号声明及命名空间说明，不把旧埋点任务当作当前 GitHub #274。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/data-model.md",
         "docs/architecture/catalog/map.html",
-        "docs/architecture/catalog/ownership.json",
         "docs/architecture/catalog/permissions.md",
-        "docs/architecture/catalog/routes.md"
+        "docs/architecture/catalog/routes.md",
+        "docs/INDEX.md"
       ],
       "domains": [
-        "audit"
+        "forum"
       ],
       "nodes": [
-        "domain:audit"
+        "application:forum",
+        "domain:forum"
       ],
-      "reason": "ownership.json 补上新文件的模块归属、事件上报流程的证据锚点和表情回应流程的审计域关联，pnpm catalog:generate 重新生成其余产物。"
+      "reason": "移除本树不存在的跨任务 public-profile 源码锚点，保留其它有效业务证据，并从 task274 当前检出重新生成目录与文档索引。"
     },
     {
       "paths": [
-        "docs/services/console/README.md",
-        "docs/services/forum/README.md",
-        "docs/services/server/endpoint-contracts.md",
-        "docs/services/server/README.md"
+        "app/forum/tests/activity-beacon.test.ts"
       ],
       "domains": [
-        "audit"
+        "forum"
       ],
       "nodes": [
-        "domain:audit"
+        "application:forum"
       ],
-      "reason": "三端服务文档同步写上新模块和埋点位置，endpoint-contracts.md 改写 /api/events 一节说明按来源分流，并修正一处过期的匿名限流描述。"
-    },
-    {
-      "paths": [
-        "app/console/src/pages/Overview.vue",
-        "app/console/src/pages/Applications.vue"
-      ],
-      "domains": [
-        "audit",
-        "github",
-        "organization",
-        "recruitment",
-        "competitions",
-        "feedback"
-      ],
-      "nodes": [
-        "domain:audit",
-        "domain:recruitment",
-        "application:console",
-        "flow:console.identity",
-        "flow:application.list",
-        "flow:audit.console.activity.list"
-      ],
-      "reason": "控制台全量过一遍（所有者 2026-10-25 00:13「你去全量看看哪能有那么丑的啊」）时发现：概览「最近操作」请求操作记录带 `limit=6`，契约不认，整块 400，改成不带参数、只显示最新 6 条；投递列表在手机上横向溢出，窄于 640px 时换成一份一张卡。这两个页面在目录里登记在招新、组织、GitHub 等域下，本次只动操作记录读取和投递列表的窄屏显示。"
+      "reason": "完整论坛检查暴露既有fetch mock被推导为零参数，补齐请求参数类型，保持原3条埋点行为断言与运行实现不变。"
     }
   ],
   "documents": [
-    "docs/services/console/README.md",
-    "docs/services/forum/README.md",
-    "docs/services/server/README.md",
-    "docs/services/server/endpoint-contracts.md"
+    "docs/services/forum/README.md"
   ],
   "tests": [
-    "tests/console/activity.test.ts",
-    "tests/server/events.test.ts",
-    "tests/server/forum.test.ts",
-    "app/forum/tests/activity-beacon.test.ts",
-    "app/forum/tests/forum-theme.test.ts",
-    "app/forum/tests/post-editor.test.ts"
+    "app/forum/tests/crepe-markdown.config.ts",
+    "app/forum/tests/crepe-markdown.spec.ts",
+    "tests/integration/forum-editor/http-fixture.mts",
+    "tests/integration/forum-editor/run.mjs",
+    "app/forum/tests/activity-beacon.test.ts"
   ],
-  "compatibility": "现有调用 POST /api/events 不传 surface 时仍按门户来源处理，向后兼容；控制台不再传 limit，服务端本来就不读这个参数，不是破坏性变更。",
-  "migration": "不涉及数据库迁移：activity_events 表结构不变，只是新增 forum.react 的写入点和按来源分流的事件白名单逻辑，不新增或修改表、列或索引。",
-  "rollback": "回滚这次提交即可；回滚后控制台操作记录页会恢复发送 limit 从而重新触发 400，论坛和控制台也不再上报埋点，表情回应也不再写审计行。"
+  "compatibility": "接口与已存帖子不变；空段落按 CommonMark 段落间隔读回，连续或首尾额外空段不承诺逐个保留。用户主动写出的 HTML 与代码仍按文字显示，soft/hard break、提及、图片和表情格式保持既有契约。",
+  "migration": "无数据库或内容批量迁移；仅之后经编辑器保存的 Markdown 使用修正后的空段落序列化，隔离测试数据随内存数据库关闭而消失。",
+  "rollback": "在进入 stage 后可回退本任务对 crepe-editor.ts、回归和合同的改动；不需要数据回滚。回退会恢复空段落写出字面 br 标签的旧缺陷，但不会改写已经保存的帖子，也不得移动发布 tag。"
 }
