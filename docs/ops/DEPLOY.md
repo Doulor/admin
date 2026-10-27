@@ -2,7 +2,7 @@
 
 > 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。
 
-状态：`current` · 更新：2026-10-25
+状态：`current` · 更新：2026-10-27
 
 ## 发布前置
 
@@ -185,6 +185,14 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 - **CDN 的防盗链与 CORS（2026-09-26 用 curl 实测，不需要改 CDN 配置）**：`Referer: https://prev.yangtzeu.work/` 与 `https://yangtzeu.work/` 返回 200；别的站点（如 `https://evil.example/`）返回 403；不带 Referer 返回 200。`.js` 是 `text/javascript`，`.css` 是 `text/css`，`.woff2` 是 `font/woff2`，都带 `Access-Control-Allow-Origin: *`、`Cache-Control: public, max-age=31536000`、`Vary: Origin, Accept-Encoding`。CDN 对文本做 gzip（论坛入口 CSS 626,718 → 95,554 字节），不支持 brotli。站点的 `Referrer-Policy: strict-origin-when-cross-origin` 让浏览器发出 `https://<域名>/`，正好命中白名单。
 - **本机验证**：`http://127.0.0.1:<端口>/` 不在防盗链白名单里（实测 403）。本机用开关打开的构建做预览时，让本机服务器发 `Referrer-Policy: no-referrer`（不带 Referer 是放行的），或只看 HTML 里的地址，不要去改 CDN 的白名单。
 - **源站压缩**：web 与 forum 容器的 nginx 都对文本做 gzip，级别都是 6。forum 容器原来用 nginx 默认的 1，论坛入口 CSS（626,718 字节）经源站传 128,152 字节，改成 6 后本机 nginx 1.31.6 实测 95,932 字节（web 容器反代论坛时不会再压一次，所以只能在 forum 容器改）。web 容器和宿主 nginx 模板（`deploy/nginx/preview.conf`、`production.conf`）的 `gzip_types` 还包含 `application/wasm model/gltf-binary`，官网手机模型 1.77MB→1.16MB（#217）；宿主 nginx 模板改动要在宿主机上重新安装才生效。预压缩（`gzip_static`，`-9`）比 6 级只再少 0.2%–1.2%，`nginx:1.31-alpine` 没有 brotli 模块，所以没有做。
+
+## 香港对象存储（备份归档，不是站点 CDN）
+
+`cdn.yangtzeu.work` 是香港一台 1 vCPU / 1 GiB 小机器上的 S3 兼容对象存储（Garage + Caddy + S3 Manager），承担备份归档与公共图床；**站点带哈希的静态资源仍走七牛 `https://cdn.crosery.com`**，两者不是同一个 CDN，不要互相替代。
+
+- 配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)（`garage.toml`、`s3manager.env`、`Caddyfile`、`scripts/upload_demo.py`），合同见 [STORAGE-CDN](STORAGE-CDN.md)。
+- 模板里的密钥字段一律留空：S3 Access/Secret 在目标机 `/etc/s3manager.env`（0600），Garage 的 rpc/admin/metrics 三个 token 在 `/etc/garage.toml`，控制台 basic-auth 哈希由 systemd 变量 `S3MANAGER_ADMIN_HASH` 提供。仓库里出现真实值就是泄漏。
+- 这台机器不跑应用容器、数据库或 CI Runner；改 Caddyfile 先 `caddy validate` 再 `reload`，改 garage.toml 才 `restart garage`。
 
 ## 发布和回滚验收
 

@@ -122,7 +122,7 @@
 | [`COMPETITION-APP.md`](./plan/COMPETITION-APP.md) | #239 的目标方案（未实施）：把官网「比赛」窗口升级为「赛事 / 我的参赛」两个视图的应用——所有人看到同一份赛事，极客班成员在上面叠加自己的报名、组队与参赛状态；参赛者按极客班统一账号（`account_id`）识别，不按 GitHub 账号；同时约定接口、业务规则、数据库草图、控制台报名名单、内部比赛官网托管与 SDK、与统一登录等其他业务的协调，以及与后端草稿 90fc376 的对齐清单。 | — |
 | [`CONSOLE-PERMISSION-TREE.md`](./plan/CONSOLE-PERMISSION-TREE.md) | #176 的离线参考与接入计划已落实为控制台只读页签；当前契约迁回 console 服务文档。本记录是实施结论，不代替人工验收；合并、tag 与部署状态以 issue #176 的追踪记录为准。 | — |
 | [`REFACTOR.md`](./plan/REFACTOR.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/REFACTOR.en.md) |
-| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（交付 1 已由 #262 实施：账号底座与 GitHub 登录事务、统一登录页 `/signin`、三端入口改「登录」、RFC 8628 设备授权；#262 第二、三期按所有者 2026-10-23 的决定实施了邮箱验证码与密码登录、Google 登录、邀请码注册与账号页 `/account`，见「实施进度」；交付 4 与渠道绑定的其余部分未实施）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。 | — |
+| [`UNIFIED-LOGIN.md`](./plan/UNIFIED-LOGIN.md) | #237 的实施规格（交付 1 已由 #262 实施：账号底座与 GitHub 登录事务、统一登录页 `/signin`、三端入口改「登录」、RFC 8628 设备授权；#262 第二、三期按所有者 2026-10-23 的决定实施了邮箱验证码与密码登录、Google 登录、邀请码注册与账号页 `/account`，见「实施进度」；交付 4 与渠道绑定的其余部分未实施，其中 Google 绑定已由 #291 实施，见「第二、三期」下面一段）：把 ADR-0005 落到可以直接开工的颗粒度——统一登录页 `/signin`、账号页 `/account` 与控制台的界面状态，三种登录方式的后端流程，全站一套的个人资料（头像、昵称），新表与迁移，要会话的接口在邮箱或 Google 会话下怎么处理，以及各业务要改什么、怎么验收；按四个候选 issue 拆分交付。 | — |
 | [`WEB-SPLIT.md`](./plan/WEB-SPLIT.md) | 历史阶段记录：旧路径、版本、数量和完成声明仅供追溯。 | [EN](./plan/WEB-SPLIT.en.md) |
 | [`YUGC-OS-V2.md`](./plan/YUGC-OS-V2.md) | 批次源自开机动画视觉令牌与门户桌面改版，所有者 2026-10-23 批准按 `#274 账号/权限地基 → #275 门户桌面 → #276 论坛可见范围 → #277 geek 命令行 → #278 第一期比赛官网` 顺序推进。本文件收录设计方案第 1–3 章的要点（视觉令牌去向、执行顺序与分工、#274 的设计与落地结论）；第 1 章的令牌取值写进 `docs/design/DESIGN.md`（由 #275 补充），逐字段的接口契约在各自服务契约文档里；#275-#278 各章的要点由对应 issue 的 MR 补进本文件。 | — |
 
@@ -140,6 +140,7 @@
 | [`FORUM-DATA-CAPTURE.md`](./ops/FORUM-DATA-CAPTURE.md) | 已通过 Mac SSH 获取三份 SQLite 在线备份及两代附件；本机论坛可只读显示由此生成的投影，未导入可写库或切换线上服务。 | — |
 | [`LOCAL-PREVIEW.md`](./ops/LOCAL-PREVIEW.md) | 本机起官网、核心后端与论坛；启动时给出 GitHub OAuth 应用的两项凭据就走真实 GitHub 登录（数据留在 `.tools/local-preview/`），不给就是隔离的内存模式。 | — |
 | [`RELEASE-ACCEPTANCE-TEMPLATE.md`](./ops/RELEASE-ACCEPTANCE-TEMPLATE.md) | 空白模板，供验收人逐字段手工填写；不是流水线自动生成的通过证明。 | — |
+| [`STORAGE-CDN.md`](./ops/STORAGE-CDN.md) | 一台守在香港的 1 vCPU / 1 GiB 小机器：Garage 提供 S3 兼容对象存储，Caddy 做网关与自动 TLS，S3 Manager 提供可视控制台，Policy Bridge 把控制台里的「设为公共桶」翻译成 Garage 的 website 开关。本文件是这套系统的**唯一现行合同**，配置模板在 `deploy/storage-cdn/`。 | — |
 | [`TUFF-FORUM.md`](./ops/TUFF-FORUM.md) | 独立启动直接引入的 Nuxt/TuffEx 原仓；本机有私有快照时显示极客班论坛内容，登录只走全站统一登录页（GitHub 是目前唯一的登录方式），不将其冒充生产论坛。 | — |
 | [`USAGE.md`](./ops/USAGE.md) | 公开访问说明：全站 GitHub 登录、加入我们、核心 GitHub 管理和新论坛浏览器演示分别怎么用；不包含内部凭据。 | [EN](./ops/USAGE.en.md) |
 
@@ -214,4 +215,4 @@ iPhone 15 Pro Max model attribution
 
 ---
 
-共 72 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。
+共 73 篇文档（另有 20 篇英文版）。索引按目录分组，组内按文件名排序。

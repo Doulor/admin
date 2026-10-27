@@ -1,0 +1,90 @@
+# 香港对象存储/CDN 的 Caddy 网关（cdn.yangtzeu.work）
+# 安装位置：/etc/caddy/Caddyfile（root 0644）。TLS 由 Caddy 自动申请并续期。
+#
+# 控制台三处 basic_auth 的用户名固定 admin，口令哈希**不入库**：
+# 由 systemd 环境文件提供 S3MANAGER_ADMIN_HASH（bcrypt，`caddy hash-password --plaintext …` 生成），
+# Caddy 启动时用 {$S3MANAGER_ADMIN_HASH} 展开。没有该变量时 Caddy 会拒绝启动，这是期望的失败关闭。
+
+cdn.yangtzeu.work {
+    encode gzip zstd
+
+    # 1. S3 协议调用与预签名外链（放行带 Authorization 头、X-Amz 参数，或 S3 修改动作）
+    @s3_auth header Authorization AWS*
+    @s3_sig query X-Amz-Signature=*
+    @s3_algo query X-Amz-Algorithm=*
+    @s3_mut {
+        method PUT DELETE
+        not path /Default* /static*
+    }
+
+    handle @s3_auth {
+        reverse_proxy 127.0.0.1:3900 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    handle @s3_sig {
+        reverse_proxy 127.0.0.1:3900 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    handle @s3_algo {
+        reverse_proxy 127.0.0.1:3900 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    handle @s3_mut {
+        reverse_proxy 127.0.0.1:3900 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # 2. S3 Manager 的桶策略桥接（拦截 /Default/api/buckets/*/policy）
+    @policy_route {
+        path_regexp pol ^/Default/api/buckets/[^/]+/policy/?$
+    }
+    handle @policy_route {
+        basic_auth {
+            admin {$S3MANAGER_ADMIN_HASH}
+        }
+        reverse_proxy 127.0.0.1:8081
+    }
+
+    # 3. Web 控制台资源与内部页面（S3 Manager）
+    @console_routes {
+        path /Default* /static* /favicon.ico /robots.txt
+    }
+    handle @console_routes {
+        basic_auth {
+            admin {$S3MANAGER_ADMIN_HASH}
+        }
+        reverse_proxy 127.0.0.1:8080 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    # 4. 公共对象的静态直链（/{bucket}/{key}），交 Garage 的 s3_web 出口
+    @public_objects {
+        path_regexp obj ^/([^/]+)/(.*)$
+    }
+    handle @public_objects {
+        rewrite * /{re.obj.2}
+        reverse_proxy 127.0.0.1:3902 {
+            header_up Host {re.obj.1}.cdn.yangtzeu.work
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # 5. 兜底进控制台
+    handle {
+        basic_auth {
+            admin {$S3MANAGER_ADMIN_HASH}
+        }
+        reverse_proxy 127.0.0.1:8080
+    }
+}

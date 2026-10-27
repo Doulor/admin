@@ -1,0 +1,33 @@
+# Garage 对象存储服务配置（香港 CDN 机 / 103.240.197.216）
+# 安装位置：/etc/garage.toml（属主 root，0644；本文件不含任何密钥）
+#
+# 三个敏感字段入库时留空，由目标机就地填写，不要提交真实值：
+#   rpc_secret     —— 集群 RPC 共享密钥（garage 生成的 32 字节 hex）
+#   admin_token    —— /admin API 的 Bearer token
+#   metrics_token  —— /metrics 的 Bearer token
+# 生成与轮换见 docs/ops/STORAGE-CDN.md「凭据」。
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+replication_factor = 1
+
+rpc_bind_addr = "127.0.0.1:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = ""
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "127.0.0.1:3900"
+root_domain = ".cdn.yangtzeu.work"
+
+[s3_web]
+bind_addr = "127.0.0.1:3902"
+root_domain = ".cdn.yangtzeu.work"
+index = "index.html"
+
+[admin]
+api_bind_addr = "127.0.0.1:3903"
+admin_token = ""
+metrics_token = ""
