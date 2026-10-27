@@ -67,3 +67,9 @@
 - 执行者：agent-sonnet-source-delivery
 - 做了什么：运行 task271 现有身份、GitLab、公开资料、会话和权限定向套件，并复核 architecture 与 diff
 - 结果：12 个测试文件 323/323 通过；architecture #271 为51个变更文件60个关联节点通过；git diff --check 通过；未新增跨任务文件
+
+## 09:48:14 +08:00 · 提交 · #271 · 记录 task271 本地交付提交
+
+- 执行者：agent-sonnet-source-delivery
+- 做了什么：完成 task271 source worktree 本地提交 497e793c；未推送、合并、打 tag 或部署
+- 结果：提交包含51个文件；定向身份资料套件323/323通过，architecture 通过，git diff --check 通过
