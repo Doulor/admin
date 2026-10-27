@@ -57,3 +57,10 @@
 - 做了什么：撤销 4c4acd75 的 Caddyfile、storage-cdn-config 测试、STORAGE-CDN.md 与 297.json 四处改动（该提交的执行记录原样保留）。4c4acd75 的依据是一次没带 Origin 头的 curl；带 Origin 重测线上 cdn.yangtzeu.work：来源为 https://yangtzeu.work 与 https://prev.yangtzeu.work 时回对应的 access-control-allow-origin，来源为 https://evil.example 时不回，OPTIONS 预检 200；香港机 /etc/caddy/Caddyfile 对 access-control 零命中，线上 CORS 不来自 Caddy。
 - 结果：仓库模板不再声称缺 CORS，也不再写比线上更宽的 Access-Control-Allow-Origin *（与上游已有的头叠加可能变成两个值，浏览器会拒绝）；线上 CORS 的具体来源（推测为 Garage 的桶级 CORS 配置）未核实。文档核对：docs/ops/STORAGE-CDN.md 随代码一并撤回，内容回到 4c4acd75 之前。
 - 下一步：提交并推送 task/297，给 MR !34 补一条更正
+
+## 21:48:59 +08:00 · 审查 · #297 · MR !34 增量审查：63d9dc45 到 3fb242a8，评论 1469
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：对独立审查之后的增量做了核对并发到 MR !34（评论 1469）：git diff --stat 63d9dc45 3fb242a8 只有 STORAGE-CDN.md 一行重复说明和本 task 的执行记录，deploy、tests、scripts、docs/changes/297.json 与被审版本逐字相同；CORS 头加了又整体撤回，净增量为零。增量审查人是作者本人，评论里已写明不是独立审查。文档核对：docs/ops/STORAGE-CDN.md 已是现行内容，不用再改——本次只补记录。
+- 结果：check-secrets、check-doc-sync --base gitlab/stage、check-architecture --base gitlab/stage、docs-index --check 通过，storage-cdn-config 11 passed；note check 仍只有历史 K10 一处。结论：通过。
+- 下一步：合并 !34 进 GitLab stage，随后把 GitHub stage 同步到合并后的提交
