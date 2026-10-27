@@ -196,3 +196,16 @@
 - 做了什么：审查指出三点并已逐条处理。其一，SHA256SUMS 按文件名排序排在数据对象前面上传，中断后会留下有清单缺数据的 run，而清理只核验最新一份，这类 run 会被当成有效日期：put-tree 改为把 SHA256SUMS 放在最后上传，prune-runs 从新到旧逐个 run 比对清单与对象列表，凑够 3 个有效日期为止，对不上的旧 run 不计日期也不删并在 unverifiedRuns 列出，最新一份对不上仍整体拒绝。其二，平台角色前缀正则被放宽以便列举备份族：还原为只允许单个 run，清理改用不经前缀正则的 listObjects 列举固定的备份族前缀，每个对象键仍过角色 key 正则。其三，出现晚于北京今天的日期时零删除，防止主机时钟超前把截止日推后。文档核对：docs/ops/GITLAB.md 已改保留策略措辞，docs/ops/BACKUP.md 引用 GITLAB 的规则不用改——它只写保留 3 个日期并指向 GITLAB。
 - 结果：vitest tests/tooling/garage-archive、platform-archive、gitlab-backup-storage 共 37 passed（清理用例新增 5 条：清单最后上传、有清单缺数据、清单不可解析、超前日期、平台前缀不放宽）；shellcheck 通过；check-secrets、check-doc-sync --base gitlab/stage、check-architecture --base gitlab/stage 通过。未处理：刚上传的 run 若日期早于截止日（主机时钟落后 3 天以上）仍会被按旧 run 清理，属 [residual risk]。线上桶未执行清理。
 - 下一步：提交并推送 task/270，把审查结论贴进 MR !33
+
+## 20:49:23 +08:00 · 推送 · #270 · 推送 4eb91893 到 task/270，MR !33 新增 1 个提交
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：git push gitlab task/270/arch_predeployment，6962e023..4eb91893。
+- 结果：推送成功，MR !33 的提交列表出现 4eb91893；pre-push 通过。
+
+## 20:49:23 +08:00 · 审查 · #270 · MR !33 增量审查结论：6962e023 与 4eb91893
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：把只读子代理对 6962e023 的独立审查与作者的逐条处理写成评论发到 MR !33（评论 1465），含 1 条应修、2 条建议，全部已在 4eb91893 修复，附证据、未验证项和残余风险。
+- 结果：增量结论：无未决阻塞或应修条目；整个 MR 仍为阻塞，原因是继承的 K10 与备份落点裁决，K10 裁决前不合并 !33。
+- 下一步：等所有者对 K10 与 GitHub stage 同步方式裁决
