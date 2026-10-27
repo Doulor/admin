@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-25
+状态：`current` · 更新：2026-10-27
 
 ## 口径与共同边界
 
@@ -1078,7 +1078,7 @@ audit}.ts`）：旧接口与旧控制台前端已经随 #274 一起删除，不�
 
 权限与资源：公开只读，不要求登录，不判身份。
 
-响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。url由服务端按CDN开关决定（#286，STATIC_CDN_BASE）：开关关闭全是同源/api/forum/stickers/<哈希>.webp；开关打开，清单（app/server/assets/stickers/manifest.json）里的内置表情是CDN绝对地址https://cdn.crosery.com/yzgc/static/site/forum/stickers/<哈希>.webp，站长在控制台上传的、不在清单里的仍是同源地址。
+响应与错误：200 {packs:[{id,name,stickers:[{id,shortcode,label,url}]}]}，只含enabled=1的包与表情；进程内缓存60秒，控制台改过表情后显式invalidate这个key。url由服务端按CDN开关决定（#286，STATIC_CDN_BASE）：开关关闭全是同源/api/forum/stickers/<哈希>.webp；开关打开，清单（app/server/assets/stickers/manifest.json）里的内置表情是CDN绝对地址https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/<哈希>.webp，站长在控制台上传的、不在清单里的仍是同源地址。
 
 数据与副作用：纯读，不写任何表；短码即表情id，前端据此渲染正文里的短码。
 

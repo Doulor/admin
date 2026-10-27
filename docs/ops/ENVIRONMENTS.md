@@ -2,7 +2,7 @@
 
 > 两份入库 `.env` 的字段契约与可见性规则；地址端口直接写，密钥留空由 CI/CD 注入。
 
-状态：`current` · 更新：2026-10-24 · 机器配置：[deploy/environments.json](../../deploy/environments.json)
+状态：`current` · 更新：2026-10-27 · 机器配置：[deploy/environments.json](../../deploy/environments.json)
 
 ## 可见性规则
 
@@ -42,7 +42,7 @@
 | `POW_DIFFICULTY` | 可见 | `3` | `3` |
 | `MAIL_ALIYUN_FROM` | 可见 | `notify@mail.email-crosery.cn`（阿里云邮件推送的发信地址，不带显示名） | 同左 |
 | `MAIL_RESEND_FROM` | 可见 | `notify@email-crosery.cn`（Resend 的发件地址，发出时写成 `长江大学极客班 <地址>`） | 同左 |
-| `MAIL_ASSET_BASE` | 可见 | `https://cdn.crosery.com/yzgc/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
+| `MAIL_ASSET_BASE` | 可见 | `https://cdn.yangtzeu.work/geek-public/mail/v1/`（信里图片的地址前缀：https，以 `/` 结尾，不带查询串） | 同左 |
 | `MAIL_REPLY_TO` | 可见·留空 | 空 = 信里不带 Reply-To，改请对方到官网意见箱留言；要填就写一个不带显示名的地址 | 空 |
 | `MAIL_RECIPIENTS` | 可见 | `all`：发给每一个投递的人 | `all`（#169 起；以前只能是 `allowlist`）；改成 `allowlist` 就只发 `MAIL_ALLOWLIST` 里的地址 |
 | `GITLAB_SYNC` | 可见 | `off`：不在 GitLab 上建号。改 `on` 要所有者在预发布验收、填好 `GITLAB_API_TOKEN`，并且按顺序来：先把预发布改 `off`，再迁 GitLab 的 `sub`、改 GitLab 的 `issuer`，最后正式改 `on`；两边同时 `on` 会反复封禁、解封同一批人 | `on`：正式站上线前 GitLab 接预发布的签发者，按预发布的账号建号、封禁（所有者 2026-10-23 选定；#270） |
@@ -146,10 +146,10 @@ Google 登录的两项也是可选的一对（同一脚本的 `GOOGLE_SECRET_PAI
 1. **宿主 Nginx 配置同构（最易忽视点）**：
    - 两套栈宿主 Nginx（`yzgc-preview.conf` 与 `yzgc-production.conf`）的 CSP 安全头规则、上游旁路映射（如论坛容器 CSP 旁路 Map）、历史路径 301 重定向（`/forum/t/` 与 `/forum/archive/t/`）、反代超时与安全头部必须保持完全同构，仅允许域名与端口绑定不同；
    - 严禁「预发布加了旁路或放行策略，正式环境 Nginx 漏配或各写一套」，改动任一环境模板必须同步核对另一环境。
-2. **七牛云 CDN 防盗链与鉴权白名单**：
-   - 宣传片 HLS 流媒体与静态资源依赖七牛 CDN（`cdn.crosery.com` 等）；
-   - CDN 空间的 **HTTP Referer 防盗链白名单**必须同时配置预发布域名（`prev.yangtzeu.work`）与正式域名（`yangtzeu.work`、`github.yangtzeu.work`）以及本地测试来源，避免预发布跑通而正式环境因 Referer 不在白名单直接报 403 阻断流媒体；
-   - 跨域 CORS 头（`Access-Control-Allow-Origin`）必须按规范正确下发。
+2. **S3 CDN 的公开读取与环境一致性**：
+   - 宣传片与公开静态资源迁到 `https://cdn.yangtzeu.work/geek-public`，路径、公私桶和凭据合同见 [CDN](CDN.md)；当前数据库、用户附件不外移。
+   - 正式与预发布都须真实验证 CORS、Range、MIME、缓存和 CSP；旧七牛的 Referer 白名单与 insertOnly 不是新服务能力。
+   - S3 上传凭据只在发布 job 的进程环境，不能放到这两份业务运行时 `.env` 或镜像。部分凭据、认证失败或新端点不可达均失败关闭。
 3. **域名绑定与第三方服务配置**：
    - **OAuth 回调**：正式环境 GitHub OAuth App 的 Callback URL 必须精准匹配 `PUBLIC_ORIGIN/auth/callback`，不可指向预发布；
    - **Turnstile 人机验证**：Cloudflare 仪表盘中的允许域名列表必须同时包含正式域名与预发布域名；

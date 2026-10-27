@@ -14,8 +14,8 @@
 # 边界：
 #   * 本工作流不创建、不移动、不删除 tag；正式 tag 在预发布验收并授权后手工打。
 #   * 部署用环境级 secrets（GitHub Environment `production`，应配置人工审批），与 PR 构建、预发布完全隔离。
-#   * 构建（build job）不接触任何环境级密钥。静态资源 CDN（#146）的上传 token 只在 cdn-plan、cdn-upload
-#     两个 job 里出现（GitHub Environment `static-cdn`），这两个 job 不安装依赖；没有 token 时同源构建、不上传。
+#   * 构建（build job）不接触任何环境级密钥。静态资源 CDN（#146）的 S3 凭据只在 cdn-plan、cdn-upload
+#     两个 job 里出现（GitHub Environment `static-cdn`），这两个 job 不安装依赖；没有凭据时同源构建、不上传。
 #   * 正式部署不设 cancel-in-progress：已经开始的上线必须跑完或明确失败，不允许被后来的 tag 静默取消。
 
 name: Deploy Production
@@ -245,8 +245,8 @@ jobs:
             || { echo "预发布站点当前不是提交 ${COMMIT} 的 rc 版本（期望其一：${expected}）：拒绝进入正式环境。" >&2; exit 1; }
           echo "证据成立：${PREVIEW_ORIGIN}/release.json 是提交 ${COMMIT} 的预发布版本。"
 
-  # 静态资源 CDN 开关（#146）：有上传 token、且 production 线上的 CSP 已放行 CDN 时，build 用 CDN 地址构建；
-  # 否则同源构建（与原来一样）。上传 token 只在这个 job 与 cdn-upload 里出现：两个 job 都不安装依赖，
+  # 静态资源 CDN 开关（#146）：有 S3 凭据、且 production 线上的 CSP 已放行 CDN 时，build 用 CDN 地址构建；
+  # 否则同源构建（与原来一样）。S3 凭据只在这个 job 与 cdn-upload 里出现：两个 job 都不安装依赖，
   # 只跑仓库里零依赖的 scripts/static-cdn.mjs（docs/ops/CICD.md「静态资源 CDN」）。
   cdn-plan:
     name: cdn-plan (静态资源 CDN 开关)
@@ -274,13 +274,17 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      - name: 决定这次是否用 CDN（没有 token 或 CSP 未放行 = 同源）
+      - name: 决定这次是否用 CDN（没有凭据或 CSP 未放行 = 同源）
         id: decide
         shell: bash
-        # stdout 只有一行 base=<地址或空>。token 的策略不对（前缀、只增不改、到期）直接失败，不带着错的凭据继续；
-        # 脚本不打印 token，只打印策略字段与到期时间。
+        # stdout 只有一行 base=<地址或空>。部分凭据或 S3 认证失败直接失败；不打印凭据。
         env:
-          STATIC_CDN_UPLOAD_TOKEN: ${{ secrets.STATIC_CDN_UPLOAD_TOKEN }}
+          STATIC_CDN_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_CDN_S3_ACCESS_KEY_ID }}
+          STATIC_CDN_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_CDN_S3_SECRET_ACCESS_KEY }}
+          STATIC_CDN_S3_ENDPOINT: https://cdn.yangtzeu.work
+          STATIC_CDN_S3_REGION: garage
+          STATIC_CDN_S3_BUCKET: geek-public
+          STATIC_CDN_S3_FORCE_PATH_STYLE: 'true'
           ORIGIN: ${{ needs.plan.outputs.origin }}
         run: |
           set -eu
@@ -378,7 +382,7 @@ jobs:
         if: needs.cdn-plan.outputs.base != ''
         shell: bash
         # 从刚构建的 web、forum 镜像里原样拷出三个产物目录，再按 scripts/static-cdn.mjs 的规则挑文件（不联网）：
-        # 有不带内容哈希的文件就在这里失败。上传在 cdn-upload job 里做，本 job 不接触上传 token。
+        # 有不带内容哈希的文件就在这里失败。上传在 cdn-upload job 里做，本 job 不接触 S3 凭据。
         env:
           IMAGE_TAG: ${{ needs.plan.outputs.image_tag }}
           IMAGE_REPOSITORY: ${{ needs.plan.outputs.image_repository }}
@@ -393,6 +397,18 @@ jobs:
           docker cp "${forum}:/usr/share/nginx/html/_nuxt" "${out}/forum/_nuxt"
           docker rm "$web" "$forum" > /dev/null
           node scripts/static-cdn.mjs plan --web "${out}/web" --forum "${out}/forum"
+
+      - name: 准备私有索引归档工具
+        if: needs.cdn-plan.outputs.base != ''
+        shell: bash
+        run: |
+          set -eu
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends rclone
+          mkdir -p "$RUNNER_TEMP/static-cdn/tools"
+          install -m 755 "$(command -v rclone)" "$RUNNER_TEMP/static-cdn/tools/rclone"
+          ( cd "$RUNNER_TEMP/static-cdn/tools" && sha256sum rclone > rclone.sha256 )
+          rclone version
 
       - name: 上传带哈希的静态文件（交给 cdn-upload，保留 7 天）
         if: needs.cdn-plan.outputs.base != ''
@@ -481,17 +497,39 @@ jobs:
           node scripts/fetch-artifact.mjs --repo "$GITHUB_REPOSITORY" --run "$GITHUB_RUN_ID" \
             --name "$ARTIFACT_NAME" --dir "$RUNNER_TEMP/static-cdn"
 
-      - name: 上传（只增不改）并经 CDN 带 Referer 逐个核对
+      - name: 上传（存在则逐字核对）并经 CDN 完整验证
         if: needs.cdn-plan.outputs.base != ''
         shell: bash
-        # 核对每个文件：HTTP 200、ETag 等于本地七牛 qetag、长度、Content-Type、JS/CSS/字体的 CORS 头。
+        # 核对 HEAD、完整 GET SHA-256、Range、长度、MIME、CORS；拒绝冲突，不主动覆盖。
         env:
-          STATIC_CDN_UPLOAD_TOKEN: ${{ secrets.STATIC_CDN_UPLOAD_TOKEN }}
+          STATIC_CDN_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_CDN_S3_ACCESS_KEY_ID }}
+          STATIC_CDN_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_CDN_S3_SECRET_ACCESS_KEY }}
+          STATIC_CDN_S3_ENDPOINT: https://cdn.yangtzeu.work
+          STATIC_CDN_S3_REGION: garage
+          STATIC_CDN_S3_BUCKET: geek-public
+          STATIC_CDN_S3_FORCE_PATH_STYLE: 'true'
           ORIGIN: ${{ needs.plan.outputs.origin }}
         run: |
           set -eu
           node scripts/static-cdn.mjs upload --web "$RUNNER_TEMP/static-cdn/web" --forum "$RUNNER_TEMP/static-cdn/forum" \
-            --referer "${ORIGIN}/"
+            --referer "${ORIGIN}/" --environment production \
+            --commit "$(git rev-parse HEAD)" --generated-at "$(git show -s --format=%cI HEAD)" \
+            --manifest "$RUNNER_TEMP/cdn-release-manifest.json" --content-index "$RUNNER_TEMP/cdn-content-index.json"
+
+      - name: 归档私有内容索引并核验
+        if: needs.cdn-plan.outputs.base != ''
+        shell: bash
+        env:
+          PRODUCTION_PRIVATE_INDEX_S3_ACCESS_KEY_ID: ${{ secrets.PRODUCTION_PRIVATE_INDEX_S3_ACCESS_KEY_ID }}
+          PRODUCTION_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY: ${{ secrets.PRODUCTION_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY }}
+          COMMIT: ${{ needs.plan.outputs.commit }}
+        run: |
+          set -eu
+          ( cd "$RUNNER_TEMP/static-cdn/tools" && sha256sum --check rclone.sha256 )
+          chmod 700 "$RUNNER_TEMP/static-cdn/tools/rclone"
+          export PATH="$RUNNER_TEMP/static-cdn/tools:$PATH"
+          node deploy/remote/garage-archive.mjs put-file --role production-content-index \
+            --source "$RUNNER_TEMP/cdn-content-index.json" --key "indexes/content/${COMMIT}/sha256.json"
 
   # 部署：需要显式开关；GitHub Environment `production` 应配置人工审批（这是真正的放行点）。
   deploy:

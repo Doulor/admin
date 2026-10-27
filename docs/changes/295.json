@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "issue": 295,
+  "kind": "business",
+  "summary": "迁移新CDN公开资源、S3上传协议、发布来源及私有内容索引，保留同源构建约定与防覆盖拒绝路径；真实对象、权限、TLS、浏览器及task270备份由父级完成。",
+  "applications": [
+    "server",
+    "web",
+    "console",
+    "forum"
+  ],
+  "domains": [
+    "forum",
+    "platform",
+    "mail",
+    "recruitment",
+    "audit",
+    "competitions",
+    "feedback",
+    "identity",
+    "invitations",
+    "organization",
+    "public_content",
+    "github"
+  ],
+  "flows": [
+    "flow:forum.stickers.list",
+    "flow:application.submit",
+    "flow:competition.public.list",
+    "flow:feedback.public.list",
+    "flow:identity.callback",
+    "flow:identity.invites.list",
+    "flow:documentation.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "公开资产统一指向新CDN；内置表情、宣传片、邮件、指南分别遵守固定路径。业务路由、账号权限和当前DB/用户附件位置不变。",
+      "evidence": [
+        "app/forum/shared/sticker-url.ts",
+        "app/web/sites/portal/lib/promo.ts"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "server的STATIC_CDN_BASE白名单和邮件默认图片base迁到新桶；接口方法、参数、状态码与响应结构不变。CLI以SigV4 GET比较、缺失才PUT和写后验证实现发布，不依赖ETag。",
+      "evidence": [
+        "app/server/src/config.ts",
+        "app/server/src/lib/static-cdn.ts",
+        "scripts/static-cdn-s3.mjs"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "业务权限节点、会话和资源范围不动；静态CDN目的地及表情URL白名单改成新公开桶。S3只接env凭据，禁止其他桶、重定向和原始写/删调用。Garage缺条件创建，客户端不主动覆盖不等于恶意或跨进程写入隔离，真实权限由父级验证。",
+      "evidence": [
+        "app/server/src/lib/static-cdn.ts",
+        "app/forum/shared/sticker-url.ts",
+        "scripts/static-cdn-s3.mjs"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "不改业务表、迁移或附件存储。公开对象前缀和发布来源清单按环境/完整提交分离；SHA256内容反查索引只落本地0600私有产物，父级归档到环境私有桶。旧对象不删除，既有对象与清单必须完整GET逐字一致才复用。",
+      "evidence": [
+        "app/server/src/config.ts",
+        "scripts/static-cdn-manifest.mjs",
+        "scripts/static-cdn.mjs"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "公共S3 SigV4继续只用Node内置模块；私有索引复用既有garage-archive/rclone。rclone仅在无凭据build job通过runner签名发行版仓库准备并记录版本，携带摘要后交归档步骤执行，不进业务镜像，不在凭据job安装依赖。",
+      "evidence": [
+        "app/server/src/config.ts",
+        "scripts/static-cdn-s3.mjs",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "新增CDN唯一合同，更新四服务、邮件、宣传片、API、CICD、DEPLOY、ENVIRONMENTS、TESTING及指南。历史notes/changes/tag不改写；目录补邮件图片来源证据并重建生成物。",
+      "evidence": [
+        "docs/ops/CDN.md",
+        "docs/conventions/TESTING.md",
+        "docs/architecture/catalog/ownership.json"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "定向回归覆盖原collect/plan/开关拒绝用例、真实Node HTTP协议假存储、SigV4、完整GET/HEAD/Range/MIME/CORS/缓存、冲突/并发/超时/限流/恶意路径/重定向、稳定发布清单与恢复追溯。绑定端口受限用Duplex替代TCP；公网TLS、桶权限与浏览器由父级验收，未标通过。",
+      "evidence": [
+        "tests/tooling/static-cdn-http.test.ts",
+        "tests/tooling/static-cdn-s3.test.ts",
+        "tests/tooling/static-cdn-manifest.test.ts",
+        "tests/server/forum-sticker-cdn.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "公共上传及完整校验成功后，在同一cdn-upload job用本环境独立私有索引凭据归档0600产物并完整回读，失败阻止deploy；私有索引不上传Actions artifact。manual复用同次CI的cdn-upload成功门禁，不重复生成。无凭据或CSP未放行保留同源构建；供应商失败仍关闭。",
+      "evidence": [
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml",
+        "app/server/Dockerfile",
+        "docs/ops/CDN.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/config.ts",
+        "app/server/src/lib/static-cdn.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "domain:platform"
+      ],
+      "reason": "仅更新邮件公开资产默认base与内置表情CDN开关目的地；平台共享配置不改业务鉴权与其他选项。"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/mail/envelope-pieces.ts",
+        "app/server/src/lib/mail/envelope.ts"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "邮件图片目标与源码注释改为新服务，保留no-referrer防止泄漏邮箱页面来源；不改模板渲染及发信业务。"
+    },
+    {
+      "paths": [
+        "app/forum/shared/sticker-url.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list"
+      ],
+      "reason": "固定表情白名单迁新前缀，同源与哈希解析保持兼容；旧供应商地址不再允许，新的恶意变体仍拒绝。"
+    },
+    {
+      "paths": [
+        "app/web/sites/portal/lib/promo.ts"
+      ],
+      "domains": [
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "promo在目录按portal共享库映射到多个域，本次只改宣传片base和供应商说明；播放选择、重试、Cookie与所有API调用不变，不冒称这些业务接口发生变化。"
+    },
+    {
+      "paths": [
+        "app/forum/content/guides/admin-feedback.md",
+        "app/forum/content/guides/admin-forum-management.md",
+        "app/forum/content/guides/admin-invites.md",
+        "app/forum/content/guides/admin-permissions-titles.md",
+        "app/forum/content/guides/admin-users.md",
+        "app/forum/content/guides/dept-head-members.md",
+        "app/forum/content/guides/dev-operations.md",
+        "app/forum/content/guides/member-competition-signup.md",
+        "app/forum/content/guides/member-desktop-apps.md",
+        "app/forum/content/guides/member-forum-basics.md",
+        "app/forum/content/guides/member-login-and-account.md",
+        "app/forum/content/guides/organizer-contest-sdk-quickstart.md",
+        "app/forum/content/guides/organizer-contest-site-upload.md",
+        "app/forum/content/guides/organizer-create-competition.md",
+        "app/forum/content/guides/organizer-finalize-and-prizes.md",
+        "app/forum/content/guides/organizer-score-contributions.md"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:forum",
+        "flow:forum.stickers.list"
+      ],
+      "reason": "15篇指南的截图目的地迁新前缀，运维指南说明新S3开关及失败关闭；图片内容、身份可见性与播种幂等不改。"
+    },
+    {
+      "paths": [
+        "scripts/static-cdn-base.mjs",
+        "scripts/static-cdn-manifest.mjs",
+        "scripts/static-cdn-s3.mjs",
+        "scripts/static-cdn.mjs"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "保留离线收集和开关接口，替换上传adapter；所有资产与公开发布清单禁止客户端主动覆盖/删除，完整GET核对；独立私有内容索引不上传公开桶。"
+    },
+    {
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/deploy-preview.yml",
+        ".github/workflows/deploy-production.yml",
+        "app/server/Dockerfile",
+        "deploy/env/.env.preview",
+        "deploy/env/.env.production",
+        "deploy/nginx/preview.conf",
+        "deploy/nginx/production.conf"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "仅CDN base、S3 env接线、发布清单参数、MAIL_ASSET_BASE及CSP放行；不改版本、发布授权、镜像身份、端口、卷、密钥或部署开关。 无凭据构建准备归档工具；同一上传job归档本环境私有内容索引，完整回读失败禁止部署。"
+    },
+    {
+      "paths": [
+        "tests/tooling/cdn-store-fixture.ts",
+        "tests/tooling/deployment-environment.test.ts",
+        "tests/tooling/forum-csp.test.ts",
+        "tests/tooling/static-cdn-http.test.ts",
+        "tests/tooling/static-cdn-manifest.test.ts",
+        "tests/tooling/static-cdn-parity.test.ts",
+        "tests/tooling/static-cdn-s3.test.ts",
+        "tests/tooling/static-cdn-switch.test.ts",
+        "tests/tooling/static-cdn-workflows.test.ts",
+        "tests/tooling/static-cdn.test.ts",
+        "tests/tooling/sticker-manifest.test.ts",
+        "tests/tooling/web-nginx.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "上传CLI/HTTP协议/manifest、开关与工作流接线及环境字段定向回归；假存储不连接公网且不伪造服务端防覆盖能力。"
+    },
+    {
+      "paths": [
+        "tests/server/mail-envelope.test.ts",
+        "tests/server/mail-outbox.test.ts",
+        "tests/server/mail-template-content.test.ts"
+      ],
+      "domains": [
+        "mail",
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "邮件模板、预览及队列回归仅把公开图片目的地换为新base，不发真实邮件。"
+    },
+    {
+      "paths": [
+        "tests/server/forum-sticker-cdn.test.ts",
+        "tests/server/forum.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list"
+      ],
+      "reason": "真实路由与内存库验证表情开关及新目的地；用户上传表情仍同源。"
+    },
+    {
+      "paths": [
+        "app/forum/tests/forum-api.test.ts",
+        "app/forum/tests/inline-stickers.test.ts",
+        "app/forum/tests/post-markdown.test.ts",
+        "app/forum/tests/sticker-size-css.test.ts",
+        "app/forum/tests/sticker-url.test.ts"
+      ],
+      "domains": [
+        "forum"
+      ],
+      "nodes": [
+        "flow:forum.stickers.list",
+        "application:forum"
+      ],
+      "reason": "前端白名单、API解析、Markdown、编辑器和行内尺寸消费新前缀；保留旧域拒绝探针并补新域相同恶意变体。"
+    },
+    {
+      "paths": [
+        "tests/web/portal-promo.test.ts"
+      ],
+      "domains": [
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "宣传片地址和原播放能力判定回归，不以源码检查代替HLS或浏览器验收。"
+    },
+    {
+      "paths": [
+        "tests/console/boot-placeholder.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "application:console"
+      ],
+      "reason": "控制台既有构建占位测试跟随新公开base，布局与加载交接逻辑不改。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/ownership.json",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform",
+        "mail",
+        "recruitment",
+        "forum"
+      ],
+      "nodes": [
+        "flow:application.submit",
+        "flow:forum.stickers.list"
+      ],
+      "reason": "补邮件图片来源证据，目录按当前源码与内存注册重建；不手改生成物，不表示线上部署或权限验收。"
+    },
+    {
+      "paths": [
+        "docs/INDEX.md",
+        "docs/README.md",
+        "docs/architecture/API.md",
+        "docs/conventions/TESTING.md",
+        "docs/ops/CDN.md",
+        "docs/ops/CICD.md",
+        "docs/ops/DEPLOY.md",
+        "docs/ops/ENVIRONMENTS.md",
+        "docs/services/console/README.md",
+        "docs/services/forum/README.md",
+        "docs/services/server/README.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/services/server/mail.md",
+        "docs/services/web/README.md",
+        "docs/services/web/portal.md"
+      ],
+      "domains": [
+        "forum",
+        "platform",
+        "mail",
+        "recruitment",
+        "audit",
+        "competitions",
+        "feedback",
+        "identity",
+        "invitations",
+        "organization",
+        "public_content",
+        "github"
+      ],
+      "nodes": [
+        "application:server",
+        "application:web",
+        "application:console",
+        "application:forum",
+        "domain:platform"
+      ],
+      "reason": "现行合同、测试矩阵与导航记录新S3路径、公私索引、env、失败关闭、供应商限制和task270集成边界；历史材料不改写。"
+    },
+    {
+      "paths": [
+        "tests/e2e/workflows.spec.ts"
+      ],
+      "domains": [
+        "recruitment"
+      ],
+      "nodes": [
+        "flow:application.submit"
+      ],
+      "reason": "宣传片浏览器用例的挂起请求路由跟随新CDN前缀，保持原交互和布局断言；没有冒充已运行浏览器验收。"
+    }
+  ],
+  "documents": [
+    "docs/ops/CDN.md",
+    "docs/ops/CICD.md",
+    "docs/services/server/README.md",
+    "docs/services/server/mail.md",
+    "docs/services/forum/README.md",
+    "docs/services/web/portal.md"
+  ],
+  "tests": [
+    "app/forum/tests/forum-api.test.ts",
+    "app/forum/tests/inline-stickers.test.ts",
+    "app/forum/tests/post-markdown.test.ts",
+    "app/forum/tests/sticker-size-css.test.ts",
+    "app/forum/tests/sticker-url.test.ts",
+    "tests/console/boot-placeholder.test.ts",
+    "tests/server/forum-sticker-cdn.test.ts",
+    "tests/server/forum.test.ts",
+    "tests/server/mail-envelope.test.ts",
+    "tests/server/mail-outbox.test.ts",
+    "tests/server/mail-template-content.test.ts",
+    "tests/tooling/deployment-environment.test.ts",
+    "tests/tooling/forum-csp.test.ts",
+    "tests/tooling/static-cdn-http.test.ts",
+    "tests/tooling/static-cdn-manifest.test.ts",
+    "tests/tooling/static-cdn-parity.test.ts",
+    "tests/tooling/static-cdn-s3.test.ts",
+    "tests/tooling/static-cdn-switch.test.ts",
+    "tests/tooling/static-cdn-workflows.test.ts",
+    "tests/tooling/static-cdn.test.ts",
+    "tests/tooling/sticker-manifest.test.ts",
+    "tests/tooling/web-nginx.test.ts",
+    "tests/web/portal-promo.test.ts",
+    "tests/e2e/workflows.spec.ts"
+  ],
+  "compatibility": "collect/plan/decide与构建同源fallback保留；旧token明确退役，不把旧insertOnly策略当新供应商能力。接口路径、JSON形状和业务权限不变，当前DB与用户附件不外移。",
+  "migration": "父级按CDN合同迁公开历史对象、邮件与HLS并完整GET核对SHA256，分别配置公私桶；本分支只做源码与合成数据协议回归，不操作真实对象和凭据。",
+  "rollback": "回滚原发布镜像或无S3凭据重建同源产物，不删除任何CDN对象。旧镜像仍引用旧服务时保留其对象；S3凭据存在但失效不自动回旧供应商。"
+}

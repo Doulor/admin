@@ -2,7 +2,7 @@
 
 > 核心真实路由与上游论坛演示分别验收；类型、行为、构建和生产证据不相互替代。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-27
 
 ## 根入口和分工
 
@@ -17,6 +17,8 @@
 论坛上游测试操作确定性种子和浏览器 localStorage。每次 CDP 使用自己创建的临时 profile，不打开用户已有浏览器配置，不清理用户示例数据。只关闭本次创建的进程组，禁止广泛 pkill。其登录/权限测试证明演示交互，不证明真实身份或服务器授权。`forum:verify` 只对示例种子运行；3456 上若是快照模式或 site 模式（极客班论坛）预览，先 `forum:stop`。快照解析规则用虚构夹具单测（`app/forum/tests/local-snapshot.test.ts`），不读取真实投影。
 
 ## 回归矩阵
+
+CDN 迁移（#295）：`tests/tooling/static-cdn{,-s3,-http,-manifest}.test.ts` 在 CLI、S3 HTTP adapter 和清单 seam 覆盖 SigV4、内容地址、已存在逐字比较与冲突拒绝、同 adapter 同键串行、PUT 丢响应先 GET 对账、429/5xx 有界重试、响应头/体超时和长度上限、恶意路径/符号链接、凭据目的地限制与拒绝重定向；匿名 HEAD、完整 GET SHA-256、Range 字节、MIME、CORS 和公开缓存逐项核对，不信 ETag。发布清单必须与全部已验证资源一致；旧清单不能主动覆盖；CLI 生成私有 `0600` 内容索引但不公开，恢复命令按清单重验，缺对象失败。假存储故意允许服务端覆盖，不伪造 Garage 条件写入保障。受限运行器不能 bind 时使用 Node 原生 HTTP parser 与进程内 Duplex；`CDN_TEST_TCP=1` 在允许绑定的环境复跑真实回环 TCP。两者都不证明公网 TLS、供应商权限或恶意并发隔离。开关、工作流、表情三边一致性、邮件模板与宣传片消费者各有定向回归；真实迁移、HLS 全链、桶权限、备份恢复和两环境浏览器由父级验收，详见 [CDN 合同](../ops/CDN.md)。
 
 项目目录（#257）：`tests/server/catalog.test.ts` 观测真实应用的根路由、循环注册和头像子插件，核对启用观测后健康、公开文档与未登录拒绝路径不变；`tests/tooling/project-catalog.test.ts` 从真实应用和内存 SQLite 提取结构，覆盖全部注册项、最终 Schema、自动 HEAD、物理外键和部分索引、能力蕴含、业务声明、Nitro 静态声明、来源摘要确定性、环境变量隔离、重复与悬空引用失败，以及入库目录过期。生成器不监听、不读 `.env`/业务库/私有快照，不发外部请求，不执行被链接的业务测试；`pnpm check:catalog` 独立核对生成物，`pnpm typecheck:catalog` 核对工具类型（也在根 typecheck 中）。目录通过不等于权限、业务或线上验收通过，维护规则见[项目目录](../architecture/catalog/README.md)。
 

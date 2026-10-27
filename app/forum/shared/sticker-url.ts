@@ -3,7 +3,7 @@
  *
  *   同源      /api/forum/stickers/<64 位小写十六进制哈希>.webp
  *             服务端按内容哈希发，一年 immutable；CDN 开关关闭、站长在控制台上传的表情都走这里
- *   受控 CDN  https://cdn.crosery.com/yzgc/static/site/forum/stickers/<同样的哈希>.webp
+ *   受控 CDN  https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/<同样的哈希>.webp
  *             CDN 开关打开时仓库内置的表情走这里，同一张图只是前缀不同
  *
  * 别的一律不进页面：别的域名、http、大小写不同的主机、路径穿越、`javascript:`、`data:`、查询串、片段、多一层目录。
@@ -15,7 +15,7 @@
 /** 站内按内容哈希的表情图片地址前缀（服务端 routes/forum-api/stickers.ts）。 */
 export const STICKER_SAME_ORIGIN_PREFIX = '/api/forum/stickers/'
 /** 受控 CDN 上表情图片的地址前缀。 */
-export const STICKER_CDN_PREFIX = 'https://cdn.crosery.com/yzgc/static/site/forum/stickers/'
+export const STICKER_CDN_PREFIX = 'https://cdn.yangtzeu.work/geek-public/static/site/forum/stickers/'
 
 const HASH_LENGTH = 64
 const EXTENSION = '.webp'

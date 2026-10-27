@@ -2,7 +2,7 @@
 
 > 所有项目规范集中于 docs；`docs/` 与 `app/` 严格对齐，根目录及工具文件只负责导航。
 
-状态：`current` · 更新：2026-10-24
+状态：`current` · 更新：2026-10-27
 
 ## AI 第一操作
 
@@ -87,6 +87,7 @@ Agent 进入仓库的第一件事是**确认当前分支**（`git branch --show-
 | 统一组件库、AI 检索、官方 API 和示例 | [Tuffex 文档库](components/tuffex/README.md)、[使用政策](components/tuffex/USAGE-POLICY.md) |
 | 已采用技术栈与升级准入 | [STACK](design/STACK.md) |
 | 部署、回滚、两套 Docker 栈 | [DEPLOY](ops/DEPLOY.md) |
+| CDN 公开资源、公私桶、S3 凭据与追溯索引 | [CDN](ops/CDN.md) |
 | 一键系统备份、恢复、跨环境搬迁数据 | [BACKUP](ops/BACKUP.md) |
 | `.env` 契约、密钥注入、DNS/TLS 前置 | [ENVIRONMENTS](ops/ENVIRONMENTS.md) |
 | CI/CD 工作流、环境 secrets/vars、部署开关 | [CICD](ops/CICD.md) |

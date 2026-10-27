@@ -53,7 +53,7 @@ export type EnvelopeMessage = {
 };
 
 export type EnvelopeOptions = {
-  /** 图片部件的地址前缀，以 / 结尾：正式发信用 https://cdn.crosery.com/yzgc/mail/v1/ */
+  /** 图片部件的地址前缀，以 / 结尾：正式发信用 https://cdn.yangtzeu.work/geek-public/mail/v1/ */
   assetBase: string;
   /** 只给本机预览用：允许 assetBase 是 file:///…；发信时不要打开 */
   allowFileAssets?: boolean;
@@ -202,8 +202,8 @@ export function formatMailDateTime(at: Date | number): string {
 }
 
 /**
- * 图片部件放在七牛 CDN 上，CDN 开了 Referer 白名单：不带 Referer 的请求放行，带网页邮箱域名（如 https://mail.qq.com/）的会被拦成 403。
- * 所以每张图都写 referrerpolicy="no-referrer"，认这个属性的客户端取图时不带 Referer。
+ * 图片部件放在公开 CDN 桶，保留 referrerpolicy="no-referrer"，不向资源端泄漏网页邮箱地址。
+ * 新端点的邮件客户端兼容性单独验收，不沿用旧服务的 Referer 白名单结论。
  */
 function img(base: string, piece: EnvelopePiece, alt: string, extra: { cls?: string; style?: string } = {}): string {
   const { file, width, height } = ENVELOPE_PIECES[piece];

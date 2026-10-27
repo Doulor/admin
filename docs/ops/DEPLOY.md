@@ -2,7 +2,7 @@
 
 > 同机两套 Docker 栈 + 宿主 nginx TLS 终止；生产发布为独立授权操作，模板存在不等于已经部署。
 
-状态：`current` · 更新：2026-10-25
+状态：`current` · 更新：2026-10-27
 
 ## 发布前置
 
@@ -169,22 +169,21 @@ bash rollback-stack.sh --environment production --to <sha12|previous>
 ## 最小权限
 
 - 容器内进程非 root 运行（web 容器 nginx 以 nginx 用户跑非特权 8080）；镜像只含运行必需的代码与静态产物。
-- 宿主 nginx 只做 TLS 终止与反代，不读取应用密钥；安全头统一在宿主下发，容器不重复。唯一例外是论坛页面的 CSP：论坛容器下发站点策略加上论坛内联脚本的哈希，宿主模板开头的 `map` 只在 `/forum/` 下、上游已带 CSP 时不再叠加第二份，其它路径照发站点策略（#78）。站点策略的 `media-src` 与 `connect-src` 放行 `https://cdn.crosery.com`（官网宣传片是 HLS，hls.js 用 XHR 取分片、以 `blob:` 地址交给 `<video>`，#77）。`connect-src` 另放行 `blob:`（手机 3D 模型的 GLB 内嵌贴图，three.js 的 `GLTFLoader` 先转成 `blob:` 地址再用 `fetch` 读取，#240）；论坛容器的策略取自同一份模板，会一起带上。`script-src`、`style-src`、`font-src` 只放行 CDN 上的 `https://cdn.crosery.com/yzgc/static/site/` 前缀（带哈希的静态文件，#146，见下文「静态资源 CDN」）；论坛容器的 CSP 取自同一份模板，构建时就带上。改宿主模板后要重新安装到服务器（只装对应环境那一份，先备份、`nginx -t` 再 reload），这一步不在 CI 里；发版后经公网确认 `/forum/` 只有一条带 `sha256-` 的 CSP（部署脚本的健康检查不经过宿主 nginx，查不出来）。
+- 宿主 nginx 只做 TLS 终止与反代，不读取应用密钥；安全头统一在宿主下发，容器不重复。唯一例外是论坛页面的 CSP：论坛容器下发站点策略加上论坛内联脚本的哈希，宿主模板开头的 `map` 只在 `/forum/` 下、上游已带 CSP 时不再叠加第二份，其它路径照发站点策略（#78）。站点策略的 `media-src` 与 `connect-src` 放行 `https://cdn.yangtzeu.work`（官网宣传片是 HLS，hls.js 用 XHR 取分片、以 `blob:` 地址交给 `<video>`，#77）。`connect-src` 另放行 `blob:`（手机 3D 模型的 GLB 内嵌贴图，three.js 的 `GLTFLoader` 先转成 `blob:` 地址再用 `fetch` 读取，#240）；论坛容器的策略取自同一份模板，会一起带上。`script-src`、`style-src`、`font-src` 只放行 CDN 上的 `https://cdn.yangtzeu.work/geek-public/static/site/` 前缀（带哈希的静态文件，#146，见下文「静态资源 CDN」）；论坛容器的 CSP 取自同一份模板，构建时就带上。改宿主模板后要重新安装到服务器（只装对应环境那一份，先备份、`nginx -t` 再 reload），这一步不在 CI 里；发版后经公网确认 `/forum/` 只有一条带 `sha256-` 的 CSP（部署脚本的健康检查不经过宿主 nginx，查不出来）。
 - 比赛官网（#278）：`/c/<slug>/` 由 server 下发 `sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox; default-src 'self'; …` 这份 CSP，宿主的站点策略照常叠加，浏览器取交集（两份都只放行 `'self'`，站点包不能引用外部地址）。上传站点包的 `POST /api/console/competitions/<id>/site/versions` 请求体是 zip（服务端上限 20MB）：web 容器只给这一条路径放宽到 `client_max_body_size 21m`，其余仍是 6m；宿主模板没有改，整站仍是 6m，所以经正式域名上传时超过 6MB 的包会被宿主 nginx 回 413（控制台写「文件超过了网关允许的上传大小」）。宿主模板只有一个反代 location，`X-Forwarded-For` 只追加一次、上游端口只写一处（`tests/tooling/deployment-environment.test.ts` 与 `hashed-asset-cache.test.ts` 核对），要放宽到 20MB 由所有者决定怎么改；第一期站点包约 230KB，不受影响。`tests/tooling/web-nginx.test.ts` 核对容器与宿主的上限。
 - 部署用户的 SSH 密钥只存在于 GitHub 环境级 secrets 与维护者机器（`scripts/deploy-manual.mjs` 通过 `DEPLOY_SSH_KEY_FILE` 读取）；不在仓库、脚本或日志中出现。
 - 镜像与 env 文件按 600/最小权限落在栈根，发布产物不包含 `.env`、真实数据库或 SSH 材料；incoming 里分发来的归档与 env 副本在部署成功后删除（见「incoming 清理」）。
 
-## 静态资源 CDN（#146）
+## 静态资源 CDN（#295）
 
-开关、工作流、凭据与手工操作的顺序见 [CICD](CICD.md)「静态资源 CDN」。这里只写与宿主机、CDN 有关的部分。
+完整合同见 [CDN](CDN.md)，发布接线见 [CICD](CICD.md)。只允许构建前缀 `https://cdn.yangtzeu.work/geek-public/static/site/`，公开对象在 `geek-public`；HLS 在 `media/promo/`，邮件图片在 `mail/v1/`，业务数据不外移。
 
-- **先装模板，再给凭据**：部署工作流的 `cdn-plan` 在构建前 HEAD 一次环境首页，读线上 CSP；`script-src`、`style-src`、`font-src` 没有放行 `https://cdn.crosery.com/yzgc/static/site/` 就告警并同源构建。所以宿主机还是旧模板时，即使配了上传 token，页面也不会引用 CDN，不会出现样式、脚本被 CSP 拦下的情况。装模板的步骤同上文「最小权限」：只装对应环境那一份，先备份、`nginx -t` 再 reload。
-- **镜像里仍有全部文件**：开关只改页面引用的地址，web 与 forum 镜像照样带着 `/assets/`、`/console-assets/`、`/forum/_nuxt/`；server 镜像（#286）带着内置表情包的源图片和清单，内置表情图片的 CDN 地址只在开关打开时给，同源的 `/api/forum/stickers/<哈希>.webp`（图片本来就存在 `data.db` 里）始终可用。CDN 回源不经过我们的源站（文件是上传进七牛存储的），源站上的这些路径只是兜底，不会自动切换。
-- **CDN 出问题时**：删掉 GitHub Environment `static-cdn` 里的 `STATIC_CDN_UPLOAD_TOKEN`，重新运行这个 tag 的部署工作流（或打下一个 rc），这次就是同源构建。已经上线的镜像不会自己回到同源。
-- **回滚**：`rollback-stack.sh` 切回的旧镜像如果是开关打开时构建的，它引用的 CDN 对象仍在（上传只增不改，没有任何流程删除它们）。不要手工删 `yzgc/static/site/` 下的对象。
-- **CDN 的防盗链与 CORS（2026-09-26 用 curl 实测，不需要改 CDN 配置）**：`Referer: https://prev.yangtzeu.work/` 与 `https://yangtzeu.work/` 返回 200；别的站点（如 `https://evil.example/`）返回 403；不带 Referer 返回 200。`.js` 是 `text/javascript`，`.css` 是 `text/css`，`.woff2` 是 `font/woff2`，都带 `Access-Control-Allow-Origin: *`、`Cache-Control: public, max-age=31536000`、`Vary: Origin, Accept-Encoding`。CDN 对文本做 gzip（论坛入口 CSS 626,718 → 95,554 字节），不支持 brotli。站点的 `Referrer-Policy: strict-origin-when-cross-origin` 让浏览器发出 `https://<域名>/`，正好命中白名单。
-- **本机验证**：`http://127.0.0.1:<端口>/` 不在防盗链白名单里（实测 403）。本机用开关打开的构建做预览时，让本机服务器发 `Referrer-Policy: no-referrer`（不带 Referer 是放行的），或只看 HTML 里的地址，不要去改 CDN 的白名单。
-- **源站压缩**：web 与 forum 容器的 nginx 都对文本做 gzip，级别都是 6。forum 容器原来用 nginx 默认的 1，论坛入口 CSS（626,718 字节）经源站传 128,152 字节，改成 6 后本机 nginx 1.31.6 实测 95,932 字节（web 容器反代论坛时不会再压一次，所以只能在 forum 容器改）。web 容器和宿主 nginx 模板（`deploy/nginx/preview.conf`、`production.conf`）的 `gzip_types` 还包含 `application/wasm model/gltf-binary`，官网手机模型 1.77MB→1.16MB（#217）；宿主 nginx 模板改动要在宿主机上重新安装才生效。预压缩（`gzip_static`，`-9`）比 6 级只再少 0.2%–1.2%，`nginx:1.31-alpine` 没有 brotli 模块，所以没有做。
+- 先安装两份宿主模板并各自真实核对 CSP，再由受保护发布 job 注入 S3 环境凭据。无凭据或未放行 CSP 时按原约定同源构建；签名请求401或网络失败不得绕过认证或回旧服务。
+- 镜像始终保留全部同源构建资源，表情 BLOB 同源接口保持可用；宣传片、邮件和指南的固定 CDN 地址不能靠空构建开关恢复。
+- 上传器只在已存在对象完整 GET 逐字一致时复用，冲突拒绝；没有主动删除/覆盖调用，但 Garage 不提供 insertOnly/条件创建/WORM，跨进程与恶意写入者竞态未被客户端隔离。
+- 回滚到旧镜像所引用的资源不能删除；旧镜像仍引用旧供应商时，父级需保留原资源及迁移哈希清单，不移动发布 tag。
+- 新端点的两环境 GET/HEAD/Range、MIME、CORS、缓存、HLS 全链、匿名权限、TLS 与浏览器均由父级真实验收。旧七牛的防盗链、压缩和 CORS 实测不能作为新服务已经生效的证据。
+- 源站 web/forum nginx 的 gzip 级别保持6；本任务不修改压缩策略、镜像身份或部署授权门禁。
 
 ## 发布和回滚验收
 
