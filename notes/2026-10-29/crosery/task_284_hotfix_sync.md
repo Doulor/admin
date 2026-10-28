@@ -19,3 +19,9 @@
 - 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
 - 做了什么：37f3bf3d 已推到task/284/hotfix_sync；记录跨北京时间零点，提交/审查落在2026-10-29文件，需与更新后的INDEX一起入库。追加本条，不改写28日或29日已有记录。
 - 结果：源代码的无全局Git配置验证为12 passed；本次只补执行记录，不重复测试，不声称CI已通过。
+
+## 00:03:13 +08:00 · 开发 · #284 · 纳入 GitLab stage 合回历史，确保合并后能双仓快进
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：fetch gitlab stage后确认其树与gitlab/main相同；把GitLab stage同步产生的合并历史纳入task/284/hotfix_sync，应用与工具源码不增加变化，避免GitHub PR合并后GitLab stage有并行merge提交而不能快进。
+- 结果：没有源文件冲突；最终stage仍通过受保护GitHub PR合并，之后GitLab可沿共同历史快进，不强推。fixture修复的无全局身份定向12条已通过，额外历史提交不改变源码。
