@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { CAPABILITY_TO_NODES, PERMISSION_NODES } from "../permission-nodes.js";
 import { setExclusiveGroupMembership } from "../permissions.js";
+import { repairLegacyLevels, restoreLegacyGithubAccounts, type LegacyRestoreReport } from "./2026-10-legacy-github.js";
 
 /**
  * #274 账号/权限/操作记录统一迁移（SPEC §3.6「迁移步骤」）。可以重复执行：
@@ -24,6 +25,8 @@ export type MigrationReport = {
   activity_events_copied_this_run: number;
   /** role_assignments 里 account_id 为空、从来没被映射过的行数（旧 GitHub 登录名没能关联到账号）。 */
   skipped_role_assignments: number;
+  /** #306：旧 GitHub 用户补建账号（只在第一次跑），以及从注册用户恢复成成员的账号数。 */
+  legacy_github: LegacyRestoreReport & { levels_repaired: number };
 };
 
 function tableCount(db: Database.Database, table: string): number {
@@ -201,7 +204,10 @@ function backfillSeedLedger(db: Database.Database, now: number) {
     for (const entry of db.prepare("SELECT subject_id, node, scope FROM perm_entries WHERE subject_type = 'group'").all() as { subject_id: string; node: string; scope: string }[]) {
       markSeedApplied(db, `entry:${entry.subject_id}:${entry.node}:${entry.scope}`, now);
     }
-    for (const row of db.prepare("SELECT id FROM role_assignments WHERE account_id IS NOT NULL").all() as { id: number }[]) {
+    // 只记账号已经有权限成员记录的行：启动回填刚认领、还没分过身份的名册行不算「早就应用过」，否则
+    // mapRoleAssignments 会跳过它们，旧成员全部停在注册用户（#306）
+    for (const row of db.prepare(`SELECT id FROM role_assignments ra WHERE account_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM perm_members pm WHERE pm.account_id = ra.account_id)`).all() as { id: number }[]) {
       markSeedApplied(db, `role_assignment:${row.id}`, now);
     }
   });
@@ -435,8 +441,10 @@ export function runYugcV2Migration(db: Database.Database, now: number = Date.now
 
   syncPermissionNodes(db);
   seedGroupsAndEntries(db, now);
+  const legacyRestore = restoreLegacyGithubAccounts(db, now);
   assignAccountIdentities(db, now);
   mapRoleAssignments(db, now);
+  const levelsRepaired = repairLegacyLevels(db, now);
   // archiveOldDepartments() 不在这里调用：见上面步骤 4 的注释，它由 services.ts 在
   // createRoleStore() 播种默认部门之后单独调用。
   const forumLinked = backfillForumUserAccounts(db);
@@ -452,5 +460,6 @@ export function runYugcV2Migration(db: Database.Database, now: number = Date.now
     account_profiles_created_this_run: profilesCreated,
     activity_events_copied_this_run: activityCopied,
     skipped_role_assignments: (db.prepare("SELECT COUNT(*) AS n FROM role_assignments WHERE account_id IS NULL").get() as { n: number }).n,
+    legacy_github: { ...legacyRestore, levels_repaired: levelsRepaired },
   };
 }

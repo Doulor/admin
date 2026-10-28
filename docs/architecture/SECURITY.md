@@ -2,7 +2,7 @@
 
 > 区分核心后端授权、论坛服务端模式与本机演示；代码防护、真实环境配置和人工验收分别取证。
 
-状态：`current` · 更新：2026-10-27
+状态：`current` · 更新：2026-10-28
 
 ## 核心服务
 
@@ -96,6 +96,7 @@ GitHub 账号被封后改用自建 GitLab，所有者 2026-10-23 定：「gitlab
 - **写操作要求刚登录过**：`console/permission-groups.ts`、`console/users.ts` 的写接口，以及 `console/applications.ts` 的招新总开关（#284，节点 `apply.settings`，种子里只有站长），在 `requirePermission`/`requireScopedPermission` 之后再挂 `requireStepUp`（`middleware/require-step-up.ts`），会话必须是最近 10 分钟内创建的，否则 403 `step_up_required`，和账号页绑定邮箱/设密码同一个窗口长度（各自独立定义常量，数值保持一致）。
 - **`console.access`**：是否显示控制台入口由这一个节点决定（`/auth/me` 的 `console_link` 直接查 `permissions.check(accountId, "console.access")`），不看任何旧的能力白名单。
 - **种子只应用一次**：`lib/migrations/2026-10-yugc-v2.ts` 的种子（默认组、继承边、默认条目）和旧 `role_assignments` 到新组的映射，由 `perm_seed_applied(key, applied_at)` 台账按稳定 key 记一次，应用过之后不管所有者怎么改（删掉条目、收紧某个限额、撤销某人的 `title.site.owner`、把某人从 `level.member` 降回 `level.registered`），服务器重启都不会把种子的原值种回来——这张迁移在 `createDatabase()` 里无条件重跑，旧实现按「现在的状态符不符合种子」判断要不要写，分不清「所有者故意改掉了」和「从来没种过」，是曾经的真实回归点。台账从空表第一次创建时按当前已有的组/边/条目/映射回填（已知局限：台账上线前就已经被所有者删掉的种子，回填时已经不存在，会在上线后的这一次启动被种回来最后一次，此后台账记住、不会再种第二次）。
+- **旧 GitHub 用户补齐**（#306）：升级到账号体系之前，「谁是 GitHub 用户」只写在会话、`forum_users.github_user_id` 与 `role_assignments.github_user_id` 里；`backfillIdentity` 只给未过期会话建号。`lib/migrations/2026-10-legacy-github.ts` 在升级前就存在（早于 `console_seeds.identity_v1`）的论坛用户和名册行里，给还没有 GitHub 身份的人补账号和身份，认领论坛用户与名册，并按旧记录恢复成员资格（论坛旧管理员 → 成员与站长，论坛成员与名册里的成员、队长、舰长 → 成员，只有往届 → 往届成员）；已建账号里停在自动授予（来源 `migration:2026-10-yugc-v2` 或 `github-signin`）的注册用户的旧成员同样恢复，控制台或邀请码给过的不动。两步各用 `console_seeds` 标记只跑一次（`legacy_github_v1`、`legacy_github_v1_levels`），之后所有者怎么改都不会被改回；只补不删，不动任何旧表行。种子台账的回填也改了：账号还没有任何权限成员记录的名册行不再预先记成已映射，否则启动回填刚认领的名册行会被 `mapRoleAssignments` 跳过。
 - **操作记录**：控制台写操作的轨迹走 `app.services.activity.recordActivity()`，落 `activity_events`（`console/activity.ts` 的 `GET /api/console/activity`、`.csv` 读取，`activity.read`/`activity.export`，IP 默认打码，部长按本部门范围过滤）；403 拒绝与 429 限流经 `middleware/http-policy.ts` 的 `recordDenialOrLimit` 统一记一条，同一主体（账号，没账号按访客编号，都没有按 IP）、同一动作、同一分钟只留一行、`meta.count` 累加，不会被刷屏灌满。旧的 `audit_logs` 表只保留历史数据，启动时把尚未复制的行一次性搬进 `activity_events`（按水位线增量、不重复），其中 `invite_link.*` 的邀请链接 token 只留前 6 位再搬，不把完整 token 带进新表。
 - **公开的组织架构**：`GET /api/public/departments` 匿名可读，只给部门与称号的显示信息（名字、图标、色调、说明、层级），不含权限、不含任何人。
 - **论坛能力在服务端执行**（#57，#274）：登录但没有对应节点的账号在论坛能读不能写（没有 `forum.topic.create`/`forum.reply.create`/`forum.react` 等节点时，`routes/forum-api/viewer.ts` 的 `requireWriter()` 挡住，不再看旧的 `access.member`/组织角色）；置顶（`forum.moderate.pin`）、关闭（`forum.moderate.close`）、编辑或删除他人帖子（`forum.moderate.edit`/`.delete`）按话题所在分类 scope 判定，`lib/console-scope.ts` 的部门级 deny 规则同样适用。动他人帖子、置顶、关闭写审计（`storage.audit`，细节同旧机制但只记开关与编号，不记正文）。

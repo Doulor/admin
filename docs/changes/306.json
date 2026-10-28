@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "issue": 306,
+  "kind": "business",
+  "summary": "v0.1.1 升级后补齐旧 GitHub 用户：给升级前就存在、还没有账号的论坛用户和名册成员建账号与 GitHub 身份，按旧记录恢复成员资格，并修正名册映射台账的预先记账；只补不删，各只跑一次。",
+  "applications": [
+    "server",
+    "web",
+    "console"
+  ],
+  "domains": [
+    "audit",
+    "forum",
+    "github",
+    "identity",
+    "organization",
+    "permissions",
+    "platform"
+  ],
+  "flows": [
+    "flow:identity.callback",
+    "flow:permissions.groups.list"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "升级前的 GitHub 成员重新登录后进入原来的论坛身份、帖子与成员权限，不再被当成新用户；升级后才注册的人规则不变。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "tests/server/legacy-github-restore.test.ts"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "启动迁移在 assignAccountIdentities 之前补建账号与 GitHub 身份、认领论坛用户与名册，在 mapRoleAssignments 之后恢复停在自动授予注册用户的旧成员；不新增、不修改任何 API 路由或响应结构。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
+      ]
+    },
+    "permissions": {
+      "status": "changed",
+      "reason": "成员资格按旧记录恢复：论坛旧管理员 → level.member 与 title.site.owner，论坛成员与名册成员 → level.member，往届 → level.alumni。只改来源是 migration:2026-10-yugc-v2 或 github-signin 的自动授予，控制台和邀请码授予的不动；种子台账不再把刚认领、还没有权限成员记录的名册行预先记成已映射。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "docs/architecture/SECURITY.md"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "只增不删：users、identities、account_profiles 增加，forum_users 与 role_assignments 的 account_id 被认领，perm_members 增加；console_seeds 记 legacy_github_v1 与 legacy_github_v1_levels，各只跑一次。生产库副本与升级前备份各演练一次：账号 4→44，论坛用户关联 32，名册关联 25，旧表行数无减少，第二次启动无变化。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "tests/server/legacy-github-restore.test.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "没有新依赖，不动外部服务。",
+      "evidence": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "SECURITY 增补旧 GitHub 用户补齐与台账修正，server 服务合同的源码地图补上新迁移。",
+      "evidence": [
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/README.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增 9 个迁移用例（没有修复时 6 个失败）；在 Arch 上用现网库的一致性副本和升级前备份各演练两次启动，核对账号数、关联数、成员数与每张表行数。",
+      "evidence": [
+        "tests/server/legacy-github-restore.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "版本号升到 0.1.2，走 hotfix 发布：预发布 rc 核对后正式发布；发布前备份已另存，回滚用发布前备份与上一镜像。",
+      "evidence": [
+        "package.json",
+        "app/server/package.json"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
+        "tests/server/legacy-github-restore.test.ts",
+        "tests/server/legacy-database.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "permissions",
+        "forum"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:permissions",
+        "domain:forum",
+        "application:server"
+      ],
+      "reason": "迁移补账号、恢复成员资格并认领论坛用户与名册；测试按生产形状覆盖补建、恢复、不越权、只跑一次与只补不删。"
+    },
+    {
+      "paths": [
+        "package.json",
+        "app/server/package.json",
+        "app/web/package.json",
+        "app/console/package.json",
+        "docs/services/web/README.md",
+        "docs/services/console/README.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "发布版本升到 0.1.2，包内容不变；web 与 console 服务文档只按规则更新头部日期（文档核对见执行记录）。"
+    },
+    {
+      "paths": [
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/README.md"
+      ],
+      "domains": [
+        "identity",
+        "permissions"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:permissions"
+      ],
+      "reason": "SECURITY 与 server 服务合同跟随迁移更新。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "SECURITY、server 服务合同更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/ownership.json"
+      ],
+      "domains": [
+        "identity",
+        "permissions"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:permissions"
+      ],
+      "reason": "登记新迁移文件的模块归属与登录流程证据。"
+    }
+  ],
+  "documents": [
+    "docs/architecture/SECURITY.md",
+    "docs/services/server/README.md",
+    "docs/services/web/README.md",
+    "docs/services/console/README.md"
+  ],
+  "tests": [
+    "tests/server/legacy-github-restore.test.ts",
+    "tests/server/legacy-database.test.ts"
+  ],
+  "compatibility": "不改 API、表结构和现有数据；升级后才注册的账号和所有者在控制台调过的成员资格不受影响。",
+  "migration": "部署后第一次启动自动执行，一个事务内完成；只补不删。执行前另存了发布前备份。",
+  "rollback": "换回上一镜像即可，新增行留在库里不影响旧版本；需要恢复数据时用发布前备份，不重置库。"
+}

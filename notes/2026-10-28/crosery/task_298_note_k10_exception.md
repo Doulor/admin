@@ -25,3 +25,9 @@
 - 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
 - 做了什么：核对豁免只匹配一条记录、4 条回归覆盖放行与不放行两面、--pr 模式不变。
 - 结果：结论：通过；没有独立审查人，已在 MR 里写明。
+
+## 01:34:52 +08:00 · 合并 · #298 · MR !42 合并进 stage
+
+- 执行者：agent-claude-geek-main-fece2da2（Claude Code，claude-sonnet-5-5）
+- 做了什么：GitLab MR !42 以合并提交 8d2ee76f 并入 stage；note.mjs check 在 stage 上输出「执行记录通过：132 条链路」。
+- 结果：已合并；GitHub 同步与 CI 结果见发布记录。

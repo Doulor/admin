@@ -407,7 +407,7 @@ describe('booting on the existing production data.db (legacy schema, no applicat
     const ids = second.services.roles.listDepartments().map(item => item.id).sort();
     expect(ids).toEqual(['community', 'design', 'recruitment', 'tech']);
     expect(second.services.storage.db.prepare("SELECT name FROM console_seeds ORDER BY name").all()).toEqual([
-      { name: 'competition_oss_2026_1' }, { name: 'competition_oss_2026_1_rules' }, { name: 'departments' }, { name: 'identity_v1' }, { name: 'mail_templates_v1' },
+      { name: 'competition_oss_2026_1' }, { name: 'competition_oss_2026_1_rules' }, { name: 'departments' }, { name: 'identity_v1' }, { name: 'legacy_github_v1' }, { name: 'legacy_github_v1_levels' }, { name: 'mail_templates_v1' },
     ]);
   });
 
