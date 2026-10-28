@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "issue": 305,
+  "kind": "engineering",
+  "summary": "cdn.yangtzeu.work 从客户端直连高丢包 Garage 入口改为主站香港 Caddy 反代，保留 Host、S3 签名和响应语义，降低连接超时与 RTT。",
+  "applications": [],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不改网站、论坛、权限或内容规则，只改变同一公开资源的网络入口。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不修改应用代码、API、数据库或 Garage 对象服务；主站只做 HTTP 反代。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不新增凭据或公开桶；Authorization、Host、路径与查询串继续由原 Garage Caddy 校验，公私桶边界不变。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy",
+        "tests/tooling/storage-cdn-config.test.ts"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不迁移、删除或改写对象，不增加第二份缓存；Garage 仍是唯一数据源。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy",
+        "docs/ops/STORAGE-CDN.md"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "客户端到 Garage 的公网路径改经主站 156.238.244.78，再回源 103.240.197.216；没有新增软件包或服务依赖。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "STORAGE-CDN 与 DEPLOY 增加主站反代拓扑、安装顺序、签名边界与 DNS 回滚值。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "新增模板静态回归，并在主站真实执行 caddy validate、TLS、公共对象、Range、CORS、S3 探测与 A/B 测速。",
+      "evidence": [
+        "tests/tooling/storage-cdn-config.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "主站新增 storage-cdn-edge.caddy，cdn 的 A 记录从 103.240.197.216 切到 156.238.244.78；回滚只改回该记录，不移动发布 tag。",
+      "evidence": [
+        "deploy/storage-cdn/edge.caddy",
+        "docs/ops/STORAGE-CDN.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "deploy/storage-cdn/edge.caddy",
+        "tests/tooling/storage-cdn-config.test.ts",
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "主站反代模板固定回源 IP、Host 与 SNI；测试保护签名和 URL 不被改写；文档记录安装、验收与回滚。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "STORAGE-CDN、DEPLOY 更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
+    }
+  ],
+  "documents": [
+    "docs/ops/STORAGE-CDN.md",
+    "docs/ops/DEPLOY.md"
+  ],
+  "tests": [
+    "tests/tooling/storage-cdn-config.test.ts"
+  ],
+  "compatibility": "公开 URL、S3 签名、CORS、Range、MIME 和缓存语义不变；只改变客户端到 Garage 的网络路径。",
+  "migration": "先在主站安装并验证反代，再把 cdn 的 A 记录从 103.240.197.216 改为 156.238.244.78；其它 DNS 记录不动。",
+  "rollback": "把 cdn 的 A 记录改回 103.240.197.216 即恢复直连；主站反代文件可留作回滚前检查，不影响其它站点。"
+}

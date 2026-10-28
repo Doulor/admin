@@ -112,6 +112,23 @@ describe('Caddy 拓扑与 Garage 的声明一致，顺序不被悄悄调换', ()
   });
 });
 
+describe('主站边缘反代（#305）', () => {
+  it('保留 SigV4 所需的 Host 和完整 URL，只用固定 IP 与正确 SNI 回源', () => {
+    const edge = read(`${MODULE_DIR}/edge.caddy`);
+    expect(edge).toContain('cdn.yangtzeu.work {');
+    expect(edge).toContain('reverse_proxy https://103.240.197.216 {');
+    expect(edge).toContain('header_up Host {host}');
+    expect(edge).toContain('tls_server_name cdn.yangtzeu.work');
+    expect(edge).not.toContain('rewrite');
+    expect(edge).not.toContain('header_up Authorization');
+    expect(edge).not.toContain('103.240.197.216:');
+    const doc = read(CONTRACT);
+    expect(doc).toContain('deploy/storage-cdn/edge.caddy');
+    expect(doc).toContain('156.238.244.78');
+    expect(doc).toContain('103.240.197.216');
+  });
+});
+
 describe('示例上传脚本不保存凭据，失败要能被调用方看见', () => {
   const script = join(root, `${MODULE_DIR}/scripts/upload_demo.py`);
   const python = execFileSync('sh', ['-c', 'command -v python3'], { encoding: 'utf8' }).trim();

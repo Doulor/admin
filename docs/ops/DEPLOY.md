@@ -226,9 +226,9 @@ bash /opt/yzgc/production/incoming/rollback-stack.sh --environment production --
 
 `cdn.yangtzeu.work` 是香港一台 1 vCPU / 1 GiB 小机器上的 S3 兼容对象存储（Garage + Caddy + S3 Manager），承担站点带哈希静态资源、表情包、宣传片和邮件图片的公共出口（`geek-public`），以及 GitLab 与平台备份的归档（`geek-backup`）。预发布与正式的页面只有在边缘 CSP 放行 `https://cdn.yangtzeu.work/geek-public/static/site/` 后才会以 CDN 模式构建（`deploy-*.yml` 的 cdn-plan 读线上响应头）；七牛 `https://cdn.crosery.com` 不再增写，旧对象只留给 rc.25 及更早版本回滚。
 
-- 配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)（`garage.toml`、`s3manager.env`、`Caddyfile`、`scripts/upload_demo.py`），合同见 [STORAGE-CDN](STORAGE-CDN.md)。
-- 模板里的密钥字段一律留空：S3 Access/Secret 在目标机 `/etc/s3manager.env`（0600），Garage 的 rpc/admin/metrics 三个 token 在 `/etc/garage.toml`，控制台 basic-auth 哈希由 systemd 变量 `S3MANAGER_ADMIN_HASH` 提供。仓库里出现真实值就是泄漏。
-- 这台机器不跑应用容器、数据库或 CI Runner；改 Caddyfile 先 `caddy validate` 再 `reload`，改 garage.toml 才 `restart garage`。
+- 配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)（`garage.toml`、`s3manager.env`、`Caddyfile`、`edge.caddy`、`scripts/upload_demo.py`），合同见 [STORAGE-CDN](STORAGE-CDN.md)。
+- 公网入口由主站香港 `156.238.244.78` 的 `/etc/caddy/sites/storage-cdn-edge.caddy` 反代到 Garage 机 `103.240.197.216`，保留 Host、S3 签名、CORS、Range、MIME 与缓存；`cdn` 的 A 记录回滚值是 `103.240.197.216`。
+- 模板里的密钥字段一律留空：S3 Access/Secret 在目标机 `/etc/s3manager.env`（0600），Garage 的 rpc/admin/metrics 三个 token 在 `/etc/garage.toml`，控制台 basic-auth 哈希由 systemd 变量 `S3MANAGER_ADMIN_HASH` 提供。仓库里出现真实值就是泄漏。改 Caddyfile 先 `caddy validate` 再 `reload`，改 garage.toml 才 `restart garage`。
 
 ## 发布和回滚验收
 

@@ -1,0 +1,18 @@
+# 主站香港入口（156.238.244.78）→ Garage CDN 机（103.240.197.216）。
+# 安装位置：主站 /etc/caddy/sites/storage-cdn-edge.caddy；先 validate，再 reload，不 restart。
+# Host、路径、查询串和 Authorization 原样转发，S3 SigV4 仍在 Garage 的 Caddy 上验证。
+cdn.yangtzeu.work {
+	encode zstd gzip
+	reverse_proxy https://103.240.197.216 {
+		header_up Host {host}
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up X-Real-IP {http.request.remote.host}
+		header_up X-Forwarded-Proto https
+		transport http {
+			tls_server_name cdn.yangtzeu.work
+			versions 1.1
+			read_timeout 60s
+			response_header_timeout 60s
+		}
+	}
+}
