@@ -2,7 +2,7 @@
 
 > 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。
 
-状态：`accepted` · 更新：2026-10-27 · 适用：现有发布流程及 GitHub admin#270 的 Arch 迁移接管。源码入口为 `.github/workflows/ci.yml`、两条 `deploy-*.yml`、架构/issue/分支/测试报告工作流；CI 与部署使用 GitHub 托管 runner。历史已发布状态、保护配置与本 task 未提交变更分别取证，不把旧 actionlint/CI 通过记录推广到本次候选。
+状态：`accepted` · 更新：2026-10-28 · 适用：现有发布流程及 GitHub admin#270 的 Arch 迁移接管。源码入口为 `.github/workflows/ci.yml`、两条 `deploy-*.yml`、架构/issue/分支/测试报告工作流；CI 与部署使用 GitHub 托管 runner。历史已发布状态、保护配置与本 task 未提交变更分别取证，不把旧 actionlint/CI 通过记录推广到本次候选。
 
 发布规则以 [RELEASES](../conventions/RELEASES.md) 为唯一完整规范，分支模型以 [BRANCHING](../conventions/BRANCHING.md) 为准，环境字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
@@ -152,11 +152,11 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 | job | 当前源码接线 | 凭据范围 |
 |---|---|---|
 | `cdn-plan` | `static-cdn.mjs decide --origin <环境>`；无凭据或 CSP 未放行仍按原约定同源，部分凭据或 S3 探测失败直接失败 | 仅此 job 与上传 job 注入 S3 两项凭据 |
-| `build` | 同一个新 `STATIC_CDN_BASE` 传给 web/forum/server；镜像仍带全部同源资源；离线 `plan` 只收哈希构建资源、指南截图和内置表情 | 不接密钥，不挂 Environment |
+| `build` | 同一个新 `STATIC_CDN_BASE` 传给 web/forum/server；镜像仍带全部同源资源；离线 `plan` 只收哈希构建资源、指南截图、内置表情和旧帖正文实际引用的 CDN 图片 | 不接密钥，不挂 Environment |
 | `cdn-upload` | 签名 S3 GET 逐字核对已存在对象，缺对象才 PUT；公开 HEAD、完整 GET SHA-256、Range、MIME、CORS 校验；资产通过后写 `indexes/releases/<环境>/<完整提交>/manifest.json`，内容索引只生成私有产物 | `STATIC_CDN_S3_ACCESS_KEY_ID`、`STATIC_CDN_S3_SECRET_ACCESS_KEY`，不写镜像或日志 |
 | `deploy` | 仍依赖 `cdn-upload` 成功，不提前发布引用不存在资源的 HTML | 原有环境权限不变 |
 
-`STATIC_CDN_S3_ENDPOINT=https://cdn.yangtzeu.work`、region `garage`、bucket `geek-public`、forcePathStyle `true`。凭据只从受保护发布 job 的进程环境读取，不在仓库、业务 `.env`、命令行或构建 job 中出现。两项都不设置时下一次构建同源，现有镜像不会自动切换；宣传片、邮件与指南的固定地址也不跟这个开关走。
+`STATIC_CDN_S3_ENDPOINT=https://cdn.yangtzeu.work`、region `garage`、bucket `geek-public`、forcePathStyle `true`。凭据只从受保护发布 job 的进程环境读取，不在仓库、业务 `.env`、命令行或构建 job 中出现。两项都不设置时下一次构建同源，现有镜像不会自动切换；宣传片、邮件、指南与旧帖 CDN 图片的固定地址也不跟这个开关走。
 
 当前基线 `.github/workflows/ci.yml` 仍有无凭据的 `docker-cdn` 构建，两个既有部署工作流的上传调用改传环境、完整 SHA 和提交时间，上传器生成稳定来源清单及独立私有内容索引。没有运行这些工作流，也未证明其环境保护状态。所有者本次以 GitLab 为主：父级 task270 的 GitLab 发版草稿应复用同一个 CLI、参数及“上传验证成功才能部署”门禁，不能把 GitHub 历史 token 步骤复制成新服务的配置能力。
 
