@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  LEDGER_FILE, SMOKE_FILE, addEntry, beijingNow, nextId, pendingEntries, runCompare, runRequire, updateEntry, validateLedger,
+  LEDGER_FILE, SMOKE_FILE, addEntry, beijingNow, nextId, pendingEntries, runCompare, runRequire, shapeDiff, shapeOf, updateEntry, validateLedger,
 } from "../../scripts/parity.mjs";
 
 const readJson = (path: string) => JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8"));
@@ -107,6 +107,44 @@ describe("发版烟测", () => {
   it("mirror 全部一致时通过", async () => {
     const same = site({ "/c/x/": { body: "A" }, "/page": { body: "x" } });
     expect(await runCompare({ mirror: [{ path: "/c/x/", sameBody: true }, { path: "/page" }] }, { preview: "https://p.example", production: "https://q.example" }, same as never)).toEqual([]);
+  });
+});
+
+describe("数据只对齐格式", () => {
+  const diff = (a: unknown, b: unknown) => shapeDiff(shapeOf(a), shapeOf(b));
+
+  it("值不同、条数不同、空数组与 null 都不算格式不同", () => {
+    expect(diff({ n: 1, list: [{ id: "a" }], who: "x" }, { n: 99, list: [{ id: "b" }, { id: "c" }], who: "y" })).toEqual([]);
+    expect(diff({ list: [], who: null }, { list: [{ id: "a" }], who: "y" })).toEqual([]);
+  });
+
+  it("骨架的字段多了少了、值类型变了会报出来", () => {
+    expect(diff({ a: 1, b: 2 }, { a: 1 })).toEqual(["$.b 只在预发布有"]);
+    expect(diff({ a: 1 }, { a: 1, c: 2 })).toEqual(["$.c 只在正式有"]);
+    expect(diff({ list: [{ id: 1 }] }, { list: [{ id: "1" }] })).toEqual(["$.list[].id 的类型不同（预发布 number，正式 string）"]);
+    expect(diff({ list: [] }, { list: {} })).toEqual(["$.list 的类型不同（预发布 array，正式 object）"]);
+  });
+
+  it("数组里的记录带不带可选字段取决于数据，不算格式不同", () => {
+    expect(diff({ posts: [{ id: 1, deleted: true }, { id: 2 }] }, { posts: [{ id: 3, replyTo: 1 }] })).toEqual([]);
+  });
+
+  it("mirror 的 sameShape：值不同通过，骨架不同失败，不是 JSON 失败", async () => {
+    const mirror = { mirror: [{ path: "/api/x", sameShape: true }] };
+    const origins = { preview: "https://p.example", production: "https://q.example" };
+    const json = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    expect(await runCompare(mirror, origins, (async (url: string) => json(url.startsWith("https://p.example") ? { users: [{ id: 1 }], total: 1 } : { users: [], total: 7 })()) as never)).toEqual([]);
+    const skeleton = await runCompare(mirror, origins, (async (url: string) => json(url.startsWith("https://p.example") ? { users: [], total: 1 } : { users: [] })()) as never);
+    expect(skeleton.join("\n")).toMatch(/\/api\/x：格式不同，\$\.total 只在预发布有/);
+    const html = async () => new Response("<p>x</p>", { status: 200, headers: { "content-type": "application/json" } });
+    expect((await runCompare(mirror, origins, html as never)).join("\n")).toMatch(/sameShape 要求两边都是 JSON/);
+  });
+
+  it("仓库里的烟测对读库渲染的页面只比状态和类型，不比正文", () => {
+    const smoke = readJson(SMOKE_FILE);
+    expect(smoke.mirror.filter((item: { sameBody?: boolean }) => item.sameBody)).toEqual([]);
+    expect(smoke.mirror.find((item: { path: string }) => item.path === "/c/oss-challenge-2026-1/")).toEqual({ path: "/c/oss-challenge-2026-1/" });
+    expect(smoke.mirror.filter((item: { sameShape?: boolean }) => item.sameShape).map((item: { path: string }) => item.path)).toEqual(["/release.json", "/api/forum/state", "/api/public/competitions"]);
   });
 });
 

@@ -231,7 +231,7 @@ jobs:
   # 环境契约：deploy/env/.env.<environment> ↔ deploy/environments.json ↔ deploy/compose/*.yml。
   # 这一条是部署前的硬门禁——两套栈的端口、目录、域名、密钥留空状态不许静默漂移。
 
-  # 同构清单：预发布做过、不在提交里的事（表结构、数据、env 键与密钥、宿主配置、外部服务），正式都要做完才能构建。
+  # 同构清单：预发布做过、不在提交里的事（表结构的手工步骤、数据格式、env 键与密钥、宿主配置、外部服务），正式都要做完才能构建。
   # 规则见 docs/conventions/RELEASE-PARITY.md；清单里还有 pending 就失败，不构建、不部署。
   parity:
     name: parity (预发布到正式的同构清单)

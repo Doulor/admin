@@ -245,7 +245,7 @@ jobs:
             || { echo "预发布站点当前不是提交 ${COMMIT} 的 rc 版本（期望其一：${expected}）：拒绝进入正式环境。" >&2; exit 1; }
           echo "证据成立：${PREVIEW_ORIGIN}/release.json 是提交 ${COMMIT} 的预发布版本。"
 
-  # 同构清单：预发布做过、不在提交里的事（表结构、数据、env 键与密钥、宿主配置、外部服务），正式都要做完才能构建。
+  # 同构清单：预发布做过、不在提交里的事（表结构的手工步骤、数据格式、env 键与密钥、宿主配置、外部服务），正式都要做完才能构建。
   # 规则见 docs/conventions/RELEASE-PARITY.md；清单里还有 pending 就失败，不构建、不部署。
   parity:
     name: parity (预发布到正式的同构清单)

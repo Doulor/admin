@@ -13,7 +13,7 @@
  *   node scripts/parity.mjs not-applicable <P-0001> --reason <为什么正式不需要>
  *   node scripts/parity.mjs waive <P-0001> --by Crosery --quote <所有者的原话>   只记录所有者的豁免，不替所有者决定
  *   node scripts/parity.mjs smoke --origin <站点> --env <production|preview>    deploy/parity/smoke.json 的 require 段
- *   node scripts/parity.mjs compare --preview <站点> --production <站点>        mirror 段：两边状态、类型（与正文）必须一致
+ *   node scripts/parity.mjs compare --preview <站点> --production <站点>        mirror 段：两边状态、类型必须一致；sameShape 再比 JSON 的键和值类型（数据不比，只比格式）
  *
  * 时间取系统时钟（北京时间），不手填；只追加条目，已写的条目只能把 production.status 从 pending 往前推。
  */
@@ -129,7 +129,47 @@ export async function runRequire(manifest, { origin, env }, fetchImpl = globalTh
   return failures;
 }
 
-/** mirror 段：同一份提交在两个环境里，这些地址的状态、类型（与正文）必须一致。 */
+/** JSON 值的格式：键与值类型，不含值本身。数据各环境自己的，对齐的只是格式。 */
+export function shapeOf(value) {
+  if (value === null) return { t: 'null' };
+  if (Array.isArray(value)) return { t: 'array', item: value.map(shapeOf).reduce(mergeShape, null) };
+  if (typeof value === 'object') return { t: 'object', keys: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, shapeOf(item)])) };
+  return { t: typeof value };
+}
+
+function mergeShape(a, b) {
+  if (!a) return b;
+  if (!b || b.t === 'null') return a;
+  if (a.t === 'null') return b;
+  if (a.t !== b.t) return { t: [...new Set([...a.t.split('|'), ...b.t.split('|')])].sort().join('|') };
+  if (a.t === 'array') return { t: 'array', item: mergeShape(a.item, b.item) };
+  if (a.t === 'object') {
+    const keys = { ...a.keys };
+    for (const [key, shape] of Object.entries(b.keys)) keys[key] = key in keys ? mergeShape(keys[key], shape) : shape;
+    return { t: 'object', keys };
+  }
+  return a;
+}
+
+/**
+ * 两份格式的差异。null 与空数组没有信息量，和任何格式相容；数组里的记录是否带某个可选字段取决于数据，
+ * 所以记录内部只比同名字段的类型，不比字段有没有；记录之外的对象（响应的骨架）连字段有没有一起比。
+ */
+export function shapeDiff(a, b, path = '$', inRecord = false) {
+  if (!a || !b || a.t === 'null' || b.t === 'null') return [];
+  if (a.t !== b.t) return [`${path} 的类型不同（预发布 ${a.t}，正式 ${b.t}）`];
+  if (a.t === 'array') return shapeDiff(a.item, b.item, `${path}[]`, true);
+  if (a.t !== 'object') return [];
+  const out = [];
+  for (const key of new Set([...Object.keys(a.keys), ...Object.keys(b.keys)])) {
+    if (!(key in b.keys)) { if (!inRecord) out.push(`${path}.${key} 只在预发布有`); }
+    else if (!(key in a.keys)) { if (!inRecord) out.push(`${path}.${key} 只在正式有`); }
+    else out.push(...shapeDiff(a.keys[key], b.keys[key], `${path}.${key}`, inRecord));
+  }
+  return out;
+}
+
+/** mirror 段：同一份提交在两个环境里，这些地址的状态、类型必须一致；sameShape 的 JSON 再比格式，sameBody 的静态文件比字节。 */
 export async function runCompare(manifest, { preview, production }, fetchImpl = globalThis.fetch) {
   const failures = [];
   for (const item of manifest.mirror ?? []) {
@@ -138,6 +178,11 @@ export async function runCompare(manifest, { preview, production }, fetchImpl = 
     if (a.status !== b.status) failures.push(`${item.path}：预发布 ${a.status}，正式 ${b.status}`);
     else if (a.type !== b.type) failures.push(`${item.path}：内容类型不同（预发布 ${a.type}，正式 ${b.type}）`);
     else if (item.sameBody && createHash('sha256').update(a.body).digest('hex') !== createHash('sha256').update(b.body).digest('hex')) failures.push(`${item.path}：正文不同（预发布 ${a.body.length} 字节，正式 ${b.body.length} 字节）`);
+    if (item.sameShape && a.status === 200 && b.status === 200) {
+      try {
+        failures.push(...shapeDiff(shapeOf(JSON.parse(a.body.toString('utf8'))), shapeOf(JSON.parse(b.body.toString('utf8')))).map(diff => `${item.path}：格式不同，${diff}`));
+      } catch { failures.push(`${item.path}：sameShape 要求两边都是 JSON`); }
+    }
     for (const [name, origin, res] of [['预发布', preview, a], ['正式', production, b]]) {
       const body = res.body.toString('utf8');
       for (const key of item.issuerOwnOrigin ? ['issuer'] : []) {
