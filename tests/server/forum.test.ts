@@ -1215,6 +1215,18 @@ describe('seeding', () => {
     expect((await s.state()).posts.map((p: { id: string }) => p.id)).toContain('body-5');
   });
 
+  it('refreshes unedited legacy bodies on restart without overwriting manual edits (#304)', async () => {
+    const s = await setup();
+    await s.call('PATCH', '/api/forum/posts/body-9', 'alice', { content: '人工改过的旧帖，保留阿里原链接' });
+    const content = loadForumContent(FORUM_FIXTURE_DIR);
+    const topics = content.topics.map(topic => ({ ...topic, content: `${topic.content}\n\n![迁移](https://cdn.yangtzeu.work/geek-public/static/site/forum/published/0123456789abcdef.webp)` }));
+    const next = createForumStore(s.db, { ...content, topics });
+    expect(next.seed()).toBe(0);
+    expect(next.seed()).toBe(0);
+    expect(s.db.prepare('SELECT content, edited_at FROM forum_posts WHERE id = ?').get('body-73')).toEqual({ content: topics.find(topic => topic.id === 't73')!.content, edited_at: null });
+    expect(s.db.prepare('SELECT content FROM forum_posts WHERE id = ?').get('body-9')).toEqual({ content: '人工改过的旧帖，保留阿里原链接' });
+  });
+
   it('refuses to start with content that does not hold together', () => {
     const dir = mkdtempSync(join(tmpdir(), 'geek-forum-content-'));
     dirs.push(dir);

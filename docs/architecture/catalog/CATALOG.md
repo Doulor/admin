@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-27 · 自动生成，不手工编辑。
 
-来源摘要：`ad78026986920b53edabc6c1ef6b5f90ba915492d9ea3c4fdef97c8fd77b6154`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`166dc2cba9400263f6c6cfe70b9e6bb008f689dbc7dde6ec7318ceb49ed1ace2`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -1643,7 +1643,7 @@
 - 响应与错误：201 {id,name}；id 已被占用回409 pack_id_taken；格式不对400。
 - 数据与副作用：插一行 forum_sticker_packs（排在最后）；空包不在公开面板里出现；成功后 invalidate 公开列表缓存，写审计 forum.sticker_pack.create。
 
-源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:999](../../../app/server/src/lib/forum-store.ts#L999) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:895](../../../app/console/src/mock/console.ts#L895)
+源码：[app/server/src/routes/console/forum.ts:47](../../../app/server/src/routes/console/forum.ts#L47) · [app/server/src/lib/forum-store.ts:1002](../../../app/server/src/lib/forum-store.ts#L1002) · [app/server/src/lib/permissions.ts:324](../../../app/server/src/lib/permissions.ts#L324) · [app/console/src/pages/forum/StickersTab.vue:113](../../../app/console/src/pages/forum/StickersTab.vue#L113) · [app/console/src/lib/forum.ts:104](../../../app/console/src/lib/forum.ts#L104) · [app/console/src/mock/console.ts:895](../../../app/console/src/mock/console.ts#L895)
 
 测试入口：[tests/server/forum-v2-endpoints.test.ts](../../../tests/server/forum-v2-endpoints.test.ts) · [tests/console/forum.test.ts](../../../tests/console/forum.test.ts)。生成器未执行这些测试。
 
@@ -2790,7 +2790,7 @@
 - 响应与错误：签发者 <PUBLIC_ORIGIN>/oidc，协议与主机按 PUBLIC_ORIGIN，不信请求头；未知客户端、错回调 400 中文错误页且不跳转；缺 PKCE 等带 error 回到下游；userinfo 只给 sub（pairwise）、name、preferred_username、picture，有 email scope 时给验证过的 email；账号不再是成员时 401。
 - 数据与副作用：是否登录以本站 sid 为准，不是成员、换了账号或账号还没有登录邮箱（#273，允许过这个应用、签发者会话还在也一样）时进交互；交互、会话与授权码写 oidc_payloads；第一次给某 sector 发 sub 时写 oauth_subjects；不发 refresh token。
 
-源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:20](../../../app/server/src/lib/account-directory.ts#L20) · [app/server/src/lib/db.ts:495](../../../app/server/src/lib/db.ts#L495) · [app/server/src/lib/identity-store.ts:809](../../../app/server/src/lib/identity-store.ts#L809) · [app/server/src/lib/forum-store.ts:808](../../../app/server/src/lib/forum-store.ts#L808) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:65](../../../app/web/sites/portal/components/os/Widgets.tsx#L65)
+源码：[app/server/src/routes/oidc/index.ts:169](../../../app/server/src/routes/oidc/index.ts#L169) · [app/server/src/lib/oidc-provider.ts:74](../../../app/server/src/lib/oidc-provider.ts#L74) · [app/server/src/lib/oidc-store.ts:52](../../../app/server/src/lib/oidc-store.ts#L52) · [app/server/src/lib/account-directory.ts:20](../../../app/server/src/lib/account-directory.ts#L20) · [app/server/src/lib/db.ts:495](../../../app/server/src/lib/db.ts#L495) · [app/server/src/lib/identity-store.ts:809](../../../app/server/src/lib/identity-store.ts#L809) · [app/server/src/lib/forum-store.ts:811](../../../app/server/src/lib/forum-store.ts#L811) · [app/web/sites/portal/lib/links.ts:15](../../../app/web/sites/portal/lib/links.ts#L15) · [app/web/shared/config/index.ts:24](../../../app/web/shared/config/index.ts#L24) · [app/web/sites/portal/components/os/Widgets.tsx:65](../../../app/web/sites/portal/components/os/Widgets.tsx#L65)
 
 测试入口：[tests/server/oidc.test.ts](../../../tests/server/oidc.test.ts) · [tests/server/oidc-eligibility.test.ts](../../../tests/server/oidc-eligibility.test.ts)。生成器未执行这些测试。
 
@@ -3337,7 +3337,7 @@
 - 数据与副作用：不读取论坛静态published JSON；GET可能刷新当前论坛用户并执行既有限流，不改话题、分类或正文。
 - 交付：web nginx保留原始/forum URI和cookie直达核心；forum site镜像及客户端包不携带索引或旧帖正文。
 
-源码：[app/server/src/routes/forum-api/markdown.ts:32](../../../app/server/src/routes/forum-api/markdown.ts#L32) · [app/server/src/lib/forum-markdown.ts:33](../../../app/server/src/lib/forum-markdown.ts#L33) · [app/server/src/lib/forum-store.ts:833](../../../app/server/src/lib/forum-store.ts#L833) · [app/server/src/routes/forum-api/contracts.ts:121](../../../app/server/src/routes/forum-api/contracts.ts#L121) · [app/server/src/routes/forum-api/index.ts:26](../../../app/server/src/routes/forum-api/index.ts#L26) · [app/forum/nuxt.config.ts:29](../../../app/forum/nuxt.config.ts#L29)
+源码：[app/server/src/routes/forum-api/markdown.ts:32](../../../app/server/src/routes/forum-api/markdown.ts#L32) · [app/server/src/lib/forum-markdown.ts:33](../../../app/server/src/lib/forum-markdown.ts#L33) · [app/server/src/lib/forum-store.ts:836](../../../app/server/src/lib/forum-store.ts#L836) · [app/server/src/routes/forum-api/contracts.ts:121](../../../app/server/src/routes/forum-api/contracts.ts#L121) · [app/server/src/routes/forum-api/index.ts:26](../../../app/server/src/routes/forum-api/index.ts#L26) · [app/forum/nuxt.config.ts:29](../../../app/forum/nuxt.config.ts#L29)
 
 测试入口：[tests/server/forum-category-visibility.test.ts](../../../tests/server/forum-category-visibility.test.ts) · [tests/tooling/forum-site-content.test.ts](../../../tests/tooling/forum-site-content.test.ts)。生成器未执行这些测试。
 

@@ -18,6 +18,7 @@ function shape(key) {
   if (key.startsWith('static/site/forum/_nuxt/')) return { role: 'forum-asset', source: `build/forum/${sub.slice('forum/'.length)}` };
   if (key.startsWith('static/site/forum/guides/')) return { role: 'guide-image', source: `app/forum/content/guide-images/${basename(key)}` };
   if (key.startsWith('static/site/forum/stickers/')) return { role: 'sticker', source: null };
+  if (key.startsWith('static/site/forum/published/')) return { role: 'published-image', source: `app/forum/public/published/${basename(key)}` };
   throw new Error('清单对象不在公开静态资源范围');
 }
 function fields(object, required) {

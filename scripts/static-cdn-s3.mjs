@@ -38,7 +38,7 @@ export function assertStorageKey(key) {
   const parts = typeof key === 'string' ? key.split('/') : [];
   if (!parts.length || key.length > 300 || !/^[a-zA-Z0-9_./-]+$/.test(key)
     || parts.some(part => !part || part === '.' || part === '..' || part.startsWith('.'))
-    || !(/^(?:static\/site\/(?:assets|console-assets|forum\/(?:_nuxt|guides|stickers))\/.+|indexes\/releases\/(?:production|preview)\/[0-9a-f]{40}\/manifest\.json)$/.test(key))) {
+    || !(/^(?:static\/site\/(?:assets|console-assets|forum\/(?:_nuxt|guides|stickers|published))\/.+|indexes\/releases\/(?:production|preview)\/[0-9a-f]{40}\/manifest\.json)$/.test(key))) {
     throw new Error('拒绝写入：对象键不在 CDN 允许范围或包含恶意路径');
   }
   if (key.startsWith('static/site/')) {
@@ -49,6 +49,7 @@ export function assertStorageKey(key) {
       new RegExp(`^static/site/forum/_nuxt/(?:${hash}\\.js|${name}\\.${hash}\\.[a-z0-9]+|builds/meta/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.json)$`),
       new RegExp(`^static/site/forum/guides/[a-z0-9-]+\\.${hash}\\.(?:webp|png)$`),
       /^static\/site\/forum\/stickers\/[0-9a-f]{64}\.webp$/,
+      /^static\/site\/forum\/published\/[0-9a-f]{16}\.webp$/,
     ].some(pattern => pattern.test(key));
     if (!valid) throw new Error('拒绝写入：静态对象键必须保留合同中的内容哈希文件名');
   }
@@ -61,6 +62,7 @@ export function assertObjectContent(key, body, mime) {
   if (!CDN_MIME_TYPES[key.split('.').at(-1)] || CDN_MIME_TYPES[key.split('.').at(-1)] !== mime) throw new Error('对象 Content-Type 类型不符合合同');
   if (key.startsWith('static/site/forum/stickers/') && key.split('/').at(-1) !== `${sha256(body)}.webp`) throw new Error('表情键与内容 SHA-256 不符');
   if (key.startsWith('static/site/forum/guides/') && key.split('.').at(-2) !== Buffer.from(sha256(body), 'hex').toString('base64url').slice(0, 8)) throw new Error('截图键与内容哈希不符');
+  if (key.startsWith('static/site/forum/published/') && key.split('/').at(-1) !== `${sha256(body).slice(0, 16)}.webp`) throw new Error('旧帖图片键与内容 SHA-256 不符');
 }
 
 /** S3 不折叠路径、不用 ETag 校验内容；所有写入使用完整 payload SHA-256 签名。 */

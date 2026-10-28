@@ -6574,7 +6574,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -11184,7 +11184,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -13107,7 +13107,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -17004,7 +17004,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "ad78026986920b53edabc6c1ef6b5f90ba915492d9ea3c4fdef97c8fd77b6154",
+    "fingerprint": "166dc2cba9400263f6c6cfe70b9e6bb008f689dbc7dde6ec7318ceb49ed1ace2",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17864,7 +17864,7 @@
       },
       {
         "path": "app/forum/tests/site-state.test.ts",
-        "sha256": "6ada11c896aab8f9cbe85eda2bd193a254f25482404aa87c271248ce40b7f503"
+        "sha256": "fcd9e27caea6df0d03b17b2b62ec6beab53c53008b18f76750dcd86045c452ae"
       },
       {
         "path": "app/forum/tests/sticker-size-css.test.ts",
@@ -17880,7 +17880,7 @@
       },
       {
         "path": "app/server/Dockerfile",
-        "sha256": "c2b470dd372cea3f56e09a12c3f10dd66889581e0e2a9f920f0acc749e6261a1"
+        "sha256": "5f5f87d16d5540bc73f90cd1ba47bbe270e1c56436e580e7623689df6f98a6e0"
       },
       {
         "path": "app/server/package.json",
@@ -18040,7 +18040,7 @@
       },
       {
         "path": "app/server/src/lib/forum-store.ts",
-        "sha256": "d0e3a73b2e908c74e348d724e12c7c8e88ffc3195a7e32b0c39089a929734ede"
+        "sha256": "091abe8beed860ba2c4141674179835d25d10d69f68f8409b3f7c4693aa9f0db"
       },
       {
         "path": "app/server/src/lib/github-http.ts",
@@ -18980,11 +18980,11 @@
       },
       {
         "path": "docs/services/forum/README.md",
-        "sha256": "12ff3dbfa6a9af6150b24e90b6ab4ba5789d0a8a5ddf352d7652272adf225d6d"
+        "sha256": "2273754b38041977eccac87da31a8cc15ff49f5ee8c5608d3fc0e6658ab56089"
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "6eaabdc13b188e583ff3bcf711c6cfb3186fcc9e17cae1b661306fa4c2e44ada"
+        "sha256": "6444bce257572897390563f5bbeb06b3dfbbd3cb2ad621785ad2000e51ec6034"
       },
       {
         "path": "docs/services/server/competition-rehearsal.md",
@@ -19240,7 +19240,7 @@
       },
       {
         "path": "tests/server/forum.test.ts",
-        "sha256": "2212d3f498507d7f990af708164d43ba2f509c8b0aadbca4a3b35316049bcf74"
+        "sha256": "366ec3168a0c2ce2c9171b7df9b13a8245b67220e20af237bcece29f4894b782"
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
@@ -51633,7 +51633,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51665,7 +51665,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51697,7 +51697,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51729,7 +51729,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51761,7 +51761,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51793,7 +51793,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51837,7 +51837,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51869,7 +51869,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51901,7 +51901,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -51933,7 +51933,7 @@
           "path": "app/server/src/routes/console/forum.ts"
         },
         {
-          "line": 999,
+          "line": 1002,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62051,7 +62051,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62083,7 +62083,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62115,7 +62115,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62147,7 +62147,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62179,7 +62179,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62211,7 +62211,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62243,7 +62243,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62275,7 +62275,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62307,7 +62307,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62339,7 +62339,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62371,7 +62371,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62403,7 +62403,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62435,7 +62435,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62467,7 +62467,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62511,7 +62511,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62543,7 +62543,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62575,7 +62575,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62607,7 +62607,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -62639,7 +62639,7 @@
           "path": "app/server/src/lib/forum-markdown.ts"
         },
         {
-          "line": 833,
+          "line": 836,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81659,7 +81659,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81707,7 +81707,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81755,7 +81755,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81803,7 +81803,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81851,7 +81851,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81899,7 +81899,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81947,7 +81947,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -81995,7 +81995,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -82055,7 +82055,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -82103,7 +82103,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -82151,7 +82151,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
@@ -82199,7 +82199,7 @@
           "path": "app/server/src/lib/identity-store.ts"
         },
         {
-          "line": 808,
+          "line": 811,
           "path": "app/server/src/lib/forum-store.ts"
         },
         {

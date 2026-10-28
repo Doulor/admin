@@ -603,6 +603,9 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
           inserted += result.changes;
           db.prepare("INSERT OR IGNORE INTO forum_posts(id, topic_id, author_id, content, created_at) VALUES(?, ?, ?, ?, ?)")
             .run(`body-${topic.id.slice(1)}`, topic.id, author.id, topic.content, topic.createdAt);
+          // 仓库仍管理未人工编辑的旧帖正文；线上改过的帖子 edited_at 非空，不能被发版覆盖（#304）。
+          db.prepare("UPDATE forum_posts SET content = ? WHERE id = ? AND author_id = ? AND edited_at IS NULL AND content <> ?")
+            .run(topic.content, `body-${topic.id.slice(1)}`, author.id, topic.content);
         }
         for (const guide of content.guides) {
           const postId = `body-${guide.id.slice(1)}`;

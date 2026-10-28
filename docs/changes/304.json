@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "issue": 304,
+  "kind": "business",
+  "summary": "把公开旧帖中 56 张阿里 OSS 原图统一导出为内容寻址 WebP，正文改用 Garage CDN 绝对地址，启动时更新未人工编辑的已有旧帖；发布上传器按正文实际引用收集、校验并写入发布清单，8 张 drop 截图继续不公开。",
+  "applications": [
+    "server",
+    "forum"
+  ],
+  "domains": [
+    "forum",
+    "public_content",
+    "platform",
+    "identity",
+    "permissions",
+    "audit"
+  ],
+  "flows": [
+    "flow:forum.site-published.asset"
+  ],
+  "assessments": {
+    "business": {
+      "status": "changed",
+      "reason": "旧帖图片加载从阿里 OSS 或同源相对地址切到自有 Garage CDN；话题、作者、可见范围与正文其它内容不变。",
+      "evidence": [
+        "app/forum/content/published/topics.json",
+        "app/forum/content/published/manifest.json"
+      ]
+    },
+    "backend": {
+      "status": "changed",
+      "reason": "不改 API 路由或响应 Schema；forum-store.seed 在启动时更新未人工编辑的已有旧帖正文，让已有数据库收到 CDN 地址，edited_at 非空的人工编辑不覆盖。",
+      "evidence": [
+        "app/server/src/lib/forum-store.ts",
+        "tests/server/forum.test.ts"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "只迁移已经公开可见的阿里 OSS 图片；8 张 drop 截图不上传，未标 cdn 的同源图片不进入公开桶，不扩大任何话题或附件的可见范围；启动更新仍以官方作者和 edited_at 为边界。",
+      "evidence": [
+        "app/forum/content/published/manifest.json",
+        "scripts/static-cdn.mjs",
+        "app/server/src/lib/forum-store.ts"
+      ]
+    },
+    "data": {
+      "status": "changed",
+      "reason": "56 张公开原图导出为 56 个、共 2120132 字节的内容寻址 WebP；topics.json 的 63 处引用改为 CDN 地址。没有表结构变化，已有数据库启动时只更新未人工编辑的旧帖正文。",
+      "evidence": [
+        "app/forum/public/published/878332195a0ee7b8.webp",
+        "app/forum/content/published/topics.json",
+        "app/server/src/lib/forum-store.ts",
+        "tests/server/forum.test.ts"
+      ]
+    },
+    "dependencies": {
+      "status": "changed",
+      "reason": "图片运行依赖从阿里 OSS 改为既有 Garage；上传复用现有 SigV4、只增不改、完整 GET/Range/MIME/CORS 校验，没有新增包依赖；已有库在启动播种事务内更新正文。",
+      "evidence": [
+        "scripts/static-cdn.mjs",
+        "scripts/static-cdn-s3.mjs",
+        "scripts/static-cdn-manifest.mjs",
+        "app/server/src/lib/forum-store.ts"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "CDN 合同补公开对象目录、角色和固定地址行为；论坛与 server 合同补 cdn 清单规则和已有库更新/人工编辑保护；CICD 补发布收集范围；server 镜像注释区分 CDN 与 viewer 同源图片。",
+      "evidence": [
+        "docs/ops/CDN.md",
+        "docs/services/forum/README.md",
+        "docs/services/server/README.md",
+        "docs/ops/CICD.md",
+        "app/server/Dockerfile"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "回归覆盖 56 张图片和 8 张 drop 的边界、正文阿里引用清零、文件存在与哈希、只收实际引用、内容变化/缺文件失败、发布清单角色与来源，以及已有库更新未编辑帖并保留人工编辑；随后由真实 CDN 上传和预发布浏览器验收。",
+      "evidence": [
+        "app/forum/tests/site-state.test.ts",
+        "tests/tooling/static-cdn.test.ts",
+        "tests/tooling/static-cdn-manifest.test.ts",
+        "tests/server/forum.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "plan/upload 新增 forum/published 对象，cdn-upload 先于 deploy 完成；镜像保留同源副本，旧 CDN 对象不删除，正式发布可沿用同一门禁。",
+      "evidence": [
+        "scripts/static-cdn.mjs",
+        "app/server/Dockerfile",
+        "docs/ops/CICD.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "app/forum/content/published/manifest.json",
+        "app/forum/content/published/topics.json",
+        "app/forum/public/published/",
+        "scripts/forum-migration/export-published.mjs"
+      ],
+      "domains": [
+        "forum",
+        "public_content"
+      ],
+      "nodes": [
+        "flow:forum.site-published.asset"
+      ],
+      "reason": "清单登记 56 张公开阿里图的原图 SHA 与 cdn 标记，导出器生成内容寻址 WebP 和 CDN 正文地址，drop 与未标记图片保持原行为。"
+    },
+    {
+      "paths": [
+        "scripts/static-cdn.mjs",
+        "scripts/static-cdn-s3.mjs",
+        "scripts/static-cdn-manifest.mjs"
+      ],
+      "domains": [
+        "platform",
+        "forum"
+      ],
+      "nodes": [
+        "domain:platform",
+        "flow:forum.site-published.asset"
+      ],
+      "reason": "上传器开放 forum/published 前缀，只收正文引用并核对文件哈希；S3 合同和发布清单接受 published-image。"
+    },
+    {
+      "paths": [
+        "app/server/Dockerfile",
+        "app/server/src/lib/forum-store.ts",
+        "app/forum/tests/site-state.test.ts",
+        "tests/tooling/static-cdn.test.ts",
+        "tests/tooling/static-cdn-manifest.test.ts",
+        "tests/server/forum.test.ts"
+      ],
+      "domains": [
+        "forum",
+        "platform"
+      ],
+      "nodes": [
+        "application:server",
+        "domain:platform",
+        "flow:forum.site-published.asset"
+      ],
+      "reason": "镜像保留同源副本；启动更新未人工编辑的旧帖正文；回归覆盖完整迁移、上传边界、清单来源与人工编辑保护。"
+    },
+    {
+      "paths": [
+        "docs/ops/CDN.md",
+        "docs/ops/CICD.md",
+        "docs/services/forum/README.md",
+        "docs/services/server/README.md"
+      ],
+      "domains": [
+        "platform",
+        "forum"
+      ],
+      "nodes": [
+        "domain:platform",
+        "application:forum"
+      ],
+      "reason": "同步公开对象、导出规则、发布收集和 viewer 边界文档。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "源码与文档更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
+    }
+  ],
+  "documents": [
+    "docs/ops/CDN.md",
+    "docs/ops/CICD.md",
+    "docs/services/forum/README.md",
+    "docs/services/server/README.md"
+  ],
+  "tests": [
+    "app/forum/tests/site-state.test.ts",
+    "tests/tooling/static-cdn.test.ts",
+    "tests/tooling/static-cdn-manifest.test.ts",
+    "tests/tooling/forum-published.test.ts",
+    "tests/server/forum.test.ts"
+  ],
+  "compatibility": "API 路由、响应 Schema、话题可见范围和未标记图片的同源行为不变；CDN 地址带内容哈希，旧对象不删除；人工编辑过的旧帖不覆盖。",
+  "migration": "47 个未迁移阿里外链加 9 个已脱敏阿里原图，共 56 张导出并改写；8 张 drop 截图不下载、不上传。已有数据库启动时只更新 edited_at 为空的旧帖正文，无表结构迁移。",
+  "rollback": "回滚 topics.json、清单和上传器即可恢复旧引用与旧发布范围；已上传对象保留供旧版本使用，不执行删除。"
+}

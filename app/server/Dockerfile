@@ -140,7 +140,7 @@ COPY --from=builder --chown=node:node /repo/app/server/dist /app/app/server/dist
 COPY --chown=node:node app/forum/content/curation.json /app/app/forum/content/curation.json
 COPY --chown=node:node app/forum/content/published/topics.json /app/app/forum/content/published/topics.json
 COPY --chown=node:node app/forum/content/guides/ /app/app/forum/content/guides/
-# 旧帖正文引用的图片不再由 forum 静态镜像直接下载；核心按当前 viewer 可见话题动态提供。
+# 旧帖图片保留同源副本：未标 CDN 的由核心按 viewer 动态提供；标了 CDN 的由发布链上传后从 Garage 加载。
 COPY --chown=node:node app/forum/public/published/ /app/app/forum/public/published/
 
 # 内置表情包的源图片与清单（#276、#286，src/config.ts 的 stickerAssetsDir = APP_ROOT/server/assets/stickers）：
