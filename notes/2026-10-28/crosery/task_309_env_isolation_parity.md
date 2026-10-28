@@ -56,3 +56,16 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：所有者 20:02 同意推送；分支推到 gitlab 并用 push option 开了 MR !51（目标 main，描述含 Closes #309）；没有合并，没有触发任何流水线
 - 结果：MR 地址 https://git.yangtzeu.work/geek/admin/-/merge_requests/51；完整 PR 正文草稿在 .tools/handoff/2026-10-28-hotfix-env-parity/PR-BODY.md，GitLab 没有 API 凭据，描述只写了一行，待所有者在网页补全
+
+## 21:04:51 +08:00 · 开发 · #309 · 宿主层与一次性运维改走流水线，补 CDN 镜像、sub 迁移、同构清单 post_deploy 阶段
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：20:49 所有者原话：我看你全称要走ssh去操控我们的机器，很多开发者他们没法操控的，那肯定是你这边的设计有问题，应该是不需要依赖ssh去更改也能通过ci和cd测试到。据此：新增 deploy/remote/install-host.sh（plan/apply/verify）并接进 deploy-preview/production/hotfix 三条工作流；新增 deploy/gitlab/cutover.sh 与手动触发的 gitlab-cutover.yml；CDN 镜像 cdn-mirror.sh 与 systemd 单元进仓库；migrate-oidc-subjects.mjs；parity.mjs 增 phase 与 check --complete；规范写进 RELEASE-PARITY 第十节与 AGENTS.md
+- 结果：新增测试 install-host 10、gitlab-cutover 10、cdn-mirror 14、oidc-subject-migration 8、parity 22 全部通过；actionlint 通过；首次镜像同步 geek-public 436 个 css/js 被存成 gzip（rclone 带 Accept-Encoding: gzip 下载），逐对象核验 sizes differ 查出，关掉后 MD5 与 ETag 一致，五个桶 verified；已用 install-host.sh 在 Arch 上 plan/apply/verify 一遍（八项 same），定时器已启用。此前 20:00–20:45 为取证和先行落地手工用了 ssh：装 systemd 单元与镜像脚本、docker exec 登记 gitlab 客户端、在 Garage 上建 backup-reader 只读密钥，这些现在都有对应的仓库路径，客户端登记与密钥生成属于一次性凭据引导，已按规范写明
+- 下一步：合并前复跑全量检查；MR 描述补全；所有者批准后合并、同步 GitHub、派发 deploy-hotfix
+
+## 21:09:55 +08:00 · 提交 · #309 · 本地提交 86388a3a：宿主层与 GitLab 改接走流水线
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：第三次提交：install-host.sh、cdn-mirror.sh 与 systemd 单元、cutover.sh 与 gitlab-cutover.yml、migrate-oidc-subjects.mjs、parity post_deploy 阶段、规范与测试；此前提交 1769ee84..1dd1eb72 已在 MR !51
+- 结果：pnpm check 各项（含 check-architecture --base origin/main、doc-sync、notes、secrets、catalog）通过，typecheck 无输出，vitest 182 个文件 2925 条通过 27 跳过；未推送
