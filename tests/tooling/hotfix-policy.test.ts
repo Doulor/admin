@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,14 +7,16 @@ import { planHotfix, verifyLive } from "../../scripts/hotfix-policy.mjs";
 
 const root = process.cwd();
 const dirs: string[] = [];
-function fixture() {
+const openWindow = { issue: 306, tag: "v0.1.1", status: "open", approvedBy: "Crosery", approvedAt: "2026-10-28T19:11:00+08:00", expiresAt: "2026-11-04T19:11:00+08:00", quote: "这是一个必须走 hotfix 的 P0 问题" };
+const registryOf = (...windows: Record<string, unknown>[]) => JSON.stringify({ schemaVersion: 1, windows });
+function fixture(registry: string | null = registryOf(openWindow)) {
   const repo = mkdtempSync(resolve(tmpdir(), "hotfix-policy-")); dirs.push(repo);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git("init", "-q"); git("config", "user.name", "Fixture"); git("config", "user.email", "fixture@example.test");
-  const commitFile = (version = "0.1.1") => { writeFileSync(resolve(repo, "package.json"), JSON.stringify({ version })); git("add", "package.json"); git("commit", "-qm", "fixture", "--allow-empty"); return git("rev-parse", "HEAD"); };
+  const commitFile = (version = "0.1.1") => { writeFileSync(resolve(repo, "package.json"), JSON.stringify({ version })); git("add", "package.json"); if (registry !== null) { mkdirSync(resolve(repo, "deploy/hotfix"), { recursive: true }); writeFileSync(resolve(repo, "deploy/hotfix/windows.json"), registry); git("add", "deploy/hotfix/windows.json"); } git("commit", "-qm", "fixture", "--allow-empty"); return git("rev-parse", "HEAD"); };
   const base = commitFile(); git("tag", "v0.1.1");
   const commit = commitFile(); git("update-ref", "refs/remotes/origin/main", commit);
-  const options = { repo, root, tag: "v0.1.1", commit, event: "workflow_dispatch", ref: "refs/heads/main", workflowSha: commit, issue: "306" };
+  const options = { repo, root, tag: "v0.1.1", commit, event: "workflow_dispatch", ref: "refs/heads/main", workflowSha: commit, issue: "306", now: new Date("2026-10-30T00:00:00+08:00") };
   return { repo, git, base, commit, options, commitFile };
 }
 afterEach(() => { for (const path of dirs.splice(0)) rmSync(path, { recursive: true, force: true }); });
@@ -33,6 +35,17 @@ describe("同版本 hotfix 规划", () => {
   ])("拒绝未经明确绑定的输入 %j", overrides => {
     const f = fixture(); expect(() => planHotfix({ ...f.options, ...overrides })).toThrow();
   });
+  it("issue 必须是 main 上登记、仍开着的 hotfix 窗口，并且绑定的就是这次的正式版本", () => {
+    const now = new Date("2026-10-30T00:00:00+08:00");
+    expect(() => planHotfix({ ...fixture().options, now })).not.toThrow();
+    expect(() => planHotfix({ ...fixture().options, issue: "307", now })).toThrow(/没有开着的 hotfix 窗口/);
+    expect(() => planHotfix({ ...fixture(null).options, now })).toThrow(/windows\.json 不存在/);
+    expect(() => planHotfix({ ...fixture(registryOf({ ...openWindow, status: "closed", closedAt: "2026-10-29", evidence: "已合回 stage，线上核对通过" })).options, now })).toThrow(/没有开着的 hotfix 窗口/);
+    expect(() => planHotfix({ ...fixture().options, now: new Date("2026-11-05T00:00:00+08:00") })).toThrow(/过期/);
+    expect(() => planHotfix({ ...fixture(registryOf({ ...openWindow, tag: "v0.1.0" })).options, now })).toThrow(/绑定的是 v0\.1\.0/);
+    expect(() => planHotfix({ ...fixture(registryOf({ ...openWindow, quote: "" })).options, now })).toThrow(/登记不可用/);
+  });
+
   it("拒绝新的版本号", () => {
     const f = fixture(); const sha = f.commitFile("0.1.2"); f.git("update-ref", "refs/remotes/origin/main", sha);
     expect(() => planHotfix({ ...f.options, commit: sha, workflowSha: sha })).toThrow(/版本号/);

@@ -82,3 +82,62 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：cutover.sh、cdn-mirror.sh、migrate-oidc-subjects.mjs、install-host.sh、parity.mjs、三条部署工作流、规范与测试；ledger 的 post_deploy 条目补 release=0.1.1。文档核对：docs/ops/GITLAB.md、docs/conventions/RELEASE-PARITY.md、docs/ops/CICD.md、docs/conventions/RELEASES.md、.agents/skills/release-parity/SKILL.md 已随行为更新
 - 结果：同审查条目；未推送
+
+## 22:32:52 +08:00 · 开发 · #309 · 所有者 22:3x 两条指示：cdn 不解析到我们的服务器；P0 修完直接发正式、每次同步 stage
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：所有者原话：「cdn是另外一台服务器，指向我们的线上服务干嘛，cdn是边缘对象存储，不能解析到我们自己的服务器」；「你先把线上p0 bug全部修复之后直接推正式发版，这点不需要我同意，只不过每次记得同步下stage分支保证stage>= MAIN 就行」。据此：同构清单 P-0008（cdn 的 A 记录改到香港边缘）按这句原话 waive，不做任何 DNS 改动；#305 文档里改指边缘的段落（docs/ops/STORAGE-CDN.md:39-41、DEPLOY.md:235）与所有者意思冲突，本次未改；hotfix 窗口登记、门禁与 hotfix-sync 已提交 bba6f95b，独立评审进行中；部署派发与生产环境审批按所有者的授权由我执行
+- 结果：parity.mjs check --release --version 0.1.1 退出 0，剩 P-0007、P-0009、P-0011 三条随本版本部署后处理；文档核对：docs/ops/STORAGE-CDN.md、docs/ops/DEPLOY.md 的 cdn 改指边缘段落不是本次改动，不改
+- 下一步：评审通过后合并 MR !52、推 main、hotfix-sync、派发 deploy-hotfix
+
+## 22:43:34 +08:00 · 返工 · #309 · 补齐文档核对：两条 doc-sync 报错来自 main 基线，不是本分支
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：pnpm check 的 check:doc-sync 以 origin/stage(331c0b5) 为 base，把 main 侧 228be7bf「增加 main 同版本 hotfix 并保持 0.1.1」里 app/web/package.json、app/console/package.json 的版本号 0.1.2→0.1.1 算进本次改动；本分支没有改这两个服务的行为、接口或表。文档核对：docs/services/web/ 不用改——只随 main 基线把版本号回落 0.1.1，页面、接口与构建方式未变。文档核对：docs/services/console/ 不用改——同上，只随 main 基线回落版本号，控制台接口与使用方式未变。
+- 结果：notes 已追加并重新生成 INDEX；改的是记录，不动检查脚本
+- 下一步：重跑 pnpm check 看是否只剩预期项
+
+## 22:44:21 +08:00 · 返工 · #309 · 文档核对按「；」分行重记，上一条两条挤在一行第二行没被识别
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：check:doc-sync 的 WAIVER_RE 用「；」分隔同一条记录里的多条文档核对；上一条把两条写在同一句里、中间是句号，第二条例被吞进第一条例的理由，所以 console 仍报红。本分支相对 origin/stage 只多出 main 基线 228be7bf 的版本号回落（0.1.2→0.1.1），没有改两个服务的页面、接口、表或构建方式。文档核对：docs/services/web/ 不用改——只随 main 基线把版本号回落 0.1.1；文档核对：docs/services/console/ 不用改——只随 main 基线把版本号回落 0.1.1，控制台接口与使用方式未变
+- 结果：这一条按规范用「；」分隔，重跑 check:doc-sync 应通过
+- 下一步：重跑 pnpm check
+
+## 22:54:32 +08:00 · 返工 · #309 · 接手 omp 会话：清单清零后 parity 测试反向失败、宏观对齐的默认基线不认识 hotfix
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：uniflo 交接 claude:e05007e2（22:32 因 429 中断）后复跑门禁：1) tests/tooling/parity.test.ts 断言仓库清单拦 v0.1.1，清单按规范清零后必失败（独立评审第 3 项预测过），改为在临时根目录拷 scripts/parity.mjs 跑命令行，断言参数错误 2、拦住 1、清零后 0、--complete 1；删掉只断言仓库当前 pending>0 的用例。2) check-architecture 默认 --base origin/stage 把 main 自己的提交算进 hotfix 分支，加 hotfixBase()：该 task 的 issue 在窗口登记里开着（读 origin/main，本地未合入时读 HEAD）才把默认基线改成 origin/main，并补 5 条单测
+- 结果：pnpm check 退出 0（含 check:architecture 默认基线自动改用 origin/main、27 个变更文件）；tests/tooling/parity.test.ts 23 条、architecture-alignment.test.ts 23 条通过；文档核对：docs/conventions/ARCHITECTURE-ALIGNMENT.md 不用改——只改默认基线来源，八维检查项与结论格式未变
+- 下一步：全量 vitest 完成后提交、推送、开 MR !52
+
+## 23:12:23 +08:00 · 返工 · #309 · 独立审查发现 hotfix-sync 在镜像 stage 分叉时会半应用
+
+- 执行者：agent-omp-geek-main-27（omp，k3.1-pro）
+- 做了什么：审查 origin/main...9c9842cb：planSync 只在 needMerge=false 时预检 mirror/stage；needMerge=true 时 applySync 会先推 mirror/main 与 source/stage，再发现 mirror/stage 不能快进。新增临时双裸仓回归，旧实现 1 failed，证实 gitlab/stage 与 origin/main 已改变；planSync 增加 needMerge 分支的镜像 stage 祖先预检，在任何推送前 code=2 停止。文档核对：docs/conventions/BRANCHING.md 不用改——原有任何一步不满足就停下、不强推、不覆盖的契约不变，本次让实现符合契约
+- 结果：npx vitest run tests/tooling/hotfix-sync.test.ts：12 passed；新增用例修复前 1 failed、修复后通过
+- 下一步：跑 pnpm check，提交并更新 MR !52 的审查结论后合并
+
+## 23:23:23 +08:00 · 方案 · #309 · 接手 01a18305 的未完成 P0 hotfix
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：通过 Uniflo 读取目标会话、上游 01a182ee 与原始 Claude e05007e2 的所有者授权：保持 0.1.1 同版本 hotfix、每次同步 stage、禁止 CDN DNS 改动。保留上一会话未提交的 mirror stage 分叉预检修复及回归。只读 ls-remote 核对双仓 main=604df9eb、stage=331c0b5a；GitLab task=9c9842cb，GitHub task=078eda0a。
+- 结果：历史证据：hotfix-sync 12 passed、pnpm check 退出 0，未重复全量测试。现行 GitLab CLI 未认证，凭据执行工具错误且浏览器 relay 不可用，改用现有受控 CLI 排查认证；没有修改部署、DNS、业务数据或发布 tag。
+
+## 23:30:11 +08:00 · 返工 · #309 · 修复同步收尾夹带未发布功能、跳过钩子及删除固定分支
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：applySync 改为在唯一命名临时 task 分支中完成全部本地准备后才推送；移除 core.hooksPath=/dev/null；不删除已存在 task/issue/hotfix_sync；关闭窗口从 main 独立提交再合回 stage，不把 stage 功能合进 main。补分支保留、钩子拒绝、非生成物冲突全部引用不变和 stage 功能隔离的行为回归；删去源码字符串与文件存在性两项 incidental 测试，不放宽生产门禁。BRANCHING 与 309 影响声明同步。
+- 结果：定向 Vitest：12 passed。真实 CLI 双裸仓对照：baseline stage-only-in-main=true；fixed false，两个远端一致、stage>=main、窗口 closed，第二次 apply 不变。生产只读 smoke 通过，但 release.json 仍为 228be7bf，OIDC discovery 404，尚未上线。
+
+## 23:38:07 +08:00 · 提交 · #309 · 同步安全修复验证完成，准备提交 MR !52
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：pnpm verify 已跑完核心 check/test/build（2955 passed、27 skipped），在 forum:check 因本 worktree 未配置 pnpm11 路径退出；按 TUFF-FORUM 设置 FORUM_NODE=/opt/homebrew/bin/node 与 FORUM_PNPM 指向主工作区既有 pnpm11，只续跑 forum:check && forum:generate。GitHub stage 的 enforce_admins、必需 PR 和三项检查已实查，不能直推；采用已存在 GitHub #284 的独立 worktree/task PR，同步时不混用 GitLab #309。
+- 结果：核心门禁/构建通过；论坛 typecheck、tests typecheck、lint、styles、test 和 61 路由静态生成通过。单命令 pnpm verify 初次因工具路径退出 1，不冒称该次退出 0；其全部剩余阶段随后退出 0。同步 CLI 对照与定向 12 条回归通过，无 DNS、tag、线上库变更。
+
+## 23:38:54 +08:00 · 审查 · #309 · MR !52 同步安全审查，有条件通过
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：人工逐项复核 0d5a3d9（origin/main...HEAD）：保留 P0 同版本例外、不新建/移动 tag、不改 CDN DNS；无密钥或数据变更；同步分叉、冲突、既有分支、钩子、关闭窗口不夹带 stage 功能均由真实行为覆盖。reviewer 子代理因模型 429 不可用，本条是本执行者实际审查，不伪称独立代理成功。审查结论与完整十段正文写入 MR !52。
+- 结果：有条件通过：已完成 core 2955 passed/27 skipped、forum 701 passed 和静态生成、CLI 对照；条件为 GitHub 受保护 stage 通过现有 #284 的 task PR 同步、真实 hotfix 工作流通过并由所有者完成 production 平台审批。GitLab 自动流水线仍默认关闭，未伪造运行或验收。

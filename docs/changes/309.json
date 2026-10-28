@@ -1,219 +1,110 @@
 {
   "version": 1,
   "issue": 309,
-  "kind": "business",
-  "summary": "P0 hotfix：正式的 GitLab 登录读预发布签发者、内部赛事官网只在预发布、正式 CSP 与密钥落后预发布，共同原因是预发布做的事不在提交里也没人记账。去掉 GitLab 片段里写死的签发者（改读宿主文件），新增 .env.dev，新增环境隔离检查与同构清单、发版烟测，两条正式部署工作流加 parity 与 smoke job，并把规则写进 AGENTS.md、发布与环境规范和 agent 技能。对齐口径按所有者 19:43 的补充定为：接口与表结构对齐，数据只对齐格式；并删除没有任何页面调用的 GET /api/console/departments。",
+  "kind": "engineering",
+  "summary": "P0 hotfix 收尾机制：分支门禁和 pre-push 认识 hotfix issue——deploy/hotfix/windows.json 登记所有者批准、最长 7 天的窗口，main 领先 stage 的每个提交必须归属于窗口 issue，hotfix 的 issue 输入必须是开着的窗口；hotfix MR 合进 main 后由 scripts/hotfix-sync.mjs 同步镜像并把 main 合回 stage（冲突只自动处理生成物），GitLab 流水线默认关闭地调用它。承接已合并的 MR !51，该合并前的声明见 604df9eb。",
   "applications": [
     "server"
   ],
   "domains": [
-    "audit",
-    "competitions",
-    "feedback",
-    "forum",
-    "gitlab",
-    "identity",
-    "mail",
-    "organization",
-    "permissions",
-    "platform",
-    "recruitment"
+    "platform"
   ],
-  "flows": [
-    "flow:competition.create",
-    "flow:mail.template.list",
-    "flow:console.forum.categories.list",
-    "flow:gitlab.accounts.list",
-    "flow:application.settings.read",
-    "flow:permissions.groups.list",
-    "flow:audit.console.activity.list",
-    "flow:feedback.categories"
-  ],
+  "flows": [],
   "assessments": {
     "business": {
       "status": "not-applicable",
-      "reason": "不改变任何用户可见的业务规则：改动只在部署契约、检查脚本、清单、工作流和文档。内部赛事官网的行为不变，只是新增线上烟测覆盖它。",
+      "reason": "不改变用户可见的业务规则，改动只在分支门禁、hotfix 计划校验、同步脚本、流水线定义和规范文档。",
       "evidence": [
-        "scripts/parity.mjs",
-        "deploy/parity/smoke.json"
+        "scripts/check-branch-invariants.mjs",
+        "scripts/hotfix-windows.mjs"
       ]
     },
     "backend": {
-      "status": "changed",
-      "reason": "删除 GET /api/console/departments：全部页面（portal、console、forum）、CLI、脚本与反代都不调用它，控制台读部门走 GET /api/public/departments；同时删 contracts.ts 条目、organization.departments.list 流程声明和对应文档。departments 表与 role-store 不动。其余服务端路由不改。邮件链接白名单里写死的域名按遗留位置登记在例外表里，不在本次改动。",
+      "status": "unchanged",
+      "reason": "不改任何服务端路由、数据库表或接口契约。",
       "evidence": [
-        "app/server/src/routes/console/index.ts",
-        "app/server/src/routes/console/contracts.ts",
-        "tests/server/console.test.ts",
-        "docs/services/server/endpoint-contracts.md"
+        "scripts/hotfix-policy.mjs"
       ]
     },
     "permissions": {
       "status": "changed",
-      "reason": "少了一个需要 console.access 的只读入口，没有新增或放宽任何权限；同构清单的豁免仍只接受所有者署名和原话。",
+      "reason": "放行 main 领先 stage 的唯一依据是 main 上登记的窗口：必须有所有者 Crosery 署名、批准时间和原话，最长 7 天，超期或格式不对一律按原不变量失败；deploy-hotfix 的 issue 必须是开着的窗口，生产环境审批仍由所有者在 GitHub 点。.gitlab-ci.yml 只用 CI job token，默认关闭。",
       "evidence": [
-        "app/server/src/routes/console/index.ts",
-        "scripts/parity.mjs"
+        "scripts/hotfix-windows.mjs",
+        "scripts/hotfix-policy.mjs",
+        ".gitlab-ci.yml"
       ]
     },
     "data": {
       "status": "unchanged",
-      "reason": "不改表和存储格式，departments 表与数据原样保留。对齐口径明确为表结构对齐、数据只对齐格式：同构清单不复制预发布的数据行，烟测的 sameShape 只比公开 JSON 的键和值类型。本次不对任何库写入。",
+      "reason": "不碰任何库和存储，只新增一份登记文件。",
       "evidence": [
-        "app/server/src/routes/console/index.ts",
-        "deploy/parity/smoke.json",
-        "docs/conventions/RELEASE-PARITY.md",
-        "docs/services/server/data-model.md"
+        "deploy/hotfix/windows.json"
       ]
     },
     "dependencies": {
       "status": "changed",
-      "reason": "deploy-production.yml 与 deploy-hotfix.yml 新增 parity job（读清单，无网络和密钥）和 smoke job（部署成功后访问正式公开地址；正式 tag 部署另读预发布 origin 做对比）。GitLab 片段新增对宿主文件 /etc/gitlab/yzgc-oidc-issuer 的读取，宿主文件由运维写入，缺失时 gitlab-ctl reconfigure 会失败而不是回落到某个环境。 package.json 只新增 check:env-isolation 脚本入口，不增删依赖，锁文件不变。",
+      "reason": "新增 GitLab 流水线定义，只在项目变量 HOTFIX_SYNC_ENABLED=true 且 main 更新时运行 hotfix-sync；不增删依赖，锁文件不变。无人值守触发还要所有者启用项目的 CI job token 推送和 GitHub 推送镜像（凭据由所有者决定，不在仓库里）。",
       "evidence": [
-        "deploy/gitlab/gitlab-oidc.rb",
-        ".github/workflows/deploy-production.yml",
-        ".github/workflows/deploy-hotfix.yml",
-        "package.json"
+        ".gitlab-ci.yml",
+        "scripts/hotfix-sync.mjs"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "新增 docs/conventions/RELEASE-PARITY.md；AGENTS.md 第 0、3、5 节、RELEASES、BRANCHING、CODE-REVIEW 第 15 项、AGENT-START、README 阅读地图、ENVIRONMENTS（三份 env 与差异键）、ENVIRONMENT、CICD（parity/smoke）、DEPLOY、GITLAB（签发者与哈希表）、oidc.md、验收模板同步；新增 release-parity 技能并在 code-review 技能加第 16 项；PR 模板风险段提示登记同构清单。",
+      "reason": "BRANCHING 的 Hotfix 规约改为窗口登记与自动同步，RELEASES 的 hotfix 入口要求窗口，AGENTS.md 第 1 节的 main 例外写明窗口与同步命令。",
       "evidence": [
-        "docs/conventions/RELEASE-PARITY.md",
-        "AGENTS.md",
-        "docs/ops/ENVIRONMENTS.md",
-        "docs/ops/CICD.md"
+        "docs/conventions/BRANCHING.md",
+        "docs/conventions/RELEASES.md",
+        "AGENTS.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "tests/tooling/env-isolation.test.ts 覆盖三份模板键集、隔离、同构、密钥、本机安全和写死域名登记的失败与通过；tests/tooling/parity.test.ts 覆盖清单状态机、豁免署名、require 与 mirror 烟测、两条工作流的 parity 与 smoke job；static-cdn-workflows 的 build needs 断言随之更新。对真实线上跑过 smoke（正式、预发布均通过）与 compare（正式缺 /oidc 被报出）。未验证：parity、smoke 两个 job 在 GitHub Actions 上的真实运行，需下一次 hotfix 部署时观察。",
+      "reason": "branch-invariants 测试覆盖窗口放行、未归属、SHA 列表、关闭/过期/损坏登记、缺原话与超 7 天、pre-push 的 main 与 stage；hotfix-policy 测试覆盖未登记、已关闭、过期、tag 不符；hotfix-sync 用双裸仓库覆盖线性、分叉、冲突时全部引用不变、生成物重生成、镜像分叉预检、保留已有 task 分支和 pre-push 钩子，以及窗口关闭不带入 stage 未发布功能与重复执行幂等。未验证：.gitlab-ci.yml 在真实 runner 上的运行。",
       "evidence": [
-        "tests/tooling/env-isolation.test.ts",
-        "tests/tooling/parity.test.ts",
-        "tests/tooling/static-cdn-workflows.test.ts"
+        "tests/tooling/branch-invariants.test.ts",
+        "tests/tooling/hotfix-policy.test.ts",
+        "tests/tooling/hotfix-sync.test.ts"
       ]
     },
     "delivery": {
       "status": "changed",
-      "reason": "不改运行时镜像和 env 渲染。正式部署前新增 parity 门禁：清单还有 pending 时 build 不会开始，目前有 7 条正式待做（OIDC 密钥、Google 登录、GitLab 令牌、OIDC 客户端、GitLab 签发者、DNS、CDN 构建），下一次正式部署需先做完或由所有者逐条豁免。本次合入 main 不需要重新部署正式栈。",
+      "reason": "deploy-hotfix 在 plan 阶段多一道登记校验；没有登记窗口的 hotfix 不再能派发。不改镜像和运行栈。",
       "evidence": [
-        "deploy/parity/ledger.json",
-        ".github/workflows/deploy-production.yml"
+        "scripts/hotfix-policy.mjs",
+        "deploy/hotfix/windows.json"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "scripts/check-env-isolation.mjs",
-        "deploy/env/.env.dev",
-        "deploy/env/origin-exceptions.json",
-        ".env.example",
-        "package.json",
-        "tests/tooling/env-isolation.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "application:server"
-      ],
-      "reason": "环境隔离检查与第三份 env 模板：键集一致、值互相隔离、代码里的环境域名登记；接入 pnpm check。"
-    },
-    {
-      "paths": [
-        "deploy/gitlab/gitlab-oidc.rb",
-        "scripts/deploy-manual.mjs"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "application:server"
-      ],
-      "reason": "去掉写死的预发布签发者（改读宿主文件）和手工部署工具里写死的预发布 origin（改读 deploy/environments.json）。"
-    },
-    {
-      "paths": [
-        "scripts/parity.mjs",
-        "deploy/parity/ledger.json",
-        "deploy/parity/smoke.json",
-        "tests/tooling/parity.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "application:server"
-      ],
-      "reason": "预发布到正式的同构清单与发版烟测，含内部赛事官网的 require 与 mirror 检查。"
-    },
-    {
-      "paths": [
-        ".github/workflows/deploy-production.yml",
-        ".github/workflows/deploy-hotfix.yml",
-        "tests/tooling/static-cdn-workflows.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "application:server"
-      ],
-      "reason": "两条正式部署工作流新增 parity 门禁 job 与部署后的 smoke job，build 依赖 parity。"
-    },
-    {
-      "paths": [
+        "scripts/hotfix-windows.mjs",
+        "deploy/hotfix/windows.json",
+        "scripts/check-branch-invariants.mjs",
+        "scripts/hotfix-policy.mjs",
+        "tests/tooling/branch-invariants.test.ts",
+        "tests/tooling/hotfix-policy.test.ts",
+        "scripts/hotfix-sync.mjs",
+        "tests/tooling/hotfix-sync.test.ts",
+        ".gitlab-ci.yml",
         "AGENTS.md",
-        "docs/conventions/RELEASE-PARITY.md",
-        "docs/conventions/RELEASES.md",
         "docs/conventions/BRANCHING.md",
-        "docs/conventions/CODE-REVIEW.md",
-        "docs/conventions/AGENT-START.md",
-        "docs/README.md",
-        "docs/INDEX.md",
-        ".github/pull_request_template.md",
-        ".agents/skills/release-parity/SKILL.md",
-        ".agents/skills/code-review/SKILL.md",
-        ".claude/skills/release-parity",
-        ".omp/skills/release-parity"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "硬规范与提示词规范：根入口、发布与分支规范、审查清单、阅读地图、PR 模板和 agent 技能同步写入同构规则。"
-    },
-    {
-      "paths": [
-        "docs/ops/ENVIRONMENTS.md",
-        "docs/ops/ENVIRONMENT.md",
-        "docs/ops/CICD.md",
+        "docs/conventions/RELEASES.md",
         "docs/ops/DEPLOY.md",
-        "docs/ops/GITLAB.md",
-        "docs/ops/RELEASE-ACCEPTANCE-TEMPLATE.md",
-        "docs/services/server/oidc.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "运维文档同步：三份 env 与差异键、parity 与 smoke job、GitLab 签发者读宿主文件及哈希表、验收模板加同构核对。"
-    },
-    {
-      "paths": [
+        "docs/ops/CICD.md",
+        "deploy/parity/ledger.json",
+        "tests/tooling/parity.test.ts",
+        "scripts/check-architecture.mjs",
+        "tests/tooling/architecture-alignment.test.ts",
         "docs/architecture/catalog/CATALOG.md",
         "docs/architecture/catalog/catalog.json",
         "docs/architecture/catalog/data-model.md",
         "docs/architecture/catalog/map.html",
         "docs/architecture/catalog/permissions.md",
-        "docs/architecture/catalog/routes.md"
+        "docs/architecture/catalog/routes.md",
+        "tests/tooling/task-worktree.test.ts"
       ],
       "domains": [
         "platform"
@@ -221,185 +112,22 @@
       "nodes": [
         "domain:platform"
       ],
-      "reason": "服务与运维文档更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
-    },
-    {
-      "paths": [
-        "app/server/src/routes/console/index.ts",
-        "app/server/src/routes/console/contracts.ts",
-        "app/server/src/routes/console/departments.ts",
-        "app/server/src/lib/roles.ts",
-        "tests/server/console.test.ts",
-        "docs/architecture/catalog/ownership.json"
-      ],
-      "domains": [
-        "audit",
-        "competitions",
-        "feedback",
-        "forum",
-        "gitlab",
-        "identity",
-        "mail",
-        "organization",
-        "permissions",
-        "platform",
-        "recruitment"
-      ],
-      "nodes": [
-        "domain:audit",
-        "domain:competitions",
-        "domain:feedback",
-        "domain:forum",
-        "domain:gitlab",
-        "domain:identity",
-        "domain:mail",
-        "domain:organization",
-        "domain:permissions",
-        "domain:platform",
-        "domain:recruitment"
-      ],
-      "reason": "删除没有任何页面调用的 GET /api/console/departments：路由文件、注册、contracts 条目、业务流程声明、测试（改为断言 404）和 roles.ts 里的说明。表与数据不动。 console 的 contracts.ts、index.ts 与 roles.ts 同时是多个业务域路由记录的源码文件，这些域的行为都没有变，只是少了一条路由和一处说明。"
-    },
-    {
-      "paths": [
-        "docs/services/server/endpoint-contracts.md",
-        "docs/services/server/data-model.md",
-        "docs/architecture/API.md"
-      ],
-      "domains": [
-        "organization"
-      ],
-      "nodes": [
-        "domain:organization"
-      ],
-      "reason": "服务端合同与接口手册去掉已删除的部门接口；API.md 里早已不存在的部门写接口三行一并去掉，data-model 的读者改指向 GET /api/public/departments。"
-    },
-    {
-      "paths": [
-        "deploy/remote/systemd/yzgc-compose@.service",
-        "deploy/remote/systemd/hk-tunnel-watchdog.service.d/tolerate-loss.conf",
-        "docs/ops/DEPLOY.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "Arch 站点编排单元对 egress 改 Wants、隧道看门狗容忍丢包：隧道抖动不再把六个站点容器停掉再拉起。已装到 Arch，回滚文件和命令写在 DEPLOY.md。"
-    },
-    {
-      "paths": [
-        "deploy/remote/cdn-mirror.sh",
-        "deploy/remote/systemd/cdn-mirror.service",
-        "deploy/remote/systemd/cdn-mirror.timer",
-        "deploy/remote/systemd/cdn-mirror-watch.service",
-        "deploy/remote/systemd/cdn-mirror-watch.timer",
-        "docs/ops/STORAGE-CDN.md",
-        "tests/tooling/cdn-mirror.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "Garage 单副本没有备份：Arch 每天用只读密钥单向镜像五个桶，被覆盖或删除的对象进回收目录保留 14 天，逐桶核验对象数、字节数和逐对象校验，每小时检查新鲜度。只读，不改 Garage，不改应用。"
-    },
-    {
-      "paths": [
-        "deploy/gitlab/migrate-oidc-subjects.mjs",
-        "tests/tooling/oidc-subject-migration.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "GitLab 改接正式前搬 sub：只按不可变身份对账，缺省只演算，--apply 才新增行，冲突整批拒绝；一次性运维脚本，不安装、不进应用代码。"
-    },
-    {
-      "paths": [
-        "deploy/remote/install-host.sh",
-        "deploy/remote/cdn-mirror.hosts",
-        ".github/workflows/deploy-preview.yml",
-        "tests/tooling/install-host.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "宿主层物料（systemd 单元、看门狗覆盖项、CDN 镜像）改由部署工作流在栈部署后安装并核对，开发者不再需要登录目标机；镜像凭据由环境 secret 经 stdin 写入。"
-    },
-    {
-      "paths": [
-        "deploy/gitlab/cutover.sh",
-        ".github/workflows/gitlab-cutover.yml",
-        "tests/tooling/gitlab-cutover.test.ts",
-        "tests/tooling/hosted-runners.test.ts",
-        "docs/ops/CICD.md"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "GitLab 统一登录改接的宿主侧步骤放进手动触发的工作流（production 审批，缺省演算），含登记客户端、搬 sub、换签发者、回滚，假 docker 与 curl 的 CI 测试。"
-    },
-    {
-      "paths": [
-        "AGENTS.md",
-        ".agents/skills/release-parity/SKILL.md",
-        "docs/conventions/RELEASE-PARITY.md",
-        "scripts/parity.mjs",
-        "tests/tooling/parity.test.ts"
-      ],
-      "domains": [
-        "platform"
-      ],
-      "nodes": [
-        "domain:platform"
-      ],
-      "reason": "规范：宿主与一次性运维必须有流水线路径；同构清单增加 post_deploy 阶段和 check --complete。"
+      "reason": "hotfix 窗口登记限定已批准、未过期的 P0，分支门禁与 pre-push 同源判定；同步在唯一临时分支准备合并，非生成物冲突和已知镜像分叉在任何推送前失败。保留 Git 钩子与既有分支；关闭窗口只在 main 提交登记，再合回 stage，不把 stage 未发布功能带进 main。GitLab 流水线默认关闭地调用它。"
     }
   ],
   "documents": [
-    "docs/architecture/API.md",
-    "docs/conventions/RELEASE-PARITY.md",
-    "docs/ops/CICD.md",
+    "docs/conventions/BRANCHING.md",
+    "docs/conventions/RELEASES.md",
     "docs/ops/DEPLOY.md",
-    "docs/ops/ENVIRONMENTS.md",
-    "docs/ops/GITLAB.md",
-    "docs/ops/STORAGE-CDN.md",
-    "docs/services/server/data-model.md",
-    "docs/services/server/endpoint-contracts.md"
+    "docs/ops/CICD.md"
   ],
   "tests": [
-    "tests/server/console.test.ts",
-    "tests/tooling/env-isolation.test.ts",
-    "tests/tooling/parity.test.ts",
-    "tests/tooling/static-cdn-workflows.test.ts",
-    "tests/tooling/cdn-mirror.test.ts",
-    "tests/tooling/oidc-subject-migration.test.ts",
-    "tests/tooling/install-host.test.ts",
-    "tests/tooling/gitlab-cutover.test.ts",
-    "tests/tooling/hosted-runners.test.ts"
+    "tests/tooling/branch-invariants.test.ts",
+    "tests/tooling/hotfix-policy.test.ts",
+    "tests/tooling/hotfix-sync.test.ts",
+    "tests/tooling/task-worktree.test.ts"
   ],
-  "compatibility": "运行时无变化。GitLab 片段改读宿主文件：重新应用片段前，宿主 /srv/gitlab/config/yzgc-oidc-issuer 必须已写好（当前预发布值），否则 reconfigure 失败；已运行的 GitLab 不受影响。deploy-hotfix 与 deploy-production 在清单有 pending 时会拒绝构建，这是新增的门禁。 被删的接口没有页面、CLI、脚本调用；已打开的旧页面不调用它，不受影响。",
-  "migration": "不涉及表结构和配置键变化。同构清单里 pending 对应的正式动作（密钥、客户端登记、GitLab 签发者、DNS、CDN 构建）由所有者授权后逐条执行。",
-  "rollback": "revert 本合并提交即可恢复旧工作流与旧片段；宿主上新增的 yzgc-oidc-issuer 文件无副作用。清单和烟测不改任何运行中的栈。",
-  "removals": [
-    {
-      "path": "app/server/src/routes/console/departments.ts",
-      "baseAnchor": "app.get(\"/api/console/departments\"",
-      "reason": "没有任何页面、CLI、脚本或外部协议调用的只读接口；控制台读部门名册走 GET /api/public/departments。业务流程 organization.departments.list 随路由一并删除，departments 表与数据不动。",
-      "domains": [
-        "organization"
-      ]
-    }
-  ]
+  "compatibility": "deploy-hotfix 现在要求 issue 在 deploy/hotfix/windows.json 里有开着的窗口；已有的 #309 窗口随本次合入 main。分支门禁在没有登记时与原来完全一致。",
+  "migration": "不涉及表结构和配置键变化。",
+  "rollback": "revert 本合并提交即可恢复原门禁与 hotfix 计划；登记文件无运行时副作用。"
 }

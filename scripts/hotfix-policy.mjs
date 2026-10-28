@@ -5,17 +5,25 @@ import { realpathSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseReleaseTag, packageVersionAt } from './release-policy.mjs';
 import { readEnvironment, deploymentTarget, imageRepositoryPrefix } from './deployment-environment.mjs';
+import { WINDOWS_FILE, activeWindows, readRegistryAt, validateWindows } from './hotfix-windows.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const git = (repo, ...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', timeout: 20000 }).trim();
 
-export function planHotfix({ repo = process.cwd(), root = repo, tag, commit, event, ref, workflowSha, issue }) {
+export function planHotfix({ repo = process.cwd(), root = repo, tag, commit, event, ref, workflowSha, issue, now = new Date() }) {
   if (event !== 'workflow_dispatch' || ref !== 'refs/heads/main') throw new Error('hotfix 只允许从 main 手工触发');
   if (!SHA.test(commit ?? '') || workflowSha !== commit) throw new Error('修复 SHA 必须为完整 SHA，且等于本次工作流 SHA');
   if (!/^[1-9]\d*$/.test(String(issue ?? ''))) throw new Error('必须提供已授权的 P0 issue 编号');
   const release = parseReleaseTag(tag);
   if (release?.kind !== 'final') throw new Error('hotfix 只接受既有正式版本 tag');
   if (git(repo, 'rev-parse', 'HEAD') !== commit || git(repo, 'rev-parse', 'refs/remotes/origin/main') !== commit) throw new Error('修复必须精确等于检出的 HEAD 与最新 origin/main');
+  // issue 必须是 main 上登记、仍开着、没过期的 P0 hotfix 窗口，并且窗口绑定的正式版本就是这次的 tag
+  const registry = readRegistryAt(repo, commit);
+  const invalid = registry ? validateWindows(registry) : [`${WINDOWS_FILE} 不存在`];
+  if (invalid.length) throw new Error(`hotfix 窗口登记不可用：${invalid.join('；')}`);
+  const window = activeWindows(registry, now).find(item => item.issue === Number(issue));
+  if (!window) throw new Error(`issue #${issue} 没有开着的 hotfix 窗口（${WINDOWS_FILE} 里没登记、已 closed 或已过期）：先由所有者批准并登记`);
+  if (window.tag !== tag) throw new Error(`hotfix 窗口 #${issue} 绑定的是 ${window.tag}，不是 ${tag}`);
   const baseCommit = git(repo, 'rev-parse', `refs/tags/${tag}^{commit}`);
   if (!SHA.test(baseCommit) || baseCommit === commit) throw new Error('hotfix 必须是既有 tag 之后的新修复提交');
   git(repo, 'merge-base', '--is-ancestor', baseCommit, commit);

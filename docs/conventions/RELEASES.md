@@ -130,9 +130,9 @@ Agent 可以整理候选改动、测试结果、差异和空白模板，**不能
 
 2026-10-28 所有者明确授权 P0 hotfix 的独立路径：从最新 `main` 修复，保持当前正式版本，不发 rc、不新建版本 tag，正式修复并验证后再合回 `stage`。本节是上文常规发布的明确例外，不以常规 rc 前置阻塞已授权的线上止血。
 
-`deploy-hotfix.yml` 只允许 `workflow_dispatch` 从 `main` 发起，输入既有正式 `tag`、当前 main 的完整 `commit` 和已批准的 P0 `issue`。`scripts/hotfix-policy.mjs` 核对工作流 SHA、HEAD、origin/main 三者相同；既有 tag 必须是修复提交的祖先，两个提交的版本都等于 tag 去掉 v。tag 只作版本锚点，保持原对象不动；`release.json.commit`、镜像 `<sha12>` 与部署记录标明真正的修复提交，不能把新代码伪称为旧 tag 的字节。
+`deploy-hotfix.yml` 只允许 `workflow_dispatch` 从 `main` 发起，输入既有正式 `tag`、当前 main 的完整 `commit` 和已批准的 P0 `issue`；`issue` 必须是 `deploy/hotfix/windows.json` 里 `open`、没过期且绑定这个 `tag` 的窗口（登记规则见 [BRANCHING 的 Hotfix 规约](BRANCHING.md#线上紧急修复hotfix规约)）。`scripts/hotfix-policy.mjs` 核对工作流 SHA、HEAD、origin/main 三者相同；既有 tag 必须是修复提交的祖先，两个提交的版本都等于 tag 去掉 v。tag 只作版本锚点，保持原对象不动；`release.json.commit`、镜像 `<sha12>` 与部署记录标明真正的修复提交，不能把新代码伪称为旧 tag 的字节。
 
-hotfix 不读取或制造 rc 验收记录。它独立运行完整核心检查/测试/构建和论坛检查/生成，以 `hotfix-verify` 汇总；核对当前线上同版本和同 SHA 成功生产部署记录，审批后再核对一次避免版本漂移。生产审批、环境哨兵、SSH 目标、CDN 完整校验、生产备份及隔离恢复、镜像校验和、部署锁、健康门与回滚均保留。`required_contexts` 明确要求 `hotfix-verify`，不把普通 CI 在 hotfix 窗口内的 main/stage 不变量失败写成成功。窗口结束后同步 `stage`，重新核对常规 CI 与 `stage >= main`。
+hotfix 不读取或制造 rc 验收记录。它独立运行完整核心检查/测试/构建和论坛检查/生成，以 `hotfix-verify` 汇总；核对当前线上同版本和同 SHA 成功生产部署记录，审批后再核对一次避免版本漂移。生产审批、环境哨兵、SSH 目标、CDN 完整校验、生产备份及隔离恢复、镜像校验和、部署锁、健康门与回滚均保留。`required_contexts` 明确要求 `hotfix-verify`，不把普通 CI 在 hotfix 窗口内的 main/stage 不变量失败写成成功。hotfix MR 合进 `main` 后立刻用 `scripts/hotfix-sync.mjs` 把 `main` 合回 `stage`（[BRANCHING](BRANCHING.md#hotfix-合并后的自动同步)），重新核对常规 CI 与 `stage >= main`。
 
 正式发布后暴露的影响用户的问题按 [BRANCHING.md](BRANCHING.md) 处理：
 1. **开 Issue 与打标**：按 [ISSUES](ISSUES.md) §1 先取得 Crosery 对紧急事项、操作范围和建单安排的确认，再开 Issue 记录故障现象并打上 `hot-fix` 与 `P0` 标签；不得因紧急或事后补单自动建单。
