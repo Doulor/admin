@@ -131,6 +131,18 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 这是待合并源码的合同，不会回溯修改旧 tag。2026-10-26 已用同一 `ssh-config` 入口、项目专用 key、双端严格 known_hosts 实测两环境 SSH/SCP 成功；香港该 key 的本地 TCP 转发目标限制为 Arch:22，执行 shell 被拒绝。此证据来自维护者机器，不冒称 GitHub runner 已运行新流程。恢复副本隔离仍见 [ENVIRONMENTS](ENVIRONMENTS.md#副本启动安全门禁)，已接管的权威源不套用副本关闭外发的值。
 
 
+## 同版本 P0 hotfix（#306）
+
+所有者 2026-10-28 确认的流程见 [RELEASES](../conventions/RELEASES.md#线上紧急缺陷hotfix规约)。新增第十一条工作流 `deploy-hotfix.yml`，只从 `main` 手工触发，输入当前正式版本 tag、明确的 main 完整 SHA 和已批准的 P0 issue。不创建、不移动 tag，不改版本号，不制造 rc 证据。
+
+- `plan` 用只读 `hotfix-policy.mjs` 绑定当前 main、检出 HEAD、工作流 SHA、历史 tag 祖先与提交态版本，核对文档和环境契约。
+- `core` 跑 `pnpm check/test/build`，`forum` 使用与常规 CI 相同的 Node 26/pnpm 11 独立检查和生成；`hotfix-verify` 汇总这两项成功并验证线上同版本及成功生产 deployment。普通 CI 的分支不变量仍按原规则报告，不用假绿掩盖 hotfix 期间 main 暂时领先。
+- CDN 规划、三镜像构建、内容验证和部署步骤沿用 `deploy-production.yml` 的合同；本工作流与常规正式发布共用 `deploy-production` 并发锁，所有 job 仍在 GitHub 托管 runner。维护这些步骤时同步两份工作流。
+- `production` 与 `static-cdn` 的部署来源规则需要额外精确允许 `main`，原 tag 规则和生产 required reviewers 保留；不允许 task、stage 或任意分支取得生产密钥。
+- 审批后重新核对 main/tag/线上版本，分发前要求 `yzgc-backup@production.service` 完成一致性备份及隔离恢复验证。镜像与 env 仍经原有校验、`deploy-stack.sh` 健康门和自动回滚。模板密钥留空，production 的 Google 客户端配置经本环境 secrets 注入。
+- deployment 的 `ref` 是实际修复 SHA，payload 的 `mode=hotfix`、`base_tag_commit`、`issue` 与 `tag` 一起保留；required context 为真实运行的 `hotfix-verify`，不是修改普通 `verify` 状态。
+- 正式验证后将 main 合回 stage，再核对双仓 refs 与 `git merge-base --is-ancestor main stage`。回滚选择部署历史里的上一生产镜像 SHA，不恢复旧数据库覆盖上线后的新写入。
+
 ## 证据链与失败关闭
 
 `deploy-production` 在构建前核对以下证据，任一缺失即失败关闭：

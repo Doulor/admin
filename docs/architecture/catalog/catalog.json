@@ -17008,7 +17008,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "2080cb13449361af4ad0db198b887ea735e0af26680632f4f637bb4242cbc583",
+    "fingerprint": "03f213dcbacd2fbc2b58df09c420fe0b527004ee3f94d89b244b67bab0712885",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17020,7 +17020,7 @@
       },
       {
         "path": "app/console/package.json",
-        "sha256": "c554c019fa347b00d2d9515151834b58ab0153a2047fc442cdbb0753f8427ae8"
+        "sha256": "39c2fe4f228015954a5edd5205428331d5f8919778c950a99fcfca67885c99bf"
       },
       {
         "path": "app/console/src/App.vue",
@@ -17888,7 +17888,7 @@
       },
       {
         "path": "app/server/package.json",
-        "sha256": "b8c795653242934d89d6e954106de9ef0ab61c36187a5a6508768debf6be6afa"
+        "sha256": "3f901bd6fe4e07329892f5a6d60b9c20c2db29e89e86a3e45fb5a339c405a2ea"
       },
       {
         "path": "app/server/src/app.ts",
@@ -18484,7 +18484,7 @@
       },
       {
         "path": "app/web/package.json",
-        "sha256": "2d58cee43ff988f9a19883bc6e2e50448f15d6fd3b7aa726e4365ed8f0e5875d"
+        "sha256": "3531938cfce4a767b2e21e2fd04e608456c93cc7a1b9aa79ba39e0ff14b6546f"
       },
       {
         "path": "app/web/shared/competition-sdk/index.ts",

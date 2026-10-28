@@ -2,7 +2,7 @@
 
 > 只有 `main`（正式）与 `stage`（预发布）两条长期分支；task 分支合并后必须立即删除，任何操作前先确认当前分支。
 
-状态：`current` · 更新：2026-10-18 · 依据：明确指令（2026-09-23 分支模型；2026-09-24 改为打 tag 发版；2026-09-26 worktree 做完即清，推送前检查）。
+状态：`current` · 更新：2026-10-28 · 依据：明确指令（2026-09-23 分支模型；2026-09-24 改为打 tag 发版；2026-09-26 worktree 做完即清，推送前检查）。
 
 ## 第负一步：先确认分支
 
@@ -74,6 +74,8 @@ node scripts/check-branch-invariants.mjs --strict-long-lived # 把「main/stage 
 - 禁止 force-push `main`/`stage`，禁止整分支 reset 覆盖他人提交。
 
 ## 线上紧急修复（Hotfix）规约
+
+2026-10-28 所有者确认的 P0 例外：修复以最新 `main` 为基线，经审查与关键路径验证后先进 `main`，以既有正式版本的 hotfix 入口上线，不发 rc、不升号、不移动既有 tag；成功验证后立即合回 `stage`。常规分支不变量检查在这一明确的 hotfix 窗口内可能失败，不关闭或伪造它；独立 `hotfix-verify` 检查真实修复 SHA，收尾时恢复 `stage >= main` 并重跑常规 CI。实施合同见 [RELEASES 的 Hotfix 规约](RELEASES.md#线上紧急缺陷hotfix规约)。
 
 正式环境（`https://yangtzeu.work`）上线后若发生直接影响用户使用的严重故障（整页白屏、多媒体/核心流媒体无法播放、主流程阻断、安全事故等）：
 
