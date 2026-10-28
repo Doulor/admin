@@ -25,3 +25,21 @@
 - 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
 - 做了什么：fetch gitlab stage后确认其树与gitlab/main相同；把GitLab stage同步产生的合并历史纳入task/284/hotfix_sync，应用与工具源码不增加变化，避免GitHub PR合并后GitLab stage有并行merge提交而不能快进。
 - 结果：没有源文件冲突；最终stage仍通过受保护GitHub PR合并，之后GitLab可沿共同历史快进，不强推。fixture修复的无全局身份定向12条已通过，额外历史提交不改变源码。
+
+## 00:20:25 +08:00 · 返工 · #284 · CI 同步回归已过，补真实 Rust 离线测试的冷缓存前置
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：CI40722156304：2955 passed，hotfix-sync身份问题已消失；仅 cli-distribution 和 cli-skill-install 两条用例因 cargo --offline 找不到 anyhow 失败。Docker/CLI五目标、CDN开关构建、论坛、环境与分支门禁均成功。core与hotfix-core单测前补cargo fetch --manifest-path app/cli/Cargo.toml --locked；不改Cargo.lock或Rust实现，不删除offline、不改测试断言、不跳过真实CLI。
+- 结果：正在全新CARGO_HOME演练同一预取命令后运行两条真实离线CLI消费者；尚未把冷缓存烟测或新CI写为成功。旧SHA未合并、未部署。CICD文档与284声明同步说明前置。
+
+## 00:25:29 +08:00 · 提交 · #284 · 冷 Cargo 缓存预取与真实离线消费者验证完成
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：ci core与hotfix-core的原单测前新增cargo fetch --manifest-path app/cli/Cargo.toml --locked，原有cargo --offline用例不变。以全新/tmp/geek-cold-cargo-1G2nZ4作CARGO_HOME，从零fetch后用同一CARGO_HOME运行cli-distribution与cli-skill-install两个测试文件，真实编译、校验和安装隔离HOME的CLI并运行Rust技能安装harness；结束已清理该临时目录。CICD与宏观声明同步、目录重新生成。
+- 结果：冷缓存真实消费者：PASS (3) FAIL (0)，271.90秒；既有actionlint检查两份工作流无输出退出0；宏观对齐97文件/37节点、文档同步通过。不是改skip、删offline或改断言，不重跑未修复SHA求绿。
+
+## 00:25:29 +08:00 · 审查 · #284 · 冷 Runner 前置返工审查，有条件通过
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：审查新增两条cargo fetch：都在锁定依赖安装与原单测之间，使用既有Cargo.lock且--locked，不改crate版本、Cargo.lock、生产业务源码、offline约束、失败传播或环境审批。冷缓存演练3条真实用例通过；source同步身份隔离12条仍为既有验证路径，无新增实现。
+- 结果：有条件通过：需新head的完整CI与三项必需检查成功；前次core的2条offline缺依赖失败已记录，不冒称前次CI通过。

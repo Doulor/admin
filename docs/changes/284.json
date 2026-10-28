@@ -89,7 +89,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "携带环境隔离、同构、宿主运维和双仓同步行为回归。真实 GitHub hotfix-core 揭示临时工作仓库未配置提交身份，现仅修夹具的仓库本地身份，全部行为断言保留，并在禁用系统和全局 Git 配置下验证。本 PR 仍须通过三项必需检查，不用本机通过替代 CI。",
+      "reason": "携带同步回归并修复真实 CI 暴露的临时 Git 身份隔离；所有断言保留。新的 CI 已有2955条通过，但两个真实 Rust CLI 用例因冷 Cargo 缓存缺 anyhow 被 --offline 拒绝，因此 core/hotfix-core 在测试前按 Cargo.lock 执行 cargo fetch --locked，离线测试约束不变。不用开发机暖缓存或 Docker job 的独立缓存伪称本 job 已准备。",
       "evidence": [
         "tests/tooling/hotfix-sync.test.ts",
         "tests/tooling/env-isolation.test.ts",
@@ -462,6 +462,16 @@
       "domains": ["platform"],
       "nodes": ["domain:platform"],
       "reason": "真实 CI 暴露的夹具隔离缺陷：提交身份只配置在临时仓库供 worktree 继承，不改生产同步脚本，不增设全局身份，不删断言或放宽门禁；测试规范给出无全局配置的验证命令。"
+    },
+    {
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/deploy-hotfix.yml",
+        "docs/ops/CICD.md"
+      ],
+      "domains": ["platform"],
+      "nodes": ["domain:platform"],
+      "reason": "补齐新 runner 的真实验证前置：核心与 hotfix-core 先按既有 Cargo.lock 预取依赖，再运行原有离线 CLI 行为测试，不更改依赖版本、测试断言、离线约束或失败关闭规则。"
     },
     {
       "paths": [

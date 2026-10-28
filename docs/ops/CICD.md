@@ -2,7 +2,7 @@
 
 > 持续集成、宏观对齐与 `.env` 驱动的发布控制；发版只由发布 tag 触发（`vX.Y.Z-rc.N` → 预发布，`vX.Y.Z` → 正式），push 分支只跑 CI；部署开关默认关闭，机器检查不替代人工验收。
 
-状态：`accepted` · 更新：2026-10-28 · 适用：现有发布流程及 GitHub admin#270 的 Arch 迁移接管。源码入口为 `.github/workflows/ci.yml`、两条 `deploy-*.yml`、架构/issue/分支/测试报告工作流；CI 与部署使用 GitHub 托管 runner。历史已发布状态、保护配置与本 task 未提交变更分别取证，不把旧 actionlint/CI 通过记录推广到本次候选。
+状态：`accepted` · 更新：2026-10-29 · 适用：现有发布流程及 GitHub admin#270 的 Arch 迁移接管。源码入口为 `.github/workflows/ci.yml`、两条 `deploy-*.yml`、架构/issue/分支/测试报告工作流；CI 与部署使用 GitHub 托管 runner。历史已发布状态、保护配置与本 task 未提交变更分别取证，不把旧 actionlint/CI 通过记录推广到本次候选。
 
 发布规则以 [RELEASES](../conventions/RELEASES.md) 为唯一完整规范，分支模型以 [BRANCHING](../conventions/BRANCHING.md) 为准，环境字段契约见 [ENVIRONMENTS](ENVIRONMENTS.md)。
 
@@ -16,6 +16,8 @@
 - 旧 tag 执行自己的工作流，不会自动得到 ProxyJump 和新目标校验。GitHub SSH secrets 已指 Arch，旧 tag 缺少跳板能力，应失败关闭，不能靠补推旧 tag 验证新链路；不 force/mirror 或重造 tag 对象。
 - 原版双栈已由 Arch 接管，版本未变，见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。本轮只更新后续发布连接及源码合同，没有新的 rc 或正式版本批准；两个已有 enabled 开关保持不变，没有触发发布工作流。
 - 2026-10-26 实测 GitHub 账号及 admin 权限恢复。双环境各 5 项 SSH secrets 已更新，正式 10 项、预发布 12 项应用 secrets 按 Arch 原运行值同步；预发布补齐 Google 两项、OIDC_JWKS、GITLAB_API_TOKEN。API 回读共 preview 17 / production 15 项。环境哨兵、required reviewers、tag 规则、分支保护保持不变。
+
+核心单测包含真实 Rust CLI 分发与技能安装用例，测试中的 Cargo 以 `--locked --offline` 运行。`ci.yml` 的 `core` 和 `deploy-hotfix.yml` 的 `hotfix-core` 在单测前先运行 `cargo fetch --manifest-path app/cli/Cargo.toml --locked`，准备该锁文件的依赖；冷 runner 不依赖开发机缓存。预取失败就停止，不去掉测试的离线约束、不跳过两条真实 CLI 用例，也不以 Docker job 的独立缓存代替本 job 的依赖准备。
 
 
 ## 触发与职责

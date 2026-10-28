@@ -93,6 +93,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - name: 准备离线 CLI 集成测试依赖（锁文件不可变）
+        run: cargo fetch --manifest-path app/cli/Cargo.toml --locked
       - run: pnpm test
       - run: pnpm build
 
