@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   LEDGER_FILE, SMOKE_FILE, addEntry, beijingNow, gateReport, nextId, pendingEntries, runCompare, runRequire, shapeDiff, shapeOf, updateEntry, validateLedger,
@@ -54,10 +55,6 @@ describe("同构清单", () => {
     expect(pendingEntries(waived)).toEqual([]);
   });
 
-  it("发版前核对：仓库当前还有 pending，会拦住发版", () => {
-    expect(pendingEntries(readJson(LEDGER_FILE)).length).toBeGreaterThan(0);
-  });
-
   it("phase 缺省按部署前算，post_deploy 的条目不拦发版但要被收尾核对看到", () => {
     const { ledger } = addEntry(base(), { ...input, phase: "post_deploy", release: "0.1.1" });
     expect(pendingEntries(ledger, { phase: "pre_deploy" }).map(e => e.id)).toEqual(["P-0001"]);
@@ -83,13 +80,25 @@ describe("同构清单", () => {
     expect(() => gateReport(leftover, "release")).toThrow(/--version/);
   });
 
-  it("命令行：拼错的参数、release 缺版本都不是 0；仓库当前清单拦住 0.1.1 与更高版本", () => {
-    const cli = (...args: string[]) => spawnSync(process.execPath, ["scripts/parity.mjs", "check", ...args], { cwd: process.cwd(), encoding: "utf8" });
+  it("命令行：拼错的参数与 release 缺版本退出 2，拦住发版退出 1，格式正确退出 0", () => {
+    // 仓库那份清单会随正式收尾推进（条目 done、post_deploy 换版本），命令行行为要在临时根目录里验，
+    // 不把清单的瞬时状态写进断言。parity.mjs 的 root() 是脚本目录的上一级，所以整份拷过去即可。
+    const dir = mkdtempSync(join(tmpdir(), "parity-cli-"));
+    mkdirSync(join(dir, "scripts"), { recursive: true });
+    mkdirSync(join(dir, "deploy", "parity"), { recursive: true });
+    copyFileSync(resolve("scripts/parity.mjs"), join(dir, "scripts", "parity.mjs"));
+    const cli = (...args: string[]) => spawnSync(process.execPath, [join(dir, "scripts", "parity.mjs"), "check", ...args], { cwd: dir, encoding: "utf8" });
+    writeFileSync(join(dir, LEDGER_FILE), JSON.stringify(base(), null, 2));
     expect(cli("--relase").status).toBe(2);
     expect(cli("--release").status).toBe(2);
-    expect(cli("--release", "--version", "v0.1.1").status).toBe(1);
-    expect(cli("--release", "--version", "9.9.9").stderr).toMatch(/P-0007/);
     expect(cli().status).toBe(0);
+    expect(cli("--release", "--version", "0.2.0").status).toBe(1);
+    expect(cli("--release", "--version", "0.2.0").stderr).toMatch(/P-0001/);
+    // 部署前清零后，同一个版本放行；随版本部署的 post_deploy 只列出来，不拦自己这一版
+    const cleared = addEntry(updateEntry(base(), "P-0001", { status: "done", doneAt: "2026-10-28", evidence: "正式执行并验证通过" }), { ...input, phase: "post_deploy", release: "0.2.0" }).ledger;
+    writeFileSync(join(dir, LEDGER_FILE), JSON.stringify(cleared, null, 2));
+    expect(cli("--release", "--version", "0.2.0").status).toBe(0);
+    expect(cli("--complete").status).toBe(1);
   });
 });
 

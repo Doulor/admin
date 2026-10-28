@@ -89,3 +89,24 @@
 - 做了什么：所有者原话：「cdn是另外一台服务器，指向我们的线上服务干嘛，cdn是边缘对象存储，不能解析到我们自己的服务器」；「你先把线上p0 bug全部修复之后直接推正式发版，这点不需要我同意，只不过每次记得同步下stage分支保证stage>= MAIN 就行」。据此：同构清单 P-0008（cdn 的 A 记录改到香港边缘）按这句原话 waive，不做任何 DNS 改动；#305 文档里改指边缘的段落（docs/ops/STORAGE-CDN.md:39-41、DEPLOY.md:235）与所有者意思冲突，本次未改；hotfix 窗口登记、门禁与 hotfix-sync 已提交 bba6f95b，独立评审进行中；部署派发与生产环境审批按所有者的授权由我执行
 - 结果：parity.mjs check --release --version 0.1.1 退出 0，剩 P-0007、P-0009、P-0011 三条随本版本部署后处理；文档核对：docs/ops/STORAGE-CDN.md、docs/ops/DEPLOY.md 的 cdn 改指边缘段落不是本次改动，不改
 - 下一步：评审通过后合并 MR !52、推 main、hotfix-sync、派发 deploy-hotfix
+
+## 22:43:34 +08:00 · 返工 · #309 · 补齐文档核对：两条 doc-sync 报错来自 main 基线，不是本分支
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：pnpm check 的 check:doc-sync 以 origin/stage(331c0b5) 为 base，把 main 侧 228be7bf「增加 main 同版本 hotfix 并保持 0.1.1」里 app/web/package.json、app/console/package.json 的版本号 0.1.2→0.1.1 算进本次改动；本分支没有改这两个服务的行为、接口或表。文档核对：docs/services/web/ 不用改——只随 main 基线把版本号回落 0.1.1，页面、接口与构建方式未变。文档核对：docs/services/console/ 不用改——同上，只随 main 基线回落版本号，控制台接口与使用方式未变。
+- 结果：notes 已追加并重新生成 INDEX；改的是记录，不动检查脚本
+- 下一步：重跑 pnpm check 看是否只剩预期项
+
+## 22:44:21 +08:00 · 返工 · #309 · 文档核对按「；」分行重记，上一条两条挤在一行第二行没被识别
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：check:doc-sync 的 WAIVER_RE 用「；」分隔同一条记录里的多条文档核对；上一条把两条写在同一句里、中间是句号，第二条例被吞进第一条例的理由，所以 console 仍报红。本分支相对 origin/stage 只多出 main 基线 228be7bf 的版本号回落（0.1.2→0.1.1），没有改两个服务的页面、接口、表或构建方式。文档核对：docs/services/web/ 不用改——只随 main 基线把版本号回落 0.1.1；文档核对：docs/services/console/ 不用改——只随 main 基线把版本号回落 0.1.1，控制台接口与使用方式未变
+- 结果：这一条按规范用「；」分隔，重跑 check:doc-sync 应通过
+- 下一步：重跑 pnpm check
+
+## 22:54:32 +08:00 · 返工 · #309 · 接手 omp 会话：清单清零后 parity 测试反向失败、宏观对齐的默认基线不认识 hotfix
+
+- 执行者：agent-omp-geek-main-26（omp，deepseek-v4.1-flash）
+- 做了什么：uniflo 交接 claude:e05007e2（22:32 因 429 中断）后复跑门禁：1) tests/tooling/parity.test.ts 断言仓库清单拦 v0.1.1，清单按规范清零后必失败（独立评审第 3 项预测过），改为在临时根目录拷 scripts/parity.mjs 跑命令行，断言参数错误 2、拦住 1、清零后 0、--complete 1；删掉只断言仓库当前 pending>0 的用例。2) check-architecture 默认 --base origin/stage 把 main 自己的提交算进 hotfix 分支，加 hotfixBase()：该 task 的 issue 在窗口登记里开着（读 origin/main，本地未合入时读 HEAD）才把默认基线改成 origin/main，并补 5 条单测
+- 结果：pnpm check 退出 0（含 check:architecture 默认基线自动改用 origin/main、27 个变更文件）；tests/tooling/parity.test.ts 23 条、architecture-alignment.test.ts 23 条通过；文档核对：docs/conventions/ARCHITECTURE-ALIGNMENT.md 不用改——只改默认基线来源，八维检查项与结论格式未变
+- 下一步：全量 vitest 完成后提交、推送、开 MR !52
