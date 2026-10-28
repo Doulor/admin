@@ -34,6 +34,12 @@
 
 Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接 → 控制台静态 → 公共对象直链（`/{bucket}/{key}` 改写成 `/{key}` 并补 `Host: {bucket}.cdn.yangtzeu.work` 交 3902）→ 兜底控制台。
 
+## 主站边缘反代（#305）
+
+公网 `cdn.yangtzeu.work` 的 A 记录指向主站香港入口 `156.238.244.78`，由主站 `/etc/caddy/sites/storage-cdn-edge.caddy`（模板 [`deploy/storage-cdn/edge.caddy`](../../deploy/storage-cdn/edge.caddy)）反代到 Garage 机 `103.240.197.216` 的 HTTPS 入口。主站与 Garage 之间固定 `tls_server_name cdn.yangtzeu.work` 并保留原始 Host、路径、查询串和 Authorization；S3 SigV4 仍在 Garage 的 Caddy 上验证。反代不改写 CORS、Range、MIME 或缓存头，不做第二份缓存。
+
+这条链路解决直连 Garage 公网入口的丢包与长 RTT，不把单机存储变成多节点 CDN。安装与切换顺序：先把模板放到主站非 import 目录并完成 `caddy validate`，再安装到 `/etc/caddy/sites/`、复核并 `systemctl reload caddy`；TLS 与公共对象通过后才把 `cdn` 的 A 记录从 `103.240.197.216` 改为 `156.238.244.78`。回滚只需把该 A 记录改回 `103.240.197.216`，主站反代文件不影响其它站点，不 restart 相邻服务。
+
 ## 存储桶
 
 | 桶 | 权限 | 用途 |
