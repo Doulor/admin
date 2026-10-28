@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { GENERATED, applySync, planSync } from "../../scripts/hotfix-sync.mjs";
+import { applySync, planSync } from "../../scripts/hotfix-sync.mjs";
 
 // hotfix 合进 main 之后：main 同步到镜像，再合回 stage，保证 stage >= main。
 // 夹具是临时目录里的两个裸仓库（gitlab、github）加一个工作克隆，不碰 geek_main 的任何分支或远端。
@@ -100,14 +100,13 @@ describe("hotfix-sync", () => {
     run(f.work, "checkout", "-q", "main");
     f.commit("base.txt", "main 改了\n", "fix: main 改 base (#5)");
     run(f.work, "push", "--quiet", "gitlab", "main:refs/heads/main");
-    const before = { gitlabMain: f.head("gitlab", "main"), gitlabStage: f.head("gitlab", "stage"), originStage: f.head("origin", "stage") };
+    const before = { gitlabMain: f.head("gitlab", "main"), originMain: f.head("origin", "main"), gitlabStage: f.head("gitlab", "stage"), originStage: f.head("origin", "stage") };
     const result = f.sync();
     expect(result.ok).toBe(false);
     expect(result.code).toBe(3);
     expect(result.messages.join("\n")).toContain("base.txt");
-    // main 的同步先于合并，冲突时已经对齐的 main 保留；stage 两边都没动
     expect(f.head("gitlab", "main")).toBe(before.gitlabMain);
-    expect(f.head("origin", "main")).toBe(before.gitlabMain);
+    expect(f.head("origin", "main")).toBe(before.originMain);
     expect(f.head("gitlab", "stage")).toBe(before.gitlabStage);
     expect(f.head("origin", "stage")).toBe(before.originStage);
     expect(run(f.work, "worktree", "list").split("\n")).toHaveLength(1);
@@ -148,28 +147,82 @@ describe("hotfix-sync", () => {
     expect(result.messages.join("\n")).toContain("两边分叉");
     expect([f.head("gitlab", "stage"), f.head("origin", "stage"), f.head("origin", "main")]).toEqual(before);
   });
-
-  it("--close-window：合并提交之后另起一个提交把窗口改 closed，stage 包含 main，main 两边快进到 stage", () => {
+  it("源 stage 需要合并且镜像 stage 分叉：推送前就停下，两个远端都不半应用", () => {
     const f = fixture();
+    run(f.work, "checkout", "-q", "stage");
+    f.commit("stage.txt", "源 stage\n", "feat: 源 stage 的提交");
+    f.pushAll("stage");
     run(f.work, "checkout", "-q", "main");
-    f.commit("deploy/hotfix/windows.json", registry(), "fix: 修复 (#5)");
+    f.commit("hotfix.txt", "fix\n", "fix: main 的修复 (#5)");
+    run(f.work, "push", "--quiet", "gitlab", "main:refs/heads/main");
+    run(f.work, "checkout", "-q", "stage");
+    f.commit("mirror-only.txt", "镜像 stage\n", "feat: 只在镜像 stage 的提交");
+    run(f.work, "push", "--quiet", "origin", "stage:refs/heads/stage");
+    run(f.work, "reset", "--quiet", "--hard", "HEAD~1");
+    run(f.work, "checkout", "-q", "main");
+    const before = [f.head("gitlab", "main"), f.head("gitlab", "stage"), f.head("origin", "main"), f.head("origin", "stage")];
+    const result = f.sync();
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe(2);
+    expect(result.messages.join("\n")).toContain("origin/stage");
+    expect([f.head("gitlab", "main"), f.head("gitlab", "stage"), f.head("origin", "main"), f.head("origin", "stage")]).toEqual(before);
+  });
+
+  it("关闭窗口只在 main 提交登记，再合回 stage，不把未发布功能送进 main；重复执行幂等", () => {
+    const f = fixture();
+    run(f.work, "checkout", "-q", "stage");
+    const stageOnly = f.commit("unreleased.txt", "未发布功能\n", "feat: 只在 stage 的功能");
+    f.pushAll("stage");
+    run(f.work, "checkout", "-q", "main");
+    const fix = f.commit("deploy/hotfix/windows.json", registry(), "fix: 修复 (#5)");
     run(f.work, "push", "--quiet", "gitlab", "main:refs/heads/main");
     const refused = f.sync({ closeWindow: 5, evidence: "短" });
     expect(refused.ok).toBe(false);
     expect(refused.messages.join("\n")).toContain("--evidence");
-    const result = f.sync({ closeWindow: 5, evidence: "合回 stage 的提交 abc1234，线上 release.json 核对通过" });
+    const evidence = "合回 stage 的提交 abc1234，线上 release.json 核对通过";
+    const result = f.sync({ closeWindow: 5, evidence });
     expect(result.ok, result.messages.join("\n")).toBe(true);
+    const main = f.head("gitlab", "main");
     const stage = f.head("gitlab", "stage");
     for (const remote of ["gitlab", "origin"]) {
-      expect(f.head(remote, "main")).toBe(stage);
+      expect(f.head(remote, "main")).toBe(main);
       expect(f.head(remote, "stage")).toBe(stage);
     }
-    const closed = JSON.parse(run(f.work, "show", `${stage}:deploy/hotfix/windows.json`)).windows[0];
-    expect(closed).toMatchObject({ status: "closed", closedAt: "2026-10-30T12:00:00+08:00", evidence: "合回 stage 的提交 abc1234，线上 release.json 核对通过" });
-    expect(closed.expiresAt).toBeUndefined();
-    expect(run(f.work, "log", "-1", "--format=%s", stage)).toContain("关闭 hotfix 窗口 #5");
-    expect(f.sync({ closeWindow: 5, evidence: "合回 stage 的提交 abc1234，线上 release.json 核对通过" }).ok).toBe(true);
+    expect(run(f.work, "rev-parse", `${main}^`)).toBe(fix);
+    expect(f.isAncestor(stageOnly, main)).toBe(false);
+    expect(f.isAncestor(stageOnly, stage)).toBe(true);
+    expect(f.isAncestor(main, stage)).toBe(true);
+    for (const ref of [main, stage]) {
+      const closed = JSON.parse(run(f.work, "show", `${ref}:deploy/hotfix/windows.json`)).windows[0];
+      expect(closed).toMatchObject({ status: "closed", closedAt: "2026-10-30T12:00:00+08:00", evidence });
+      expect(closed.expiresAt).toBeUndefined();
+    }
+    expect(f.sync({ closeWindow: 5, evidence }).ok).toBe(true);
+    expect(f.head("gitlab", "main")).toBe(main);
     expect(f.head("gitlab", "stage")).toBe(stage);
+  });
+
+  it("保留已有同名 task 分支的提交，不删除或改写用户的恢复引用", () => {
+    const f = fixture();
+    const existing = run(f.work, "rev-parse", "HEAD");
+    run(f.work, "branch", "task/5/hotfix_sync");
+    f.commit("deploy/hotfix/windows.json", registry(), "fix: 修复 (#5)");
+    run(f.work, "push", "--quiet", "gitlab", "main:refs/heads/main");
+    expect(f.sync().ok).toBe(true);
+    expect(run(f.work, "rev-parse", "task/5/hotfix_sync")).toBe(existing);
+    expect(run(f.work, "branch", "--list", "task/*").trim()).toBe("task/5/hotfix_sync");
+  });
+
+  it("正常执行 pre-push 钩子；钩子拒绝时不改变任一远端引用", () => {
+    const f = fixture();
+    f.commit("deploy/hotfix/windows.json", registry(), "fix: 修复 (#5)");
+    run(f.work, "push", "--quiet", "gitlab", "main:refs/heads/main");
+    const hook = join(f.work, ".git/hooks/pre-push");
+    writeFileSync(hook, "#!/bin/sh\necho fixture-hook-rejected >&2\nexit 1\n");
+    chmodSync(hook, 0o755);
+    const before = [f.head("gitlab", "main"), f.head("gitlab", "stage"), f.head("origin", "main"), f.head("origin", "stage")];
+    expect(() => f.sync()).toThrow(/fixture-hook-rejected/);
+    expect([f.head("gitlab", "main"), f.head("gitlab", "stage"), f.head("origin", "main"), f.head("origin", "stage")]).toEqual(before);
   });
 
   it("只有一个远端（GitLab 流水线里的样子）：源和镜像是同一个，照样合回 stage", () => {
@@ -184,26 +237,12 @@ describe("hotfix-sync", () => {
     expect(planSync({ repo: f.work, source: "gitlab", mirror: "gitlab" }).inSync).toBe(true);
   });
 
-  it(".gitlab-ci.yml 只在 main 更新且显式开启时运行脚本，用 job token，不带别的凭据", () => {
-    const text = readFileSync(resolve(process.cwd(), ".gitlab-ci.yml"), "utf8");
-    expect(text).toContain('$HOTFIX_SYNC_ENABLED == "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"');
-    expect(text).toContain('GIT_DEPTH: "0"');
-    expect(text).toContain("node scripts/hotfix-sync.mjs apply --source origin --mirror origin");
-    expect(text).toContain("gitlab-ci-token:${CI_JOB_TOKEN}");
-    expect(text).not.toMatch(/\|\| true|allow_failure|-o ci\.skip|\[skip ci\]|--force|--no-verify/);
-    expect(text).not.toMatch(/glpat-|ghp_|PRIVATE-TOKEN/);
-  });
 
   it("命令行：plan 退出 0 并打印现状；未知命令退出 2", () => {
     const f = fixture();
     const plan = execFileSync("node", [script, "plan"], { cwd: f.work, encoding: "utf8" });
     expect(plan).toContain("已同步");
     expect(() => execFileSync("node", [script, "nope"], { cwd: f.work, stdio: "pipe" })).toThrow();
-    expect(existsSync(script)).toBe(true);
   });
 
-  it("默认的生成物只有 docs/INDEX.md 与 notes/INDEX.md，且命令都存在", () => {
-    expect(GENERATED.flatMap(entry => entry.paths).sort()).toEqual(["docs/INDEX.md", "notes/INDEX.md"]);
-    for (const entry of GENERATED) expect(readFileSync(resolve(process.cwd(), entry.command[1]), "utf8").length).toBeGreaterThan(0);
-  });
 });

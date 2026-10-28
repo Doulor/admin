@@ -8,18 +8,15 @@
  *
  * apply 的步骤（任何一步不满足就停下，不强推、不覆盖）：
  *   1. 取两个远端的 main、stage。镜像的 main 必须是源的祖先，才快进推过去；两边分叉就停，交给人处理。
- *   2. 源的 stage 已经包含 main：没有要合的。否则在临时 worktree（分支 task/<issue>/hotfix_sync）里把 main 合进 stage，
- *      合并提交只含冲突的取舍：冲突文件都是生成物（docs/INDEX.md、notes/INDEX.md）时用各自的生成命令重生成，
- *      有任何一个不是生成物，就放弃合并、不推送，列出冲突文件，退出码 3。
- *   3. 给了 --close-window：另起一个提交把 deploy/hotfix/windows.json 里该窗口改 closed，并写 closedAt 与 evidence
- *      （合并提交保持纯净，登记的改动单独成提交）。
- *   4. 先推源的 stage，再推镜像的 stage；窗口关了就让 main 快进到 stage，两边都推。
+ *   2. 在唯一命名的临时 task 分支中准备合并；冲突都是生成物时重生成，否则放弃，不推送任何 ref。
+ *   3. 给了 --close-window：从 main 单独提交窗口关闭，再把这个提交合回 stage；不把 stage 的未发布功能带进 main。
+ *   4. 全部本地检查成功后，先推两个远端的 stage，再推 main；保留正常 Git 钩子。
  * 不改 refs 以外的任何东西：不 reset、不删分支（临时分支除外）、不动发布 tag。重复运行是幂等的。
  */
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { WINDOWS_FILE, activeWindows, readRegistryAt } from './hotfix-windows.mjs';
 
@@ -37,7 +34,7 @@ function run(cwd, command, args, options = {}) {
   if (result.error) throw new Error(`无法执行 ${command} ${args.join(' ')}：${result.error.message}`);
   return result;
 }
-const git = (cwd, ...args) => run(cwd, 'git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', ...args]);
+const git = (cwd, ...args) => run(cwd, 'git', ['-c', 'commit.gpgSign=false', ...args]);
 const gitOk = (cwd, ...args) => {
   const result = git(cwd, ...args);
   if (result.status !== 0) throw new Error(`git ${args.join(' ')} 失败：${(result.stderr || result.stdout).trim()}`);
@@ -71,6 +68,10 @@ export function planSync({ repo = process.cwd(), source = 'gitlab', mirror = 'or
     else problems.push(`${mirror}/main（${mir.main.slice(0, 12)}）不是 ${source}/main（${src.main.slice(0, 12)}）的祖先：两边分叉，不强推，交给人处理`);
   }
   const needMerge = !isAncestor(repo, src.main, src.stage);
+  if (mirror !== source && needMerge && mir.stage !== src.stage
+    && !isAncestor(repo, mir.stage, src.stage) && !isAncestor(repo, mir.stage, src.main)) {
+    problems.push(`${mirror}/stage（${mir.stage.slice(0, 12)}）不包含在 ${source}/stage 或 ${source}/main 中：合并后也无法快进，推送前停止，不强推`);
+  }
   if (needMerge) steps.push(`把 ${source}/main 合进 ${source}/stage（${src.stage.slice(0, 12)}），再推 ${source} 与 ${mirror} 的 stage`);
   else if (mirror !== source && mir.stage !== src.stage) {
     if (isAncestor(repo, mir.stage, src.stage)) steps.push(`把 ${mirror}/stage 快进到 ${src.stage.slice(0, 12)}`);
@@ -104,10 +105,10 @@ function closeWindowFile(worktree, issue, evidence, now) {
   delete window.expiresAt;
   writeFileSync(file, `${JSON.stringify(registry, null, 2)}\n`);
   gitOk(worktree, 'add', '--', WINDOWS_FILE);
-  gitOk(worktree, 'commit', '--quiet', '-m', `chore(hotfix): 关闭 hotfix 窗口 #${issue} (#${issue})`);
+  gitOk(worktree, 'commit', '--quiet', '-m', `chore(deploy): 关闭 hotfix 窗口 #${issue}`);
 }
 
-const push = (repo, remote, sha, branch) => gitOk(repo, 'push', '--quiet', remote, `${sha}:refs/heads/${branch}`);
+const push = (repo, remote, ref, branch) => gitOk(repo, 'push', '--quiet', remote, `${ref}:refs/heads/${branch}`);
 
 /** 执行同步。冲突无法自动取舍时返回 { ok: false, code: 3 }，什么都没推。 */
 export function applySync({ repo = process.cwd(), source = 'gitlab', mirror = 'origin', issue, closeWindow, evidence, generated = GENERATED, now = new Date(), log = () => {} } = {}) {
@@ -117,56 +118,62 @@ export function applySync({ repo = process.cwd(), source = 'gitlab', mirror = 'o
     return { ok: false, code: 2, plan, messages: ['--close-window 要带窗口 issue 和 --evidence（合回 stage 的提交与线上核对结果）'] };
   }
   const { src } = plan;
-  if (plan.mirror !== plan.source && plan.mir.main !== src.main) { push(repo, mirror, src.main, 'main'); log(`${mirror}/main → ${src.main.slice(0, 12)}`); }
-
+  let mainSha = src.main;
   let stageSha = src.stage;
-  let worktree = null;
-  let branch = null;
+  let temporary = null;
+  const worktrees = [];
+  const branches = [];
   const registry = (() => { try { return readRegistryAt(repo, src.main); } catch { return null; } })();
   const windows = registry ? activeWindows(registry, now) : [];
   const issueNumber = issue ?? closeWindow ?? (windows.length === 1 ? windows[0].issue : 0);
   const wantsClose = closeWindow !== undefined && !(registry?.windows ?? []).some(item => item.issue === closeWindow && item.status === 'closed');
   try {
-    if (plan.needMerge || wantsClose) {
-      branch = `task/${issueNumber}/hotfix_sync`;
-      worktree = mkdtempSync(join(tmpdir(), 'hotfix-sync-'));
-      git(repo, 'branch', '-D', branch);
-      gitOk(repo, 'worktree', 'add', '--quiet', '-b', branch, worktree, src.stage);
-      if (plan.needMerge) {
-        const merged = git(worktree, 'merge', '--no-ff', '--no-edit', '-m', `Merge branch 'main' into 'stage' (hotfix #${issueNumber})`, src.main);
+    const prepare = (name, start) => {
+      temporary ??= mkdtempSync(join(tmpdir(), 'hotfix-sync-'));
+      const suffix = basename(temporary).slice('hotfix-sync-'.length).toLowerCase();
+      const branch = `task/${issueNumber}/hotfix_sync_${name}_${suffix}`;
+      const worktree = join(temporary, name);
+      gitOk(repo, 'worktree', 'add', '--quiet', '-b', branch, worktree, start);
+      worktrees.push(worktree);
+      branches.push(branch);
+      return { branch, worktree };
+    };
+    if (wantsClose) {
+      const main = prepare('main', src.main);
+      closeWindowFile(main.worktree, closeWindow, String(evidence).trim(), now);
+      mainSha = gitOk(main.worktree, 'rev-parse', 'HEAD');
+    }
+    let stageBranch = null;
+    if (plan.needMerge || wantsClose || (mirror !== source && plan.mir.stage !== src.stage)) {
+      const stage = prepare('stage', src.stage);
+      stageBranch = stage.branch;
+      if (!isAncestor(repo, mainSha, src.stage)) {
+        const merged = git(stage.worktree, 'merge', '--no-ff', '--no-edit', '-m', `Merge branch 'main' into 'stage' (hotfix #${issueNumber})`, mainSha);
         if (merged.status !== 0) {
-          const conflicts = gitOk(worktree, 'diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
-          const outcome = conflicts.length ? resolveGenerated(worktree, conflicts, generated) : { ok: false, unresolved: [], reason: (merged.stderr || merged.stdout).trim() };
+          const conflicts = gitOk(stage.worktree, 'diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
+          const outcome = conflicts.length ? resolveGenerated(stage.worktree, conflicts, generated) : { ok: false, unresolved: [], reason: (merged.stderr || merged.stdout).trim() };
           if (!outcome.ok) {
-            git(worktree, 'merge', '--abort');
-            return { ok: false, code: 3, plan, messages: [`main 合进 stage 有冲突，不是生成物，没有推送任何东西：${outcome.unresolved.join('、') || outcome.reason}`, ...(outcome.reason ? [outcome.reason] : []), '人工处理：git switch -c task/<issue>/hotfix_sync origin/stage && git merge origin/main，解决冲突后走 MR 回 stage'] };
+            git(stage.worktree, 'merge', '--abort');
+            return { ok: false, code: 3, plan, messages: [`main 合进 stage 有冲突，不是生成物，没有推送任何东西：${outcome.unresolved.join('、') || outcome.reason}`, ...(outcome.reason ? [outcome.reason] : []), '人工处理：在获批任务的独立 worktree 中解决冲突，审查后合回 stage'] };
           }
-          gitOk(worktree, 'commit', '--quiet', '--no-edit');
+          gitOk(stage.worktree, 'commit', '--quiet', '--no-edit');
         }
       }
-      if (wantsClose) closeWindowFile(worktree, closeWindow, String(evidence).trim(), now);
-      stageSha = gitOk(worktree, 'rev-parse', 'HEAD');
+      stageSha = gitOk(stage.worktree, 'rev-parse', 'HEAD');
     }
-    if (!isAncestor(repo, src.main, stageSha)) return { ok: false, code: 2, plan, messages: ['合并之后 stage 仍不包含 main：不推送'] };
-    if (stageSha !== src.stage) { push(repo, source, stageSha, 'stage'); log(`${source}/stage → ${stageSha.slice(0, 12)}`); }
-    if (mirror !== source) {
-      const mirrorStage = plan.mir.stage;
-      if (mirrorStage !== stageSha) {
-        if (!isAncestor(repo, mirrorStage, stageSha)) return { ok: false, code: 2, plan, messages: [`${mirror}/stage（${mirrorStage.slice(0, 12)}）不是新的 stage 的祖先：两边分叉，不强推`] };
-        push(repo, mirror, stageSha, 'stage');
-        log(`${mirror}/stage → ${stageSha.slice(0, 12)}`);
-      }
+    if (!isAncestor(repo, mainSha, stageSha)) return { ok: false, code: 2, plan, messages: ['合并之后 stage 仍不包含 main：不推送'] };
+    if (mirror !== source && !isAncestor(repo, plan.mir.stage, stageSha)) return { ok: false, code: 2, plan, messages: [`${mirror}/stage 不是新的 stage 的祖先：两边分叉，不推送`] };
+    if (stageSha !== src.stage) { push(repo, source, stageBranch, 'stage'); log(`${source}/stage → ${stageSha.slice(0, 12)}`); }
+    if (mirror !== source && plan.mir.stage !== stageSha) { push(repo, mirror, stageBranch, 'stage'); log(`${mirror}/stage → ${stageSha.slice(0, 12)}`); }
+    for (const remote of new Set([source, mirror])) {
+      const previous = remote === source ? src.main : plan.mir.main;
+      if (previous !== mainSha) { push(repo, remote, mainSha, 'main'); log(`${remote}/main → ${mainSha.slice(0, 12)}`); }
     }
-    // 窗口关了：main 只做 stage 的快进，源和镜像两边都对齐
-    if (wantsClose) {
-      for (const remote of new Set([source, mirror])) {
-        if (src.main !== stageSha) { push(repo, remote, stageSha, 'main'); log(`${remote}/main → ${stageSha.slice(0, 12)}`); }
-      }
-    }
-    return { ok: true, code: 0, plan, stage: stageSha, messages: [] };
+    return { ok: true, code: 0, plan, main: mainSha, stage: stageSha, messages: [] };
   } finally {
-    if (worktree) { git(repo, 'worktree', 'remove', '--force', worktree); rmSync(worktree, { recursive: true, force: true }); }
-    if (branch) git(repo, 'branch', '-D', branch);
+    for (const worktree of worktrees.reverse()) git(repo, 'worktree', 'remove', '--force', worktree);
+    for (const branch of branches.reverse()) git(repo, 'branch', '-D', branch);
+    if (temporary) rmSync(temporary, { recursive: true, force: true });
   }
 }
 

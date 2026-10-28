@@ -61,7 +61,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "branch-invariants 测试覆盖窗口放行、未归属、SHA 列表、关闭/过期/损坏登记、缺原话与超 7 天、pre-push 的 main 与 stage；hotfix-policy 测试覆盖未登记、已关闭、过期、tag 不符；hotfix-sync 测试用裸仓库覆盖线性、分叉、非生成物冲突不推送、生成物冲突重生成、镜像分叉不强推、关闭窗口与幂等。未验证：.gitlab-ci.yml 在真实 runner 上的运行。",
+      "reason": "branch-invariants 测试覆盖窗口放行、未归属、SHA 列表、关闭/过期/损坏登记、缺原话与超 7 天、pre-push 的 main 与 stage；hotfix-policy 测试覆盖未登记、已关闭、过期、tag 不符；hotfix-sync 用双裸仓库覆盖线性、分叉、冲突时全部引用不变、生成物重生成、镜像分叉预检、保留已有 task 分支和 pre-push 钩子，以及窗口关闭不带入 stage 未发布功能与重复执行幂等。未验证：.gitlab-ci.yml 在真实 runner 上的运行。",
       "evidence": [
         "tests/tooling/branch-invariants.test.ts",
         "tests/tooling/hotfix-policy.test.ts",
@@ -112,7 +112,7 @@
       "nodes": [
         "domain:platform"
       ],
-      "reason": "hotfix 窗口登记：main 领先 stage 的提交必须归属于所有者批准、未过期的 P0 窗口，deploy-hotfix 的 issue 必须是开着的窗口；分支门禁与 pre-push 同源判定，不再靠 --no-verify。hotfix MR 合进 main 后由 hotfix-sync 同步镜像并把 main 合回 stage（冲突只自动处理生成物，其余放弃并报告），GitLab 流水线默认关闭地调用它。"
+      "reason": "hotfix 窗口登记限定已批准、未过期的 P0，分支门禁与 pre-push 同源判定；同步在唯一临时分支准备合并，非生成物冲突和已知镜像分叉在任何推送前失败。保留 Git 钩子与既有分支；关闭窗口只在 main 提交登记，再合回 stage，不把 stage 未发布功能带进 main。GitLab 流水线默认关闭地调用它。"
     }
   ],
   "documents": [
