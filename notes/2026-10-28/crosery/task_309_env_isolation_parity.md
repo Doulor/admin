@@ -69,3 +69,16 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：第三次提交：install-host.sh、cdn-mirror.sh 与 systemd 单元、cutover.sh 与 gitlab-cutover.yml、migrate-oidc-subjects.mjs、parity post_deploy 阶段、规范与测试；此前提交 1769ee84..1dd1eb72 已在 MR !51
 - 结果：pnpm check 各项（含 check-architecture --base origin/main、doc-sync、notes、secrets、catalog）通过，typecheck 无输出，vitest 182 个文件 2925 条通过 27 跳过；未推送
+
+## 21:51:26 +08:00 · 审查 · #309 · 独立评审子 agent 对宿主层与闸门的审查，被审查提交 e4ce8592
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：派一个不带结论的只读评审 agent 审 install-host.sh、cutover.sh、迁移脚本、cdn-mirror.sh、三条工作流的宿主层步骤、parity 闸门；我逐条读代码复核后采纳：二次 switch-issuer 后 rollback 还原错的 secret、cdn-mirror 二次核验失败静默中断、export 输出被 64KB 管道截断、switch 不检查 sub 是否已迁、冲突退出不清理、凭据校验在写文件之后、sha256 失败当 same、post_deploy 条目无人拦且拼错参数退出 0、preview 与 production 共用同一个宿主目录。未采纳：host 步骤失败跳过 smoke（hotfix/deploy-doc-sync 测试禁止 job 级 always()，不放宽校验，改为文档写明补验命令）
+- 结果：前三项在旧代码上先红后绿（cdn-mirror 二次核验、export 截断 65536 字节、rollback 备份）；tests/tooling 63 个文件 1254 条通过，typecheck、docs、catalog、env-isolation、secrets、doc-sync、architecture（--base origin/main）通过
+- 下一步：合并 MR !51、同步 GitHub main，等所有者批准派发 deploy-hotfix
+
+## 21:51:26 +08:00 · 提交 · #309 · 本地提交 650c3c5c：评审问题修复
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：cutover.sh、cdn-mirror.sh、migrate-oidc-subjects.mjs、install-host.sh、parity.mjs、三条部署工作流、规范与测试；ledger 的 post_deploy 条目补 release=0.1.1。文档核对：docs/ops/GITLAB.md、docs/conventions/RELEASE-PARITY.md、docs/ops/CICD.md、docs/conventions/RELEASES.md、.agents/skills/release-parity/SKILL.md 已随行为更新
+- 结果：同审查条目；未推送
