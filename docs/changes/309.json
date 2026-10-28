@@ -45,11 +45,12 @@
     },
     "dependencies": {
       "status": "changed",
-      "reason": "deploy-production.yml 与 deploy-hotfix.yml 新增 parity job（读清单，无网络和密钥）和 smoke job（部署成功后访问正式公开地址；正式 tag 部署另读预发布 origin 做对比）。GitLab 片段新增对宿主文件 /etc/gitlab/yzgc-oidc-issuer 的读取，宿主文件由运维写入，缺失时 gitlab-ctl reconfigure 会失败而不是回落到某个环境。",
+      "reason": "deploy-production.yml 与 deploy-hotfix.yml 新增 parity job（读清单，无网络和密钥）和 smoke job（部署成功后访问正式公开地址；正式 tag 部署另读预发布 origin 做对比）。GitLab 片段新增对宿主文件 /etc/gitlab/yzgc-oidc-issuer 的读取，宿主文件由运维写入，缺失时 gitlab-ctl reconfigure 会失败而不是回落到某个环境。 package.json 只新增 check:env-isolation 脚本入口，不增删依赖，锁文件不变。",
       "evidence": [
         "deploy/gitlab/gitlab-oidc.rb",
         ".github/workflows/deploy-production.yml",
-        ".github/workflows/deploy-hotfix.yml"
+        ".github/workflows/deploy-hotfix.yml",
+        "package.json"
       ]
     },
     "documentation": {
@@ -181,6 +182,23 @@
         "domain:platform"
       ],
       "reason": "运维文档同步：三份 env 与差异键、parity 与 smoke job、GitLab 签发者读宿主文件及哈希表、验收模板加同构核对。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "服务与运维文档更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
     }
   ],
   "documents": [
