@@ -1021,6 +1021,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "id": "flow:identity.callback",
@@ -2467,7 +2471,7 @@
           "path": "app/server/src/lib/role-store.ts"
         },
         {
-          "line": 324,
+          "line": 330,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         },
         {
@@ -12517,7 +12521,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -17004,7 +17008,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "59ddb476210bd351d3458bb5b9f8a1ace4412738b77f5a763ec08e0226b630b3",
+    "fingerprint": "2080cb13449361af4ad0db198b887ea735e0af26680632f4f637bb4242cbc583",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17016,7 +17020,7 @@
       },
       {
         "path": "app/console/package.json",
-        "sha256": "39c2fe4f228015954a5edd5205428331d5f8919778c950a99fcfca67885c99bf"
+        "sha256": "c554c019fa347b00d2d9515151834b58ab0153a2047fc442cdbb0753f8427ae8"
       },
       {
         "path": "app/console/src/App.vue",
@@ -17884,7 +17888,7 @@
       },
       {
         "path": "app/server/package.json",
-        "sha256": "3f901bd6fe4e07329892f5a6d60b9c20c2db29e89e86a3e45fb5a339c405a2ea"
+        "sha256": "b8c795653242934d89d6e954106de9ef0ab61c36187a5a6508768debf6be6afa"
       },
       {
         "path": "app/server/src/app.ts",
@@ -18119,6 +18123,10 @@
         "sha256": "eb7fec0ec781a8f7cdd1715c65ea44a20e6a80d79b462e0d30224aa689f5a23a"
       },
       {
+        "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+        "sha256": "d4e237e09184878b3126b30908783a44620055defb2f0fe0725ac6632d258279"
+      },
+      {
         "path": "app/server/src/lib/migrations/2026-10-mail-templates.ts",
         "sha256": "69b57667cfb004049e595f901fee45899f702bb82e61b3cee1311ba342cbdf7d"
       },
@@ -18128,7 +18136,7 @@
       },
       {
         "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts",
-        "sha256": "a1392112bf3138995dc83f881dfe0c9171c206e391899fb76e12f184e3bd37ec"
+        "sha256": "3b2110c6ddd910a9ff6226234597b0d485d09f364a0b1c60711ffe6fd0827032"
       },
       {
         "path": "app/server/src/lib/oidc-provider.ts",
@@ -18476,7 +18484,7 @@
       },
       {
         "path": "app/web/package.json",
-        "sha256": "3531938cfce4a767b2e21e2fd04e608456c93cc7a1b9aa79ba39e0ff14b6546f"
+        "sha256": "2d58cee43ff988f9a19883bc6e2e50448f15d6fd3b7aa726e4365ed8f0e5875d"
       },
       {
         "path": "app/web/shared/competition-sdk/index.ts",
@@ -18932,11 +18940,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "fe9301f5de02c9891087a0d2817a78eda360869858987c86341ff681df448980"
+        "sha256": "64c9d4994465c9f05de15883b3ca2124df82a28ea71c0dac2ba1f23b02b00af0"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "dacd51b82a9488489a9a0a4c748fe6e10f10ffc715a571a75d929c0e4348ccfa"
+        "sha256": "0647979e7136b990eea87250bad6240395bdf15b69fd8ae921bc9613cbcfe722"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18976,7 +18984,7 @@
       },
       {
         "path": "docs/services/console/README.md",
-        "sha256": "e25142f91ed99beb88c914f5d3faaa15c033ae83f7ac9482a52f9282cbc75aaf"
+        "sha256": "87f147958f9d877afba80f2fbc89e3d9b232190b64ea499faa19f5617d3dc304"
       },
       {
         "path": "docs/services/forum/README.md",
@@ -18984,7 +18992,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "6444bce257572897390563f5bbeb06b3dfbbd3cb2ad621785ad2000e51ec6034"
+        "sha256": "be2b2cc0a4bd3faaa6da33324c6014e604668dca59a01c0ccbfe2bbdfff47bc3"
       },
       {
         "path": "docs/services/server/competition-rehearsal.md",
@@ -19008,7 +19016,7 @@
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "dd4530c94c64ed3c829f930bdb92f98915656379760ae621d3ceb5ea69ae5ff5"
+        "sha256": "e8841ce3d5bf74cee1ebe6e40fe29d446e6ba92d34a040d63165806a5f7c9e53"
       },
       {
         "path": "docs/services/web/portal.md",
@@ -19260,7 +19268,7 @@
       },
       {
         "path": "tests/server/legacy-database.test.ts",
-        "sha256": "4d1884ea92b4dd64375ee918bf9ad59bf2007051f1e2718e64a333eb51136af5"
+        "sha256": "4703b6458d3fabcbbd277923b3a25694b1411089b5b2991ae12141964d8883d1"
       },
       {
         "path": "tests/server/mail-envelope.test.ts",
@@ -75245,6 +75253,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75293,6 +75305,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75359,6 +75375,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75407,6 +75427,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75455,6 +75479,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75503,6 +75531,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75551,6 +75583,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75599,6 +75635,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75647,6 +75687,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -75695,6 +75739,10 @@
         {
           "line": 4,
           "path": "app/server/src/lib/github-http.ts"
+        },
+        {
+          "line": 81,
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
         }
       ],
       "from": "flow:identity.callback",
@@ -84311,7 +84359,7 @@
           "path": "app/server/src/lib/role-store.ts"
         },
         {
-          "line": 324,
+          "line": 330,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         },
         {
@@ -84335,7 +84383,7 @@
           "path": "app/server/src/lib/role-store.ts"
         },
         {
-          "line": 324,
+          "line": 330,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         },
         {
@@ -84365,7 +84413,7 @@
           "path": "app/server/src/lib/role-store.ts"
         },
         {
-          "line": 324,
+          "line": 330,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         },
         {
@@ -84925,7 +84973,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -84961,7 +85009,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -84997,7 +85045,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -85033,7 +85081,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -85075,7 +85123,7 @@
           "path": "app/console/src/pages/permissions/EntryDialog.vue"
         },
         {
-          "line": 6,
+          "line": 7,
           "path": "app/server/src/lib/migrations/2026-10-yugc-v2.ts"
         }
       ],
@@ -135540,6 +135588,13 @@
         "forum"
       ],
       "path": "app/server/src/lib/migrations/2026-10-forum-v2.ts"
+    },
+    {
+      "domains": [
+        "identity",
+        "permissions"
+      ],
+      "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts"
     },
     {
       "domains": [

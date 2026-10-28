@@ -979,6 +979,10 @@
         {
           "path": "app/server/src/lib/github-http.ts",
           "needle": "export const GITHUB_TIMEOUT_MS = 15_000;"
+        },
+        {
+          "path": "app/server/src/lib/migrations/2026-10-legacy-github.ts",
+          "needle": "export function restoreLegacyGithubAccounts("
         }
       ],
       "tests": [
@@ -13079,6 +13083,10 @@
     "app/server/src/lib/public-profile.ts": [
       "identity",
       "forum"
+    ],
+    "app/server/src/lib/migrations/2026-10-legacy-github.ts": [
+      "identity",
+      "permissions"
     ]
   }
 }

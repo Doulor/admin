@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-27 · 自动生成，不手工编辑。
 
-来源摘要：`59ddb476210bd351d3458bb5b9f8a1ace4412738b77f5a763ec08e0226b630b3`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`2080cb13449361af4ad0db198b887ea735e0af26680632f4f637bb4242cbc583`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -216,7 +216,7 @@
 - 响应与错误：成功302回return_to；账号还没有登录邮箱、这个环境又能发信时改为302到/bind-email?return_to=<原路径>（#273）；取消/上游失败/非成员/账号停用一律302到统一登录页/signin，带signin结果（cancelled、failed、not_member或invite_pending、account_disabled）与原来的return_to路径（#262）；合并链超过8跳、成环或事务失败按failed；缺参数或无效state为400，旧forum-state为410。
 - 数据与副作用：外部请求在事务外做完；建号、刷新身份、沿merged_into走到终点、按GitHub id认领称号与论坛用户、写sessions（含openid、provider）、删请求带来的旧会话、写identity_audit与auth.signin在一个BEGIN IMMEDIATE事务里，失败整体回滚、旧会话照常有效。非成员与停用账号不建会话、审计拒绝并尽力撤销授权；被组织拒绝的GitHub id已经有还没记过站内角色的老账号时，把它的成员资格记成not_member或pending（#262审查）；站内记过角色的账号不受GitHub组织变动影响；失败日志不输出token。真的要新建账号那一步，同一IP今天已建满5个、同一设备（yugc_vid）已建满3个时回registration_limited并撤销这次GitHub授权，登录到已有账号不受影响（#274残留修复，SPEC §3.8，lib/register-limits.ts）。
 
-源码：[app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) · [app/server/src/lib/auth.ts:50](../../../app/server/src/lib/auth.ts#L50) · [app/server/src/lib/identity-store.ts:276](../../../app/server/src/lib/identity-store.ts#L276) · [app/server/src/lib/db.ts:1229](../../../app/server/src/lib/db.ts#L1229) · [app/server/src/lib/email-gate.ts:48](../../../app/server/src/lib/email-gate.ts#L48) · [app/server/src/routes/admin/auth.ts:91](../../../app/server/src/routes/admin/auth.ts#L91) · [app/server/src/routes/admin/contracts.ts:4](../../../app/server/src/routes/admin/contracts.ts#L4) · [app/server/src/routes/admin/index.ts:7](../../../app/server/src/routes/admin/index.ts#L7) · [app/server/src/lib/register-limits.ts:26](../../../app/server/src/lib/register-limits.ts#L26) · [app/server/src/lib/github-http.ts:4](../../../app/server/src/lib/github-http.ts#L4)
+源码：[app/server/src/routes/admin/auth.ts:45](../../../app/server/src/routes/admin/auth.ts#L45) · [app/server/src/lib/auth.ts:50](../../../app/server/src/lib/auth.ts#L50) · [app/server/src/lib/identity-store.ts:276](../../../app/server/src/lib/identity-store.ts#L276) · [app/server/src/lib/db.ts:1229](../../../app/server/src/lib/db.ts#L1229) · [app/server/src/lib/email-gate.ts:48](../../../app/server/src/lib/email-gate.ts#L48) · [app/server/src/routes/admin/auth.ts:91](../../../app/server/src/routes/admin/auth.ts#L91) · [app/server/src/routes/admin/contracts.ts:4](../../../app/server/src/routes/admin/contracts.ts#L4) · [app/server/src/routes/admin/index.ts:7](../../../app/server/src/routes/admin/index.ts#L7) · [app/server/src/lib/register-limits.ts:26](../../../app/server/src/lib/register-limits.ts#L26) · [app/server/src/lib/github-http.ts:4](../../../app/server/src/lib/github-http.ts#L4) · [app/server/src/lib/migrations/2026-10-legacy-github.ts:81](../../../app/server/src/lib/migrations/2026-10-legacy-github.ts#L81)
 
 测试入口：[tests/server/core.test.ts](../../../tests/server/core.test.ts) · [tests/server/identity.test.ts](../../../tests/server/identity.test.ts) · [tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)。生成器未执行这些测试。
 
@@ -575,7 +575,7 @@
 - 数据与副作用：只读 departments 与 role_assignments（固定清单，#274 起控制台不再支持新建/改名/归档/删除，见 departments.ts 头部注释）；写权限包不在此入口。
 - 迁移步骤 4（#274/#276）：services.ts 在 createRoleStore() 播种默认部门之后调用一次 archiveOldDepartments()，把四行默认部门标成 archived=1——旧的 GET /api/public/org 与论坛称号徽章都已改读新权限体系，没有活的读者再按 archived=0 过滤；这个只读列表原样下发 archived:true，不隐藏、不改查询。
 
-源码：[app/server/src/routes/console/departments.ts:13](../../../app/server/src/routes/console/departments.ts#L13) · [app/server/src/lib/role-store.ts:245](../../../app/server/src/lib/role-store.ts#L245) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:324](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L324) · [app/server/src/services.ts:73](../../../app/server/src/services.ts#L73)
+源码：[app/server/src/routes/console/departments.ts:13](../../../app/server/src/routes/console/departments.ts#L13) · [app/server/src/lib/role-store.ts:245](../../../app/server/src/lib/role-store.ts#L245) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:330](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L330) · [app/server/src/services.ts:73](../../../app/server/src/services.ts#L73)
 
 测试入口：[tests/server/console.test.ts](../../../tests/server/console.test.ts)。生成器未执行这些测试。
 
@@ -3166,7 +3166,7 @@
 - 响应与错误：200 {groups:[{id,kind,name,description,weight,department_id,icon,tone,sort,system,parents,member_count,entries}]}，按 sort 升序。
 - 数据与副作用：只读；entries 的 value 保留原始三态（true/false/null，null 配 meta_value），不像判定引擎那样把 null 当 false。
 
-源码：[app/server/src/routes/console/permission-groups.ts:109](../../../app/server/src/routes/console/permission-groups.ts#L109) · [app/server/src/routes/console/contracts.ts:333](../../../app/server/src/routes/console/contracts.ts#L333) · [app/console/src/pages/permissions/GroupsTab.vue:13](../../../app/console/src/pages/permissions/GroupsTab.vue#L13) · [app/console/src/pages/permissions/GroupDetail.vue:27](../../../app/console/src/pages/permissions/GroupDetail.vue#L27) · [app/console/src/pages/permissions/CreateGroupDialog.vue:17](../../../app/console/src/pages/permissions/CreateGroupDialog.vue#L17) · [app/console/src/pages/permissions/EntryDialog.vue:17](../../../app/console/src/pages/permissions/EntryDialog.vue#L17) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:6](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L6)
+源码：[app/server/src/routes/console/permission-groups.ts:109](../../../app/server/src/routes/console/permission-groups.ts#L109) · [app/server/src/routes/console/contracts.ts:333](../../../app/server/src/routes/console/contracts.ts#L333) · [app/console/src/pages/permissions/GroupsTab.vue:13](../../../app/console/src/pages/permissions/GroupsTab.vue#L13) · [app/console/src/pages/permissions/GroupDetail.vue:27](../../../app/console/src/pages/permissions/GroupDetail.vue#L27) · [app/console/src/pages/permissions/CreateGroupDialog.vue:17](../../../app/console/src/pages/permissions/CreateGroupDialog.vue#L17) · [app/console/src/pages/permissions/EntryDialog.vue:17](../../../app/console/src/pages/permissions/EntryDialog.vue#L17) · [app/server/src/lib/migrations/2026-10-yugc-v2.ts:7](../../../app/server/src/lib/migrations/2026-10-yugc-v2.ts#L7)
 
 测试入口：[tests/server/console-permissions.test.ts](../../../tests/server/console-permissions.test.ts)。生成器未执行这些测试。
 
