@@ -2,7 +2,7 @@
 
 > 两套隔离 Linux Docker 栈运行于 Arch，香港 Caddy 提供 HTTPS 入口；DNS 过渡期间旧 VPS 仅转发，不再运行应用或写库。
 
-状态：`current` · 更新：2026-10-27 · 适用：GitHub admin#270 的迁移接管及后续发布；GitLab 同号身份事项与既有旁路服务见 [GITLAB](GITLAB.md)。
+状态：`current` · 更新：2026-10-28 · 适用：GitHub admin#270 的迁移接管及后续发布；GitLab 同号身份事项与既有旁路服务见 [GITLAB](GITLAB.md)。
 
 ## 发布前置
 
@@ -222,9 +222,9 @@ bash /opt/yzgc/production/incoming/rollback-stack.sh --environment production --
 - 新端点的两环境 GET/HEAD/Range、MIME、CORS、缓存、HLS 全链、匿名权限、TLS 与浏览器均由父级真实验收。旧七牛的防盗链、压缩和 CORS 实测不能作为新服务已经生效的证据。
 - 源站 web/forum nginx 的 gzip 级别保持6；本任务不修改压缩策略、镜像身份或部署授权门禁。
 
-## 香港对象存储（备份归档，不是站点 CDN）
+## 香港对象存储（站点静态资源与备份归档）
 
-`cdn.yangtzeu.work` 是香港一台 1 vCPU / 1 GiB 小机器上的 S3 兼容对象存储（Garage + Caddy + S3 Manager），承担备份归档与公共图床；**站点带哈希的静态资源仍走七牛 `https://cdn.crosery.com`**，两者不是同一个 CDN，不要互相替代。
+`cdn.yangtzeu.work` 是香港一台 1 vCPU / 1 GiB 小机器上的 S3 兼容对象存储（Garage + Caddy + S3 Manager），承担站点带哈希静态资源、表情包、宣传片和邮件图片的公共出口（`geek-public`），以及 GitLab 与平台备份的归档（`geek-backup`）。预发布与正式的页面只有在边缘 CSP 放行 `https://cdn.yangtzeu.work/geek-public/static/site/` 后才会以 CDN 模式构建（`deploy-*.yml` 的 cdn-plan 读线上响应头）；七牛 `https://cdn.crosery.com` 不再增写，旧对象只留给 rc.25 及更早版本回滚。
 
 - 配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)（`garage.toml`、`s3manager.env`、`Caddyfile`、`scripts/upload_demo.py`），合同见 [STORAGE-CDN](STORAGE-CDN.md)。
 - 模板里的密钥字段一律留空：S3 Access/Secret 在目标机 `/etc/s3manager.env`（0600），Garage 的 rpc/admin/metrics 三个 token 在 `/etc/garage.toml`，控制台 basic-auth 哈希由 systemd 变量 `S3MANAGER_ADMIN_HASH` 提供。仓库里出现真实值就是泄漏。

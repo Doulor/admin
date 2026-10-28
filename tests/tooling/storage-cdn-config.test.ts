@@ -106,8 +106,9 @@ describe('Caddy 拓扑与 Garage 的声明一致，顺序不被悄悄调换', ()
     for (const bucket of ['cdn', 'geek-public', 'geek-production-private', 'geek-preview-private', 'geek-backup']) {
       expect(doc, `桶 ${bucket}`).toContain(bucket);
     }
-    // 备份桶不写成「已有代码在写」：归档器在实际合入之前不能当成现行事实。
-    expect(doc).toContain('目前没有任何代码写它');
+    // 备份桶的写入方必须写明，且合同里不能再留「没有代码写它」的旧说法。
+    expect(doc).toContain('deploy/remote/garage-archive.mjs');
+    expect(doc).not.toContain('目前没有任何代码写它');
   });
 });
 
