@@ -457,7 +457,9 @@
     {
       "paths": [
         "docs/changes/306.json",
-        "docs/changes/309.json"
+        "docs/changes/309.json",
+        "docs/history/changes/gitlab/284.json",
+        "docs/history/changes/gitlab/284.md"
       ],
       "domains": [
         "platform"
@@ -465,7 +467,7 @@
       "nodes": [
         "domain:platform"
       ],
-      "reason": "同步 main 中已审查的 hotfix 影响声明与门禁配套文件；只合回既有提交，不新增独立应用功能或运维配置。"
+      "reason": "同步 main 中已审查的 hotfix 声明；原 docs/changes/284.json 属于 GitLab 招新与宣传片事项，按既有 #270 模式逐字保存在 docs/history/changes/gitlab/284.json 并附 SHA-256，不改写历史为本次同步。"
     }
   ],
   "documents": [
