@@ -30,7 +30,7 @@
 **长期分支只有两条：`main`（正式）与 `stage`（预发布）；其余分支必须是短生命周期。**
 
 - `stage` 必须包含 `main`：`git merge-base --is-ancestor origin/main origin/stage` 必须成功；`main` 不得领先 `stage`，写进 `main` 的提交必须已经存在于 `stage`。
-- 禁止直接向 `main` 提交或推送；`main` 只能由 `stage` 合并进入。
+- 禁止直接向 `main` 提交或推送；`main` 只能由 `stage` 合并进入。唯一的例外是 `deploy/hotfix/windows.json` 里所有者批准、未过期的 P0 hotfix 窗口：窗口内 `main` 可以领先 `stage`，领先的每个提交都要归属于该窗口 issue，hotfix MR 合进 `main` 后立刻运行 `node scripts/hotfix-sync.mjs apply` 合回 `stage`，保证 `stage >= main`（[BRANCHING](docs/conventions/BRANCHING.md)「线上紧急修复」）；不用 `--no-verify` 绕过门禁。
 - 分支名一律不用 `-`，只用 `/` 分层，段内多词用 `_`（正则见 [BRANCHING](docs/conventions/BRANCHING.md)）。
 - 任务分支命名 `task/<issue>/<slug>`（例 `task/12/portal_redesign`），**只能从 `stage` 拉出**；MR 合并后必须立即删除，不得残留死分支。
 - `dev/<github-username>`（例 `dev/alice`）是个人自由开发区，不作为进入 `stage` 的凭据，也不部署。

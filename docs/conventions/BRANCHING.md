@@ -75,17 +75,36 @@ node scripts/check-branch-invariants.mjs --strict-long-lived # 把「main/stage 
 
 ## 线上紧急修复（Hotfix）规约
 
-2026-10-28 所有者确认的 P0 例外：修复以最新 `main` 为基线，经审查与关键路径验证后先进 `main`，以既有正式版本的 hotfix 入口上线，不发 rc、不升号、不移动既有 tag；成功验证后立即合回 `stage`。常规分支不变量检查在这一明确的 hotfix 窗口内可能失败，不关闭或伪造它；独立 `hotfix-verify` 检查真实修复 SHA，收尾时恢复 `stage >= main` 并重跑常规 CI。实施合同见 [RELEASES 的 Hotfix 规约](RELEASES.md#线上紧急缺陷hotfix规约)。
+2026-10-28 所有者确认的 P0 例外：修复以最新 `main` 为基线，经审查与关键路径验证后先进 `main`，以既有正式版本的 hotfix 入口上线，不发 rc、不升号、不移动既有 tag；成功验证后立即合回 `stage`。分支不变量不关闭、不跳过：窗口由 `deploy/hotfix/windows.json` 登记（见下），`branch-guard` 和本地 `pre-push` 在登记存在时放行 `main` 领先 `stage` 的提交，没有登记就照常失败；独立 `hotfix-verify` 检查真实修复 SHA，收尾时把窗口标 `closed`、恢复 `stage >= main` 并重跑常规 CI。实施合同见 [RELEASES 的 Hotfix 规约](RELEASES.md#线上紧急缺陷hotfix规约)。
+
+**hotfix 窗口登记**（`deploy/hotfix/windows.json`，校验与判定在 `scripts/hotfix-windows.mjs`，由 `scripts/check-branch-invariants.mjs` 与 `scripts/hotfix-policy.mjs` 共用）：
+
+- 一个 P0 issue 对应一个窗口，字段：`issue`、绑定的既有正式版本 `tag`、`status`（`open` / `closed`）、所有者的 `approvedBy: Crosery`、`approvedAt` 与批准原话 `quote`、`expiresAt`（最长到批准后 7 天）；收尾时补 `closedAt` 与 `evidence`。可选 `commits`：窗口建立之前、说明里没有引用窗口 issue 的提交 SHA。
+- 登记随修复一起进 `main`（读的是 `main` 上的那一份）。`main` 领先 `stage` 的每个提交，说明里要引用窗口 issue（`#N` 或 `task/N/`）或列在 `commits` 里；有一个不归属，`branch-guard` 与 `pre-push` 照常按两条硬不变量失败。窗口过了 `expiresAt` 还开着、登记格式不对、缺所有者原话，同样失败。
+- `deploy-hotfix` 的 `issue` 输入必须是登记里 `open`、没过期、`tag` 就是这次 tag 的窗口，否则 plan 失败；窗口在等待审批期间被关或过期，二次 plan 也会失败。
+- 收尾（第 3 步合回 `stage`）的同一个改动里把窗口改 `closed` 并写 `evidence`；`stage` 包含 `main` 之后不变量恢复原样，`main` 再做 `stage` 的快进。
+
+### hotfix 合并后的自动同步
+
+`scripts/hotfix-sync.mjs`（`plan` 只读，`apply` 执行，有 `tests/tooling/hotfix-sync.test.ts`）一次做完 hotfix 合并后的收尾，任何一步不满足就停下，不强推、不覆盖：
+
+1. 取源远端（默认 `gitlab`）和镜像远端（默认 `origin`）的 `main`、`stage`；镜像的 `main` 是源的祖先才快进推过去，两边分叉就停，交给人处理。
+2. 源的 `stage` 已包含 `main` 就没有要合的；否则在临时 worktree（分支 `task/<issue>/hotfix_sync`）里把 `main` 合进 `stage`。冲突文件全是生成物（`docs/INDEX.md`、`notes/INDEX.md`）时用各自的生成命令重生成再提交；有任何一个不是生成物，就放弃合并、什么都不推，列出冲突文件，退出码 3，由人开 `task` 分支解决冲突后走 MR 回 `stage`。合并提交只含冲突的取舍。
+3. 带 `--close-window` 时，合并提交之后另起一个提交把 `deploy/hotfix/windows.json` 里的窗口改 `closed`；随后 `main` 在两个远端都快进到 `stage`。
+4. 先推源的 `stage`，再推镜像的 `stage`。重复运行是幂等的。
+
+无人值守的触发：仓库根的 `.gitlab-ci.yml` 在 `main` 更新后跑这个脚本（项目 CI/CD 变量 `HOTFIX_SYNC_ENABLED=true` 才运行，默认关闭；项目要允许 CI job token 推送仓库；GitHub 一侧由 GitLab 的推送镜像同步 `main`、`stage`）。没开自动触发时，合并 hotfix MR 的人（含 agent）在同一次操作里手工运行 `apply`，不留到验收之后。`stage >= main` 在这之间由 `branch-guard` 和 `pre-push` 按窗口登记放行，窗口外一律失败。
 
 正式环境（`https://yangtzeu.work`）上线后若发生直接影响用户使用的严重故障（整页白屏、多媒体/核心流媒体无法播放、主流程阻断、安全事故等）：
 
 1. **Issue 标记**：经 Crosery 明确批准该紧急事项及建单后开 Issue，打上 `hot-fix`、`P0` 与模块标签。紧急处理和事后补单都遵循 [ISSUES](ISSUES.md) §1；时限与紧急程度不授予自动建单权限。
 2. **基线拉取与快修上线**：紧急情况下**必须直接以最新 `origin/main` 作为基线**拉出修复分支或在独立 worktree 中快速修复并验证，以最短路径合入 `main` 部署上线消除用户影响。修复改了模块（[docs/README](../README.md)「文档跟着模块改」表里的路径），就在同一个改动里把对应文档改对；文档里的事实确实没变时，在随修复一起提交的执行记录里写文档核对。没跟文档的修复，在它上面打的发布 tag 会被部署工作流的 plan 拦下（[RELEASES](RELEASES.md) 第 3、4 步）。
 3. **硬不变量合回（强制执行）**：
-   - 生产环境修复验收通过后，**必须立即把该修复合并回 `stage` 分支**：
+   - hotfix 的 MR 合进 `main` 之后，**立刻**运行 `node scripts/hotfix-sync.mjs apply`（先 `plan` 看现状）：把 `main` 同步到镜像远端，再把 `main` 合回 `stage` 并推送两个远端，保证 `stage >= main`；细节见下面「hotfix 合并后的自动同步」。线上验收通过后再加 `--close-window <issue> --evidence "<合回 stage 的提交与线上核对>"` 关闭窗口。手工等价于：
      ```bash
      git switch stage && git merge --no-ff origin/main && git push origin stage
      ```
+   - 同一个改动里把 `deploy/hotfix/windows.json` 里这个 issue 的窗口改 `closed`，写 `closedAt` 与 `evidence`（合回 stage 的提交、线上核对结果）。
    - 运行 `node scripts/check-branch-invariants.mjs` 确认 `stage >= main`（`git merge-base --is-ancestor origin/main origin/stage` 为真）依然成立。绝不允许生产修复仅留在 `main` 而让 `stage` 遗漏，导致后续常规迭代出现代码倒退或冲突。
    - 上面的合并提交把修复的模块改动和文档（或文档核对）一起带进 `stage`。修复没跟文档时，这个合并提交在 `stage` 上就不同步（例：`9b38684`、`7c01897`）：push `stage` 的 CI `core` 报红，在它和它之后、文档补上之前的提交上打的 rc 都会被 plan 拦下；rc tag 不能移动，只能作废编号，补好文档后再打下一个。
 4. **源头根治：预发布与正式环境必须保持严格同构（环境一致性原则）**：
