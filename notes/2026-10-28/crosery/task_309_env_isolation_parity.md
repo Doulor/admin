@@ -50,3 +50,9 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：P-0004：gh secret list --env production 有 GOOGLE_CLIENT_ID/SECRET（07:23Z 创建），线上 /auth/providers 列出 google，/auth/google 302 到 Google。线上只读实测：git.yangtzeu.work 30 次请求 30 次 200；GitLab 单点登录 POST 后 302 到 prev.yangtzeu.work/oidc/auth（正式跳预发布的根因）；cdn.yangtzeu.work 直连 103.240.197.216 30 次里 18 次超时；内部赛事 /api/public/competitions/oss-challenge-2026-1 的 7 个接口两边都是 200 且格式一致
 - 结果：pending 由 7 条降为 6 条（P-0003、P-0005..P-0009）；正式 /api/public/gitlab/projects 返回 unavailable:true，两边 stats.updated_at 都是 0；deploy/remote/garage-archive.mjs 的备份端点写死 cdn.yangtzeu.work，而该域名当前解析到不稳定的直连 IP
+
+## 20:12:25 +08:00 · PR · #309 · GitLab MR !51 到 main
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：所有者 20:02 同意推送；分支推到 gitlab 并用 push option 开了 MR !51（目标 main，描述含 Closes #309）；没有合并，没有触发任何流水线
+- 结果：MR 地址 https://git.yangtzeu.work/geek/admin/-/merge_requests/51；完整 PR 正文草稿在 .tools/handoff/2026-10-28-hotfix-env-parity/PR-BODY.md，GitLab 没有 API 凭据，描述只写了一行，待所有者在网页补全
