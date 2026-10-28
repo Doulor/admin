@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { siteCsp } from '../../app/forum/scripts/csp-header.mjs';
 import { STATIC_CDN_BASE, STATIC_CDN_ORIGIN, STATIC_CDN_PREFIX } from '../../scripts/static-cdn-base.mjs';
 import {
-  AREAS, GUIDE_IMAGES, MAX_FILE_BYTES, PUBLIC_DIRS, STICKERS,
-  assertKey, collect, collectGuideImages, collectStickers, cspAllows, guideImageHash, main, mimeFor, originPathOf,
+  AREAS, GUIDE_IMAGES, MAX_FILE_BYTES, PUBLIC_DIRS, PUBLISHED_IMAGES, STICKERS,
+  assertKey, collect, collectGuideImages, collectPublishedImages, collectStickers, cspAllows, guideImageHash, main, mimeFor, originPathOf,
   uploadAll,
 } from '../../scripts/static-cdn.mjs';
 import { createS3Storage, readS3Config, sha256 } from '../../scripts/static-cdn-s3.mjs';
@@ -209,6 +209,48 @@ describe('usage guide screenshots (#281)', () => {
   });
 });
 
+describe('published topic images (#304)', () => {
+  const roots: string[] = [];
+  afterAll(() => { for (const root of roots) rmSync(root, { recursive: true, force: true }); });
+  function fixture() {
+    const root = mkdtempSync(join(tmpdir(), 'geek-published-cdn-'));
+    roots.push(root);
+    const body = Buffer.from('exported webp bytes');
+    const name = `${sha256(body).slice(0, 16)}.webp`;
+    mkdirSync(join(root, PUBLISHED_IMAGES.dir), { recursive: true });
+    mkdirSync(dirname(join(root, PUBLISHED_IMAGES.topics)), { recursive: true });
+    writeFileSync(join(root, PUBLISHED_IMAGES.dir, name), body);
+    const url = `${STATIC_CDN_BASE}forum/published/${name}`;
+    writeFileSync(join(root, PUBLISHED_IMAGES.topics), JSON.stringify({ topics: [
+      { content: `![a](${url})\n![again](${url})\n![same origin](../published/ffffffffffffffff.webp)` },
+    ] }));
+    return { root, body, name, url };
+  }
+
+  it('collects only referenced content-addressed WebP files, once per object', () => {
+    const { root, body, name } = fixture();
+    expect(collectPublishedImages(root)).toEqual([{ file: join(root, PUBLISHED_IMAGES.dir, name), key: `${STATIC_CDN_PREFIX}forum/published/${name}`, size: body.length, mime: 'image/webp' }]);
+    expect(originPathOf(`${STATIC_CDN_PREFIX}forum/published/${name}`)).toBe(`/forum/published/${name}`);
+  });
+
+  it('fails closed when bytes change or a referenced file is missing', () => {
+    const { root, name } = fixture();
+    writeFileSync(join(root, PUBLISHED_IMAGES.dir, name), 'changed');
+    expect(() => collectPublishedImages(root)).toThrow(/内容哈希与文件名不符/);
+    rmSync(join(root, PUBLISHED_IMAGES.dir, name));
+    expect(() => collectPublishedImages(root)).toThrow(/ENOENT/);
+  });
+
+  it('does not infer uploads from unreferenced files or drop rules', () => {
+    const root = mkdtempSync(join(tmpdir(), 'geek-published-empty-'));
+    roots.push(root);
+    expect(collectPublishedImages(root)).toEqual([]);
+    mkdirSync(dirname(join(root, PUBLISHED_IMAGES.topics)), { recursive: true });
+    writeFileSync(join(root, PUBLISHED_IMAGES.topics), JSON.stringify({ topics: [{ content: '（这张截图没有公开）' }] }));
+    expect(collectPublishedImages(root)).toEqual([]);
+  });
+});
+
 describe('built-in sticker images (#286)', () => {
   /** 过得了清单校验的假 WebP：RIFF 头加上按名字不同的内容。 */
   const fakeWebp = (seed: string) => {
@@ -296,7 +338,7 @@ describe('built-in sticker images (#286)', () => {
     expect(bytes).toBeGreaterThan(0);
     expect(lines.filter(line => line.includes('/forum/stickers/'))).toHaveLength(distinct.size);
     for (const line of lines.filter(line => line.includes('/forum/stickers/'))) expect(line).toMatch(/^static\/site\/forum\/stickers\/[0-9a-f]{64}\.webp\t\d+\timage\/webp\n$/);
-    expect(entries.length).toBe(3 + collectGuideImages().length + distinct.size);
+    expect(entries.length).toBe(3 + collectGuideImages().length + distinct.size + collectPublishedImages().length);
   });
 
   it('uploads stickers through signed S3 and never overwrites a conflicting key', async () => {

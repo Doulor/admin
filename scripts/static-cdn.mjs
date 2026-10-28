@@ -35,11 +35,16 @@ export const GUIDE_IMAGES = { dir: 'app/forum/content/guide-images', mount: 'for
  * 要求清单与目录一致，不一致整次上传失败，不会出现清单里有、CDN 上没有的地址。
  */
 export const STICKERS = { dir: 'app/server/assets/stickers', mount: 'forum/stickers/' };
-const KEY_RE = new RegExp(`^${STATIC_CDN_PREFIX.replaceAll('/', '\\/')}(?:assets|console-assets|forum\\/_nuxt|forum\\/guides|forum\\/stickers)\\/[A-Za-z0-9_./-]+$`);
+/**
+ * 公开旧帖里显式标记 `cdn: true` 的图片（#304）：导出器把正文地址写成这个前缀，
+ * 这里只收正文实际引用的 WebP，未标记的同源图片与 drop 的私人截图都不会进入公开桶。
+ */
+export const PUBLISHED_IMAGES = { dir: 'app/forum/public/published', topics: 'app/forum/content/published/topics.json', mount: 'forum/published/' };
+const KEY_RE = new RegExp(`^${STATIC_CDN_PREFIX.replaceAll('/', '\\/')}(?:assets|console-assets|forum\\/_nuxt|forum\\/guides|forum\\/stickers|forum\\/published)\\/[A-Za-z0-9_./-]+$`);
 
 /**
- * 前缀守卫：每个要写的键都过这一关。只能是 static/site/ 下三个产物目录与两个源文件目录（forum/guides、forum/stickers）里的文件，
- * 不能有空段、`.`、`..`，不能超长。S3 凭据的桶范围由父级运维核实；此处不声称服务端防覆盖。
+ * 前缀守卫：每个要写的键都过这一关。只能是 static/site/ 下三个产物目录与三个源文件目录
+ * （forum/guides、forum/stickers、forum/published）里的文件，
  */
 export function assertKey(key) {
   const ok = typeof key === 'string'
@@ -47,7 +52,7 @@ export function assertKey(key) {
     && key.startsWith(STATIC_CDN_PREFIX)
     && KEY_RE.test(key)
     && key.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..');
-  if (!ok) throw new Error(`拒绝写入 ${JSON.stringify(key)}：只能写 ${STATIC_CDN_PREFIX}{assets,console-assets,forum/_nuxt,forum/guides,forum/stickers}/ 下的文件`);
+  if (!ok) throw new Error(`拒绝写入 ${JSON.stringify(key)}：只能写 ${STATIC_CDN_PREFIX}{assets,console-assets,forum/_nuxt,forum/guides,forum/stickers,forum/published}/ 下的文件`);
   return assertStorageKey(key);
 }
 
@@ -171,6 +176,31 @@ export function collectGuideImages(root = REPO_ROOT) {
     entries.push({ file, key: assertKey(`${STATIC_CDN_PREFIX}${GUIDE_IMAGES.mount}${name}`), size: stat.size, mime: mimeFor(name) });
   }
   if (problems.length) throw new Error(`${GUIDE_IMAGES.dir} 里这些文件不能上传：\n  ${problems.join('\n  ')}`);
+  return entries;
+}
+
+/** 只收 topics.json 实际引用的旧帖 CDN 图片；文件名与内容 SHA-256 前 16 位必须一致。 */
+export function collectPublishedImages(root = REPO_ROOT) {
+  const topicsFile = join(root, PUBLISHED_IMAGES.topics);
+  if (!existsSync(topicsFile)) return [];
+  const topics = JSON.parse(readFileSync(topicsFile, 'utf8'));
+  const prefix = `${STATIC_CDN_BASE}${PUBLISHED_IMAGES.mount}`;
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const names = new Set();
+  for (const topic of topics.topics ?? []) {
+    for (const match of String(topic.content ?? '').matchAll(new RegExp(`${escaped}([^\\s)"']+)`, 'g'))) names.add(match[1]);
+  }
+  const entries = [];
+  for (const name of [...names].sort()) {
+    if (!/^[a-f0-9]{16}\.webp$/.test(name)) throw new Error(`旧帖 CDN 图片名不合合同：${name}`);
+    const file = join(root, PUBLISHED_IMAGES.dir, name);
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`旧帖 CDN 图片不是普通文件：${name}`);
+    if (stat.size > MAX_FILE_BYTES) throw new Error(`旧帖 CDN 图片超过 ${MAX_FILE_BYTES} 字节：${name}`);
+    const body = readFileSync(file);
+    if (sha256(body).slice(0, 16) !== name.slice(0, 16)) throw new Error(`旧帖 CDN 图片的内容哈希与文件名不符：${name}`);
+    entries.push({ file, key: assertKey(`${STATIC_CDN_PREFIX}${PUBLISHED_IMAGES.mount}${name}`), size: stat.size, mime: mimeFor(name) });
+  }
   return entries;
 }
 
@@ -417,7 +447,7 @@ export async function main(argv, { env = process.env, stdout = process.stdout, l
   }
   const config = options.command === 'upload' ? readS3Config(env) : undefined;
   if (options.command === 'upload' && !config && !storage) throw new Error('没有完整 S3 凭据：不能上传');
-  const entries = [...collect({ web: options.web, forum: options.forum }), ...collectGuideImages(sourceRoot), ...collectStickers(sourceRoot)];
+  const entries = [...collect({ web: options.web, forum: options.forum }), ...collectGuideImages(sourceRoot), ...collectStickers(sourceRoot), ...collectPublishedImages(sourceRoot)];
   let manifest;
   const outputs = [options.manifest, options.contentIndex].filter(Boolean).map(file => resolve(file));
   if (new Set(outputs).size !== outputs.length || outputs.some(file => existsSync(file))) throw new Error('本地清单或私有索引已存在，拒绝覆盖');

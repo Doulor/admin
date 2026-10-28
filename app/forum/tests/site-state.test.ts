@@ -108,6 +108,21 @@ describe('siteForumState', () => {
     expect(t84).toMatch(/\]\(https:\/\/cloud\.tsinghua\.edu\.cn\/d\/[^)\s]+coding\.pdf\)/)
   })
 
+
+  it('publishes every allowed Ali OSS image from the Garage CDN, never the dropped screenshots (#304)', () => {
+    const rules = manifest.images.filter(image => image.cdn)
+    expect(rules).toHaveLength(56)
+    expect(rules.every(image => image.source.includes('luoxi2334.oss-cn-shanghai.aliyuncs.com') && /^[a-f0-9]{64}$/.test(image.sha256 ?? ''))).toBe(true)
+    expect(manifest.images.filter(image => image.drop)).toHaveLength(8)
+    const text = JSON.stringify(published)
+    expect(text).not.toContain('luoxi2334.oss-cn-shanghai.aliyuncs.com')
+    const names = new Set<string>()
+    for (const match of text.matchAll(/https:\/\/cdn\.yangtzeu\.work\/geek-public\/static\/site\/forum\/published\/([a-f0-9]{16}\.webp)/g)) {
+      names.add(match[1]!)
+      expect(existsSync(new URL(`../public/published/${match[1]}`, import.meta.url)), match[1]).toBe(true)
+    }
+    expect(names.size).toBe(56)
+  })
   it('links only to published topics and to images that ship with the forum', () => {
     const ids = new Set(publishedTopicIds())
     for (const post of state.posts) {

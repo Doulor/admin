@@ -2,7 +2,7 @@
 
 > #295：公开静态资源迁到 path-style S3；对象内容、发布来源和私有运维索引分别追溯。
 
-状态：`current` · 更新：2026-10-27
+状态：`current` · 更新：2026-10-28
 
 ## 桶与路径
 
@@ -10,7 +10,7 @@ S3 endpoint 为 `https://cdn.yangtzeu.work`，region 为 `garage`，`forcePathSt
 
 | 桶 | 可见性与用途 | 对象路径 |
 |---|---|---|
-| `geek-public` | 仅公开静态资源；不允许匿名列桶、写入 | `static/site/{assets,console-assets,forum/_nuxt,forum/guides,forum/stickers}/`；保持构建哈希文件名 |
+| `geek-public` | 仅公开静态资源；不允许匿名列桶、写入 | `static/site/{assets,console-assets,forum/_nuxt,forum/guides,forum/stickers,forum/published}/`；保持构建或源文件内容哈希文件名 |
 | `geek-public` | 宣传片；保持相对 HLS 主清单、子清单、初始化段、分片和海报关系 | `media/promo/<版本与内容哈希>/` |
 | `geek-public` | 邮件图片 | `mail/v1/`，`MAIL_ASSET_BASE=https://cdn.yangtzeu.work/geek-public/mail/v1/` |
 | `geek-production-private` | 正式环境私有业务对象预留 | 按业务合同另行确定；本任务不外移 DB、头像、附件或站点包 |
@@ -42,7 +42,7 @@ S3 endpoint 为 `https://cdn.yangtzeu.work`，region 为 `garage`，`forcePathSt
 }
 ```
 
-`generated_at` 取发布提交的提交时间，规范化为 UTC ISO 时间；不是每次重跑的当前时间，便于相同产物幂等比对。`role` 只认 `portal-asset`、`console-asset`、`forum-asset`、`guide-image`、`sticker`。来源只认构建相对路径或仓库内公开截图、表情的相对路径。未知字段、重复键、错误摘要/类型/大小/来源、隐藏路径、私有业务路径一律拒绝。不得加入业务信息、绝对路径、签名 URL、环境配置或密钥。
+`generated_at` 取发布提交的提交时间，规范化为 UTC ISO 时间；不是每次重跑的当前时间，便于相同产物幂等比对。`role` 只认 `portal-asset`、`console-asset`、`forum-asset`、`guide-image`、`sticker`、`published-image`。来源只认构建相对路径或仓库内公开截图、表情、旧帖图片的相对路径。未知字段、重复键、错误摘要/类型/大小/来源、隐藏路径、私有业务路径一律拒绝。不得加入业务信息、绝对路径、签名 URL、环境配置或密钥。
 
 内容哈希索引单独由 `--content-index` 生成：`{schema_version:1, hashes:{<sha256>:{bytes,keys:[]}}}`，不含发布提交和来源字段，写成权限 `0600` 的本地私有产物。父级发布链用共享 `deploy/remote/garage-archive.mjs put-file --role <preview|production>-content-index` 把它归档进对应环境私有桶的 `indexes/content/<commit>/sha256.json`；适配器校验 0600、schema 与完整 commit 键，已存在时完整 GET 逐字相同才复用，不同即失败，写后再完整读回。未归档不能称持久追溯已闭环。本公共上传器不接私有桶写权限、不上传它，不在公开桶另建“全量索引”。公开清单按环境/提交反查，私有内容索引按 SHA-256 反查，不能互相冒充。
 
@@ -65,7 +65,7 @@ S3 endpoint 为 `https://cdn.yangtzeu.work`，region 为 `garage`，`forcePathSt
 
 私有归档凭据按用途和环境拆分：GitLab 用 `GITLAB_BACKUP_S3_ACCESS_KEY_ID` / `GITLAB_BACKUP_S3_SECRET_ACCESS_KEY`；平台快照分别用 `PLATFORM_PREVIEW_BACKUP_S3_ACCESS_KEY_ID` / `PLATFORM_PREVIEW_BACKUP_S3_SECRET_ACCESS_KEY` 与 `PLATFORM_PRODUCTION_BACKUP_S3_ACCESS_KEY_ID` / `PLATFORM_PRODUCTION_BACKUP_S3_SECRET_ACCESS_KEY`；私有内容索引分别用 `PREVIEW_PRIVATE_INDEX_S3_ACCESS_KEY_ID` / `PREVIEW_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY` 与 `PRODUCTION_PRIVATE_INDEX_S3_ACCESS_KEY_ID` / `PRODUCTION_PRIVATE_INDEX_S3_SECRET_ACCESS_KEY`。它们只进入对应受控归档进程，不进入业务运行 env、镜像、argv、日志或公开清单；endpoint、region、桶与 path-style 固定在适配器合同里。
 
-构建参数 `STATIC_CDN_BASE` 只能为空或 `https://cdn.yangtzeu.work/geek-public/static/site/`。空值保持 JS/CSS/字体/构建图片及内置表情同源；HTML、接口、release.json 和不带哈希的 public 文件一直同源。宣传片、邮件图片、指南正文地址不随构建开关切回同源。镜像仍保存构建资产与内置表情的同源副本。
+构建参数 `STATIC_CDN_BASE` 只能为空或 `https://cdn.yangtzeu.work/geek-public/static/site/`。空值保持 JS/CSS/字体/构建图片及内置表情同源；HTML、接口、release.json 和不带哈希的 public 文件一直同源。宣传片、邮件图片、指南正文地址不随构建开关切回同源。旧帖清单里显式标 `cdn: true` 的图片也固定走 CDN；其余旧帖图片继续按 viewer 从核心同源读取。镜像仍保存构建资产、内置表情与旧帖图片的同源副本。
 
 ## 上传协议、保护与限制
 

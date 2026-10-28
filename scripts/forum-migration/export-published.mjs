@@ -10,10 +10,10 @@
 // written to the checkout this script belongs to.
 //
 // Offline by default. External images that the manifest edits (covers a bookmark bar, crops a
-// window) are read from <snapshot>/external/<sha256>; `--fetch` downloads the missing ones once
-// and checks them against the SHA-256 in the manifest. Running it again on the same snapshot
-// writes the same bytes. The review record (what was rewritten, per topic) goes to stdout,
-// never into the repository.
+// window) or explicitly publishes through the CDN are read from <snapshot>/external/<sha256>;
+// `--fetch` downloads the missing ones once and checks them against the SHA-256 in the manifest.
+// Running it again on the same snapshot writes the same bytes. The review record (what was
+// rewritten, per topic) goes to stdout, never into the repository.
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
@@ -21,7 +21,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, wr
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { applyRedactions, publishedProblems, rewriteLinks } from './published-transform.mjs'
-
+import { STATIC_CDN_BASE } from '../static-cdn-base.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const mainRoot = dirname(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: root, encoding: 'utf8' }).trim())
 const snapshotDir = resolve(mainRoot, process.argv[2] ?? '')
@@ -54,7 +54,7 @@ for (const id of manifest.withheld) {
 
 // Per-image rules, keyed by the exact target written in the old Markdown: `drop` replaces the
 // image with a note; `cover` paints rectangles (source pixels) and `crop` trims edges before
-// encoding. An external image with edits needs its `sha256` so the export stays reproducible.
+// encoding; `cdn: true` writes the immutable Garage URL instead of the same-origin relative path.
 const rules = new Map((manifest.images ?? []).map(rule => [rule.source, rule]))
 const usedRules = new Set()
 const externalDir = resolve(snapshotDir, 'external')
@@ -192,8 +192,10 @@ for (const item of manifest.topics) {
     return null
   } })
   const paths = new Map()
-  for (const [target, plan] of pending)
-    paths.set(target, `../published/${(await encode(plan.key, await plan.read(), plan)).name}`)
+  for (const [target, plan] of pending) {
+    const image = await encode(plan.key, await plan.read(), plan)
+    paths.set(target, plan.rule?.cdn ? `${STATIC_CDN_BASE}forum/published/${image.name}` : `../published/${image.name}`)
+  }
   const { content, report } = rewriteLinks(redacted, { titles, image: (target) => {
     const plan = imagePlan(target)
     if (!plan)

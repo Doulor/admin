@@ -57,4 +57,15 @@ describe('release provenance and private content index', () => {
       expect(() => validateReleaseManifest({ ...manifest, objects: [{ ...manifest.objects[0], sha256: [manifest.objects[0].sha256] }] })).toThrow();
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
+
+  it('records exported forum images as public, content-addressed release objects', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cdn-published-manifest-'));
+    try {
+      const key = 'static/site/forum/published/ba7816bf8f01cfea.webp';
+      const file = join(dir, 'ba7816bf8f01cfea.webp');
+      writeFileSync(file, 'abc');
+      const manifest = createReleaseManifest([{ file, key, size: 3, mime: 'image/webp' }], identity);
+      expect(manifest.objects[0]).toMatchObject({ key, role: 'published-image', source_path: 'app/forum/public/published/ba7816bf8f01cfea.webp', content_type: 'image/webp' });
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
 });
