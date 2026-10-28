@@ -124,8 +124,13 @@
         "evidence": "边缘 12/12 成功，直连 6 次只成功 2 次（omp:01a181c9 实测，回填登记）"
       },
       "production": {
-        "status": "pending",
-        "action": "所有者登录 DNSPod 把 cdn 子域 A 记录指向香港边缘；验收：cdn-verify.sh 连续 12 次 200"
+        "status": "waived",
+        "action": "所有者登录 DNSPod 把 cdn 子域 A 记录指向香港边缘；验收：cdn-verify.sh 连续 12 次 200",
+        "waiver": {
+          "by": "Crosery",
+          "at": "2026-10-28T22:32:15+08:00",
+          "quote": "cdn是另外一台服务器，指向我们的线上服务干嘛，cdn是边缘对象存储，不能解析到我们自己的服务器"
+        }
       }
     },
     {

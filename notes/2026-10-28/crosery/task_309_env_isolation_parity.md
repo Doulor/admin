@@ -82,3 +82,10 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：cutover.sh、cdn-mirror.sh、migrate-oidc-subjects.mjs、install-host.sh、parity.mjs、三条部署工作流、规范与测试；ledger 的 post_deploy 条目补 release=0.1.1。文档核对：docs/ops/GITLAB.md、docs/conventions/RELEASE-PARITY.md、docs/ops/CICD.md、docs/conventions/RELEASES.md、.agents/skills/release-parity/SKILL.md 已随行为更新
 - 结果：同审查条目；未推送
+
+## 22:32:52 +08:00 · 开发 · #309 · 所有者 22:3x 两条指示：cdn 不解析到我们的服务器；P0 修完直接发正式、每次同步 stage
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：所有者原话：「cdn是另外一台服务器，指向我们的线上服务干嘛，cdn是边缘对象存储，不能解析到我们自己的服务器」；「你先把线上p0 bug全部修复之后直接推正式发版，这点不需要我同意，只不过每次记得同步下stage分支保证stage>= MAIN 就行」。据此：同构清单 P-0008（cdn 的 A 记录改到香港边缘）按这句原话 waive，不做任何 DNS 改动；#305 文档里改指边缘的段落（docs/ops/STORAGE-CDN.md:39-41、DEPLOY.md:235）与所有者意思冲突，本次未改；hotfix 窗口登记、门禁与 hotfix-sync 已提交 bba6f95b，独立评审进行中；部署派发与生产环境审批按所有者的授权由我执行
+- 结果：parity.mjs check --release --version 0.1.1 退出 0，剩 P-0007、P-0009、P-0011 三条随本版本部署后处理；文档核对：docs/ops/STORAGE-CDN.md、docs/ops/DEPLOY.md 的 cdn 改指边缘段落不是本次改动，不改
+- 下一步：评审通过后合并 MR !52、推 main、hotfix-sync、派发 deploy-hotfix
