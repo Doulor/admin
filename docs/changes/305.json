@@ -85,6 +85,23 @@
         "domain:platform"
       ],
       "reason": "主站反代模板固定回源 IP、Host 与 SNI；测试保护签名和 URL 不被改写；文档记录安装、验收与回滚。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "STORAGE-CDN、DEPLOY 更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
     }
   ],
   "documents": [
