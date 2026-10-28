@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "issue": 303,
+  "kind": "engineering",
+  "summary": "garage-archive.mjs 判断对象是否已存在时，把真实 rclone 对不存在键返回的空目录条目当成已有对象，第一次上传就报「同键内容冲突」；改为只有普通对象才算已存在，并让测试里的假 rclone 与真实行为一致。",
+  "applications": [],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不改登录、论坛、比赛或投递的任何规则；只改发布流水线与备份脚本用的归档适配器。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不新增应用接口、数据库表或服务端代码。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不改角色、桶范围或凭据环境变量；仍是每个角色只用自己的密钥访问自己的桶。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不改对象键布局、保留规则或写入方式；同键已存在且内容不同仍拒绝覆盖，写后仍做完整 GET SHA-256 核对。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增依赖；仍用 rclone，只是把它对不存在键的返回正确地解释为「不存在」。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    },
+    "documentation": {
+      "status": "unchanged",
+      "reason": "对象键、角色和不覆盖约定的文档描述不变，本次是实现与文档不符的修正；文档核对：docs/ops/CDN.md、GITLAB.md、BACKUP.md 不用改——它们描述的是「只增不覆盖、同键内容不同拒绝」，行为没变。",
+      "evidence": [
+        "docs/ops/CDN.md"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "假 rclone 对不存在的键改成退出码 0 + 空目录条目（与 rclone v1.75.0 在 Garage 上的实测一致），改前 18 个用例失败，改后全部通过；新增一条首次写入、重复写入、冲突三种情形的专门用例，去掉修复后该用例失败。",
+      "evidence": [
+        "tests/tooling/garage-archive.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "changed",
+      "reason": "rc.27 的 cdn-upload 因此失败、预发布没有部署；修复后重新打 rc 才能完成预发布，并让 GitLab 与平台备份上传在 Arch 上第一次就能写成功。",
+      "evidence": [
+        "deploy/remote/garage-archive.mjs"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "deploy/remote/garage-archive.mjs",
+        "tests/tooling/garage-archive.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "归档适配器的存在性判断只认普通对象；测试的假 rclone 与真实行为对齐并补首次写入回归。"
+    }
+  ],
+  "documents": [
+    "docs/ops/CDN.md"
+  ],
+  "tests": [
+    "tests/tooling/garage-archive.test.ts"
+  ],
+  "compatibility": "对象键、角色与不覆盖约定都不变；已存在且内容相同仍返回 exists，内容不同仍拒绝覆盖。变化只是不存在的键现在能正常写入。",
+  "migration": "不涉及数据或接口迁移：没有表结构、接口或环境变量变化；Garage 桶里已有的对象不动，归档适配器只是对「不存在的键」改为正常写入，已存在的键仍按逐字核对处理。",
+  "rollback": "回滚本次改动即可，适配器回到首次写入就失败的状态（不建议）。"
+}

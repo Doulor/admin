@@ -167,7 +167,8 @@ async function putFile(role, source, key) {
   const local = await hashFile(source);
   const target = remotePath(role, key);
   const current = runJson(['lsjson', target, '--stat', '--no-modtime', '--no-mimetype'], role, { missingOk: true });
-  if (current) {
+  // 真实 rclone 对不存在的键不一定退出 3：Garage 上返回退出码 0 和 IsDir=true 的空条目（rc.27 实测），只有普通对象才算已存在。
+  if (current && current.IsDir === false) {
     const remote = await streamRclone(['cat', target], role);
     requireThat(remote.bytes === local.bytes && remote.sha256 === local.sha256, `${key}：同键内容冲突，拒绝覆盖`);
     return { status: 'exists', key, ...local };

@@ -44,7 +44,11 @@ function remote(value) {
 }
 if (args[0] === 'lsjson' && args.includes('--stat')) {
   const item = remote(args[1]);
-  if (!fs.existsSync(item.file) || !fs.statSync(item.file).isFile()) process.exit(3);
+  // 真实 rclone v1.75.0 对 Garage 里不存在的键：退出码 0，输出一个空路径的目录条目（rc.27 的 cdn-upload 实测）。
+  if (!fs.existsSync(item.file) || !fs.statSync(item.file).isFile()) {
+    console.log(JSON.stringify({ Path: '', Name: '', Size: -1, ModTime: '', IsDir: true }));
+    process.exit(0);
+  }
   const info = fs.statSync(item.file);
   console.log(JSON.stringify({ Path: path.basename(item.file), Name: path.basename(item.file), Size: info.size, IsDir: false }));
 } else if (args[0] === 'copyto') {
@@ -352,6 +356,23 @@ describe('Garage immutable archive adapter', () => {
     expect(f.calls().slice(baseline).filter(call => call.args[0] === 'cat')).toHaveLength(0);
     expect(existsSync(drillRoot)).toBe(false);
     expect(result.stdout).not.toContain('alpha-two');
+  });
+
+  it('stores the first copy of a key that rclone reports as an empty directory entry instead of exiting 3 (rc.27)', () => {
+    const f = fixture();
+    const source = join(f.dir, 'first.gpg');
+    writeFileSync(source, 'first copy', { mode: 0o600 });
+    const key = 'gitlab/2026-10-28/run/first.gpg';
+    const stored = f.run(['put-file', '--role', 'gitlab-backup', '--source', source, '--key', key]);
+    expect(stored.status, stored.stderr).toBe(0);
+    expect(stored.stdout).toContain('stored');
+    const again = f.run(['put-file', '--role', 'gitlab-backup', '--source', source, '--key', key]);
+    expect(again.status, again.stderr).toBe(0);
+    expect(again.stdout).toContain('exists');
+    writeFileSync(source, 'different bytes', { mode: 0o600 });
+    const conflict = f.run(['put-file', '--role', 'gitlab-backup', '--source', source, '--key', key]);
+    expect(conflict.status).toBe(1);
+    expect(conflict.stderr).toContain('同键内容冲突');
   });
 
   it('fails closed for missing role credentials or rclone errors without leaking provider output', () => {
