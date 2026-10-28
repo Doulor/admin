@@ -60,6 +60,7 @@ web 镜像构建阶段分别构建 `app/web`（官网）与 `app/console`（控�
 - 固定项目子网：production `172.31.181.0/24`、preview `172.31.182.0/24`；server DNS 为 `1.1.1.1` / `8.8.8.8`。固定子网与出网规则绑定，后续 Compose 不能丢失这些字段。
 - Arch 规则优先级 91/92 查询表 18182，经 tun0 到香港；保留 Docker 默认 NAT，香港追加 `yzgc-docker-egress` 出口 NAT。只作用于项目子网，不改宿主默认路由；容器到 GitHub/GitLab/Google 均实测 200。
 - 两端 `yzgc-egress.service` 持久化网络；Arch `yzgc-compose@production.service` / `@preview.service` 在 Docker 与隧道之后编排 Compose，不运行宿主业务 Node。
+- 隧道抖动不拖垮站点（#309，物料由 `deploy/remote/install-host.sh` 在部署后自动安装并核对，不需要登录目标机）：`hk-tunnel-watchdog` 原来只要一次 ping 丢包就重启 `hk-tunnel`，`yzgc-egress` 跟着重启，又因 `yzgc-compose@` 写 `Requires=yzgc-egress.service` 把六个容器一起停掉再拉起，整站断 25 秒以上，GitLab 也随隧道一起断。现在 [`yzgc-compose@.service`](../../deploy/remote/systemd/yzgc-compose@.service) 改为 `Wants=`，egress 重启只重放路由；[watchdog 覆盖项](../../deploy/remote/systemd/hk-tunnel-watchdog.service.d/tolerate-loss.conf)改为 tun0 地址消失立刻重启、否则连续 3 次 ping 都丢才重启。回滚：安装器覆盖前会留 `<目标文件>.bak-<UTC 时间>`；把仓库里这两份物料 revert 后重新部署即可，不手改目标机（2026-10-28 首次手工安装时的备份在 Arch `/root/yzgc-compose@.service.bak-20261028T2030`）。隧道本身仍是单条链路，掉线期间 `git.yangtzeu.work` 不可达，根治需要第二条路径，未实施。
 - `/opt/yzgc/tools/docker-backup.py` 在原 Linux 镜像内做保留 sessions 的一致备份，每份再断网恢复核对；`yzgc-backup@*.timer` 北京时间 04:00、随机延后不超过 10 分钟。`yzgc-health.timer` 每 10 分钟只读检查，不全局 prune。详见 [BACKUP](BACKUP.md)。
 - 这些实机维护工具暂由迁移交接中的源码保全；现有 `platform-maintenance.sh` / `platform-backup@` 是另一套未安装候选，不能混称已纳管或覆盖现行任务。
 

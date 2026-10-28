@@ -26,6 +26,7 @@
 | `backup.sh`、`restore-drill.sh`、仓库 `deploy/remote/garage-archive.mjs` | Arch `/srv/gitlab/`；前者由备份 service 调用，后者由获批操作者调用，共享归档器由两者调用 |
 | `gitlab-backup.service`、`gitlab-backup.timer` | Arch `/etc/systemd/system/`；timer → service → `/srv/gitlab/backup.sh` |
 | `gitlab-oidc.rb`、`gitlab-ui.rb` | 审核后合入 Arch `/srv/gitlab/config/gitlab.rb`，不是独立 Ruby 程序；不得反复追加或覆盖整份已有配置 |
+| `migrate-oidc-subjects.mjs`（#309 新增，不属于 28 项导入基线） | 不安装到宿主：改接签发者时 `docker cp` 进两个 server 容器的 `/tmp/` 临时运行，用完删除；缺省只演算，`--apply` 才写正式库的 `oauth_subjects`（见上节第 3 步） |
 | `gitlab.caddy` | 香港 `/etc/caddy/sites/gitlab.caddy`；默认头像规则优先，其余反代到 `10.66.0.2:8929` |
 | `ui/logo.png`、`group-avatar.png`、`favicon-32.png`、`project-*.png`（4 张） | 外观、组织和项目头像上传输入；没有自动上传脚本 |
 | `ui/nano-avatars/20261025/avatar-*.png`（8 张）与 `manifest.json` | 香港 `/var/lib/caddy/gitlab-avatars/20261025/`；Arch `/srv/gitlab/config/nano-avatars/20261025/` 的恢复副本只有实际安装后才会进入配置备份 |
@@ -88,7 +89,15 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 - `users.id` 是内部账号 ID，不是给 GitLab 的主体标识；下游 `sub` 按 sector（回调主机）生成 32 字节随机值，持久化于 `oauth_subjects`，不能从账号 ID 重新计算。GitLab `openid_connect` 的 `extern_uid` 必须沿用该值。
 - 迁移保全 `oauth_clients`、GitLab sector 的 `oauth_subjects`、`gitlab_accounts` 和原 `ENCRYPTION_KEY`；跨库内部 ID 可不同，须按不可变身份及认领证明对账，不按邮箱/昵称自动合号或直接照抄内部 ID。
 - 改接正式签发者的门禁顺序：关闭旧预发布 sync → 对账并保全原 sector/sub、client 与账号关联 → 经批准改 GitLab issuer/client secret → 只开启正式 sync。Arch 副本先保持 sync off；不能让两个环境同时写同一 GitLab。
-- 改接的具体步骤（同构清单 P-0003、P-0005、P-0006、P-0007，[RELEASE-PARITY](../conventions/RELEASE-PARITY.md)）：① 正式 `OIDC_JWKS`、`GITLAB_API_TOKEN` 写进 GitHub 环境 `production` 并由 hotfix 部署渲染进正式 env，② 正式库登记 `gitlab` 客户端（`oidc.js client add`，secret 落 `/srv/gitlab/config/yzgc-oidc-secret`），③ 先备份宿主 `gitlab.rb`，把 `yzgc-oidc-issuer` 的内容换成正式 `PUBLIC_ORIGIN` + `/oidc`，`gitlab-ctl reconfigure`，④ 核对 `parity.mjs compare` 里 `/oidc/.well-known/openid-configuration` 两边都是 200 且 `issuer` 各是自己的 origin，⑤ 用一个正式成员账号真实登录 GitLab。回滚：把 `yzgc-oidc-issuer` 改回原值再 reconfigure。
+- 改接的具体步骤（同构清单 P-0003、P-0005、P-0006、P-0007、P-0011，[RELEASE-PARITY](../conventions/RELEASE-PARITY.md)）：
+  1. 已做（2026-10-28）：正式 `OIDC_JWKS`、`GITLAB_API_TOKEN` 写进 GitHub 环境 `production`，由 hotfix 部署渲染进正式 env；正式库登记了 `gitlab` 客户端，明文 secret 只在 Arch `/srv/gitlab/config/yzgc-oidc-secret.production`（0600）。GitLab 现在读的 `yzgc-oidc-secret` 仍是预发布的，改接之前不动它。
+  以下 2–6 步都不需要登录目标机：第 3、4 步（以及第 1 步里的客户端登记）由 [gitlab-cutover.yml](../../.github/workflows/gitlab-cutover.yml) 手动触发 [cutover.sh](../../deploy/gitlab/cutover.sh)（`status`、`register-client`、`migrate-subjects`、`switch-issuer`、`rollback-issuer`；production 环境审批，缺省演算，勾 `apply` 才写）。
+  2. 部署后核对：`parity.mjs compare` 里 `/oidc/.well-known/openid-configuration` 两边都是 200，`issuer` 各是自己的 origin。
+  3. 搬 `sub`（工作流步骤 `migrate-subjects`；下面是脚本做的事，也是手工兜底的写法）：把 [migrate-oidc-subjects.mjs](../../deploy/gitlab/migrate-oidc-subjects.mjs) `docker cp` 进两个 server 容器的 `/tmp/`；预发布容器里 `node /tmp/migrate-oidc-subjects.mjs export --sector git.yangtzeu.work > export.json`，正式容器里 `docker exec -i … import --sector git.yangtzeu.work < export.json` 先演算，看过“可迁、冲突、对不上”三个数再加 `--apply`。对账只认 `identities` 里的 provider 与 provider_uid，只新增、冲突整批拒绝，输出不含 sub 的值，`--apply` 会打印回滚用的 `DELETE`。对不上的账号（正式库里没有同一个 GitHub 身份）保持原样，不自动合号，交给所有者处理。用完删掉容器里的脚本。
+  4. 改 GitLab（工作流步骤 `switch-issuer`，前置检查：正式发现文档可用、客户端与 secret 文件就位）：备份宿主 `gitlab.rb` 和 `yzgc-oidc-secret`；`yzgc-oidc-issuer` 写正式 `PUBLIC_ORIGIN` + `/oidc`；把 `yzgc-oidc-secret.production` 替换成 `yzgc-oidc-secret`；`gitlab.rb` 换成本仓库的 `gitlab-oidc.rb` 片段；`gitlab-ctl reconfigure`。
+  5. 核对：未登录访问 `/users/sign_in` 的跳转目标是正式 origin 的 `/oidc/auth`，用一个正式成员账号真实登录 GitLab，原有 GitLab 账号没有变成新账号。
+  6. 单写者：先发预发布把 `GITLAB_SYNC` 改 off（需要 rc 标签，所有者授权），再把正式 `GITLAB_SYNC` 改 on 重新渲染部署；之后核对正式 `level.member` 账号都在 GitLab geek 组内（只读计数）。
+  回滚：`yzgc-oidc-issuer` 和 `yzgc-oidc-secret` 换回第 4 步备份的原值再 reconfigure；第 3 步写入的行用脚本打印的 `DELETE` 删除。第 4 步之前整个过程不影响现有 GitLab 登录。
 - root 的应急地址为 `/users/sign_in?auto_sign_in=false`；普通成员的密码限制、组权限和资料传播须另验，不能从配置片段推断已生效。默认头像优先级也不等于核心同步永不改用户头像。
 - 交接中的真实 SSO 成员资格故障仍未在本任务修复或复测；“同步无错误”、资产纳管、语法通过均不证明有效成员/往届/站长可登录。历史资料头像同步不是 NANO 头像池任务，不混用两平台同号 issue 或在 GitLab MR 写关闭 GitHub issue 的裸编号。
 

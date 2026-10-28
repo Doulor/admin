@@ -71,6 +71,7 @@
 - 唯一的例外路径：GitHub 计划使部署 job 按设计失败关闭时，用 `scripts/deploy-manual.mjs` 从本机部署**同一发布 tag 由 CI 构建的镜像归档**，物料取自 tag 指向的提交，核对与 CI 相同（正式还要仓库里有「批准发布」评论）。它只能在这次发布已获授权之后运行，由经授权的人，或经明确授权的 agent 执行；不得用它部署未打 tag 的提交或本机构建的镜像。
 - 发布 tag 不可移动、不可删除；创建发布 tag 需要对该版本号的明确授权，正式 tag 还需要对同一提交的预发布验收记录。
 - 禁止用 systemd、pm2 或手工 `node` 进程替代 Docker 栈；禁止在目标机手工修改运行中的栈。
+- 宿主层物料（systemd 单元、CDN 镜像、隧道看门狗）只经 `deploy/remote/install-host.sh` 由部署流水线安装并核对；GitLab 登录改接等一次性运维只经 `gitlab-cutover.yml`。开发者与 agent 不为了改线上而登录目标机，新的宿主操作先在仓库里补流水线路径和 CI 测试（[RELEASE-PARITY](docs/conventions/RELEASE-PARITY.md) 第十节）。
 
 ## 4. 证据硬门禁
 

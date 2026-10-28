@@ -273,6 +273,98 @@
         "domain:organization"
       ],
       "reason": "服务端合同与接口手册去掉已删除的部门接口；API.md 里早已不存在的部门写接口三行一并去掉，data-model 的读者改指向 GET /api/public/departments。"
+    },
+    {
+      "paths": [
+        "deploy/remote/systemd/yzgc-compose@.service",
+        "deploy/remote/systemd/hk-tunnel-watchdog.service.d/tolerate-loss.conf",
+        "docs/ops/DEPLOY.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "Arch 站点编排单元对 egress 改 Wants、隧道看门狗容忍丢包：隧道抖动不再把六个站点容器停掉再拉起。已装到 Arch，回滚文件和命令写在 DEPLOY.md。"
+    },
+    {
+      "paths": [
+        "deploy/remote/cdn-mirror.sh",
+        "deploy/remote/systemd/cdn-mirror.service",
+        "deploy/remote/systemd/cdn-mirror.timer",
+        "deploy/remote/systemd/cdn-mirror-watch.service",
+        "deploy/remote/systemd/cdn-mirror-watch.timer",
+        "docs/ops/STORAGE-CDN.md",
+        "tests/tooling/cdn-mirror.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "Garage 单副本没有备份：Arch 每天用只读密钥单向镜像五个桶，被覆盖或删除的对象进回收目录保留 14 天，逐桶核验对象数、字节数和逐对象校验，每小时检查新鲜度。只读，不改 Garage，不改应用。"
+    },
+    {
+      "paths": [
+        "deploy/gitlab/migrate-oidc-subjects.mjs",
+        "tests/tooling/oidc-subject-migration.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "GitLab 改接正式前搬 sub：只按不可变身份对账，缺省只演算，--apply 才新增行，冲突整批拒绝；一次性运维脚本，不安装、不进应用代码。"
+    },
+    {
+      "paths": [
+        "deploy/remote/install-host.sh",
+        "deploy/remote/cdn-mirror.hosts",
+        ".github/workflows/deploy-preview.yml",
+        "tests/tooling/install-host.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "宿主层物料（systemd 单元、看门狗覆盖项、CDN 镜像）改由部署工作流在栈部署后安装并核对，开发者不再需要登录目标机；镜像凭据由环境 secret 经 stdin 写入。"
+    },
+    {
+      "paths": [
+        "deploy/gitlab/cutover.sh",
+        ".github/workflows/gitlab-cutover.yml",
+        "tests/tooling/gitlab-cutover.test.ts",
+        "tests/tooling/hosted-runners.test.ts",
+        "docs/ops/CICD.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "GitLab 统一登录改接的宿主侧步骤放进手动触发的工作流（production 审批，缺省演算），含登记客户端、搬 sub、换签发者、回滚，假 docker 与 curl 的 CI 测试。"
+    },
+    {
+      "paths": [
+        "AGENTS.md",
+        ".agents/skills/release-parity/SKILL.md",
+        "docs/conventions/RELEASE-PARITY.md",
+        "scripts/parity.mjs",
+        "tests/tooling/parity.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "规范：宿主与一次性运维必须有流水线路径；同构清单增加 post_deploy 阶段和 check --complete。"
     }
   ],
   "documents": [
@@ -282,6 +374,7 @@
     "docs/ops/DEPLOY.md",
     "docs/ops/ENVIRONMENTS.md",
     "docs/ops/GITLAB.md",
+    "docs/ops/STORAGE-CDN.md",
     "docs/services/server/data-model.md",
     "docs/services/server/endpoint-contracts.md"
   ],
@@ -289,10 +382,15 @@
     "tests/server/console.test.ts",
     "tests/tooling/env-isolation.test.ts",
     "tests/tooling/parity.test.ts",
-    "tests/tooling/static-cdn-workflows.test.ts"
+    "tests/tooling/static-cdn-workflows.test.ts",
+    "tests/tooling/cdn-mirror.test.ts",
+    "tests/tooling/oidc-subject-migration.test.ts",
+    "tests/tooling/install-host.test.ts",
+    "tests/tooling/gitlab-cutover.test.ts",
+    "tests/tooling/hosted-runners.test.ts"
   ],
   "compatibility": "运行时无变化。GitLab 片段改读宿主文件：重新应用片段前，宿主 /srv/gitlab/config/yzgc-oidc-issuer 必须已写好（当前预发布值），否则 reconfigure 失败；已运行的 GitLab 不受影响。deploy-hotfix 与 deploy-production 在清单有 pending 时会拒绝构建，这是新增的门禁。 被删的接口没有页面、CLI、脚本调用；已打开的旧页面不调用它，不受影响。",
-  "migration": "不涉及表结构和配置键变化。同构清单里 7 条 pending 对应的正式动作（密钥、客户端登记、GitLab 签发者、DNS、CDN 构建）由所有者授权后逐条执行。",
+  "migration": "不涉及表结构和配置键变化。同构清单里 pending 对应的正式动作（密钥、客户端登记、GitLab 签发者、DNS、CDN 构建）由所有者授权后逐条执行。",
   "rollback": "revert 本合并提交即可恢复旧工作流与旧片段；宿主上新增的 yzgc-oidc-issuer 文件无副作用。清单和烟测不改任何运行中的栈。",
   "removals": [
     {

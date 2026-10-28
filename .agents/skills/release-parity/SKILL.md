@@ -28,12 +28,14 @@ pnpm check:env-isolation                  # 三份 env 与代码里的环境域�
     --preview-evidence "预发布做了什么、怎么验证的" --production-action "正式要做的动作和命令"
   ```
 
+- 要在宿主或线上库上做的事，先在仓库里补流水线路径和 CI 测试（`deploy/remote/install-host.sh`、`gitlab-cutover.yml` 这类），清单条目的正式动作写那条路径；不要靠自己或别人登录目标机去改，开发者没有 SSH。
 - 在正式做完：`node scripts/parity.mjs done <P-编号> --evidence "…"`。确实不需要写 `not-applicable --reason`。豁免只有所有者能给：`waive --by Crosery --quote "原话"`，没有原话不写。
 
 ## 发版或 hotfix 前后
 
 ```bash
-node scripts/parity.mjs check --release                                   # 必须清零，否则 parity job 会拒绝构建
+node scripts/parity.mjs check --release                                   # 部署前的条目必须清零，否则 parity job 会拒绝构建；post_deploy 的只列出
+node scripts/parity.mjs check --complete                                  # 部署完成后收尾：全部清零
 node scripts/parity.mjs smoke --origin <站点> --env <production|preview>  # 部署后，含内部赛事官网
 node scripts/parity.mjs compare --preview <预发布站点> --production <正式站点>  # 晋升同一提交时
 ```

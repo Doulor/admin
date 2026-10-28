@@ -77,16 +77,18 @@
 ```bash
 node scripts/parity.mjs list
 node scripts/parity.mjs add --surface data --title "…" --issue <编号> \
-  --preview-evidence "预发布做了什么、怎么验证的" --production-action "正式要做的动作和命令"
+  --preview-evidence "预发布做了什么、怎么验证的" --production-action "正式要做的动作和命令" [--phase post_deploy]
 node scripts/parity.mjs done P-0010 --evidence "正式做了什么、怎么验证的"
 node scripts/parity.mjs not-applicable P-0010 --reason "为什么正式不需要"
 node scripts/parity.mjs waive P-0010 --by Crosery --quote "所有者的原话"
 node scripts/parity.mjs check --release
+node scripts/parity.mjs check --complete
 ```
 
 - 谁登记：在预发布做这件事的人或 agent，做的当时就登记，写进同一个 PR；清单条目里的 `production.action` 要具体到别人照着就能执行。
 - 谁关闭：在正式做完的人，`done` 要写证据；确实不需要写 `not-applicable` 和理由；只有所有者能豁免，`waive` 必须带所有者的署名和原话，agent 不替所有者写豁免。
-- 门禁：`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 运行 `check --release`，还有 `pending` 就不构建、不部署。预发布部署不受它拦截。已写的结论不改，写错了追加一条新记录说明。
+- 门禁：`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 运行 `check --release`，部署前的条目还有 `pending` 就不构建、不部署。预发布部署不受它拦截。已写的结论不改，写错了追加一条新记录说明。
+- 阶段：条目默认是部署前（`pre_deploy`）。有些事要等这次部署把正式服务起来才能做（例如 GitLab 签发者改接正式、正式构建换新 CDN 的验收），登记时加 `--phase post_deploy`：`check --release` 只把它们列出来、不拦发版；部署完成后做完并 `done`，再跑 `check --complete`，它要求所有条目清零，这条没过这次发版就没有收尾。阶段只决定什么时候必须做完，不决定要不要做。
 - 记账靠执行者：脚本只保证登记过的条目会被核对，发现不了漏登记；漏登记由第六节的烟测兜底可见的差异，只在内部可见的差异（例如没人访问的数据）仍然是盲区，所以登记要在做事的当时完成，不留到发版前回忆。
 
 ## 六、发版烟测
@@ -125,6 +127,7 @@ hotfix 从 `main` 修（[RELEASES](RELEASES.md)「线上紧急缺陷（Hotfix）
 - 用 `waive`、`not-applicable` 绕过清单，改 `parity.mjs`、`smoke.json` 或检查脚本来换绿色。
 - 把预发布的数据行或数据库文件复制到正式，或为了让两边「看起来一样」去同步用户内容。
 - 手写对正式库的 UPDATE，手工改运行中的栈，或把 `.env.dev` 之外的真实密钥写进任何入库文件。
+- 为了改线上登录目标机：宿主层与一次性运维操作必须有流水线路径（第十节），清单条目的 `production.action` 写的是那条路径，不是 ssh 命令。
 - 替所有者决定豁免、替所有者填写验收。
 
 ## 九、死接口
@@ -141,3 +144,17 @@ hotfix 从 `main` 修（[RELEASES](RELEASES.md)「线上紧急缺陷（Hotfix）
 ## 与其它规范的关系
 
 分支模型与 hotfix 流程见 [BRANCHING](BRANCHING.md)；发版与回滚见 [RELEASES](RELEASES.md)；env 字段契约、密钥清单见 [ENVIRONMENTS](../ops/ENVIRONMENTS.md)；部署工作流与 job 职责见 [CICD](../ops/CICD.md)；备份与演练见 [BACKUP](../ops/BACKUP.md)；审查清单见 [CODE-REVIEW](CODE-REVIEW.md) 第 15 项。实现：`scripts/check-env-isolation.mjs`、`scripts/parity.mjs`，测试在 `tests/tooling/env-isolation.test.ts`、`tests/tooling/parity.test.ts`。机器检查不证明语义正确：检查通过只说明登记过的、写出来的东西满足规则。
+
+## 十、不靠 SSH：宿主与一次性运维也走流水线
+
+目标机的 SSH 只在部署流水线手里。开发者没有它，也不该需要它：任何要在宿主或线上库上做的事，都要在仓库里有一条流水线路径，并且在 CI 里用假的 docker、systemctl、curl 演练过。
+
+| 要做的事 | 仓库里的路径 | CI 怎么测到 |
+|---|---|---|
+| systemd 单元、隧道看门狗覆盖项、CDN 镜像脚本等宿主层物料 | `deploy/remote/install-host.sh`（`plan` 只读比对、`apply` 备份后覆盖并 daemon-reload、`verify` 核对一致与 systemd 状态）；`deploy-preview/production/hotfix.yml` 在栈部署成功后自动运行，镜像凭据由环境 secret `CDN_MIRROR_ACCESS_KEY_ID`、`CDN_MIRROR_SECRET_ACCESS_KEY` 经 stdin 写入 | `tests/tooling/install-host.test.ts`：临时根目录加假 systemctl，覆盖 changed/missing、备份、凭据 0600 与不回显、绝不重启服务 |
+| GitLab 统一登录改接（登记客户端、搬 `sub`、换签发者与 secret、回滚） | `deploy/gitlab/cutover.sh`，由 `gitlab-cutover.yml` 手动触发（production 环境审批，缺省演算，勾 `apply` 才写） | `tests/tooling/gitlab-cutover.test.ts`：假 docker 与 curl，覆盖前置检查、备份、回滚、不回显 secret |
+| 预发布到正式的数据格式迁移、一次性数据修复 | 先写成带演算模式的脚本放进仓库，再接进上面这类工作流 | 临时库上的测试 |
+
+凭据的第一次生成（例如在 Garage 上建只读密钥、在 GitLab 上建访问令牌）需要对应系统的管理员权限，不在流水线里：生成后只写进 GitHub 环境 secret，之后的安装与轮换都走流水线。清单条目里要写明这一步由谁、用什么命令做。
+
+确实只能手工的步骤（例如 DNS 控制台）在条目里写明「所有者手工」，不假装有流水线路径。紧急情况下不得不登录目标机时，事后在 issue 里记录做了什么，并补上对应的流水线路径和测试，让下一次不再需要。

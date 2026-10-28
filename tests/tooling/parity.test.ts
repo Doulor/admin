@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  LEDGER_FILE, SMOKE_FILE, addEntry, beijingNow, nextId, pendingEntries, runCompare, runRequire, shapeDiff, shapeOf, updateEntry, validateLedger,
+  LEDGER_FILE, SMOKE_FILE, addEntry, beijingNow, gateReport, nextId, pendingEntries, runCompare, runRequire, shapeDiff, shapeOf, updateEntry, validateLedger,
 } from "../../scripts/parity.mjs";
 
 const readJson = (path: string) => JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8"));
@@ -55,6 +55,22 @@ describe("同构清单", () => {
 
   it("发版前核对：仓库当前还有 pending，会拦住发版", () => {
     expect(pendingEntries(readJson(LEDGER_FILE)).length).toBeGreaterThan(0);
+  });
+
+  it("phase 缺省按部署前算，post_deploy 的条目不拦发版但要被收尾核对看到", () => {
+    const { ledger } = addEntry(base(), { ...input, phase: "post_deploy" });
+    expect(pendingEntries(ledger, { phase: "pre_deploy" }).map(e => e.id)).toEqual(["P-0001"]);
+    expect(pendingEntries(ledger, { phase: "post_deploy" }).map(e => e.id)).toEqual(["P-0002"]);
+    expect(pendingEntries(ledger).map(e => e.id)).toEqual(["P-0001", "P-0002"]);
+    expect(() => addEntry(base(), { ...input, phase: "later" })).toThrow(/phase/);
+  });
+
+  it("release 只拦部署前的条目，complete 要求全部清零，缺省只校验格式", () => {
+    const afterOnly = addEntry(updateEntry(base(), "P-0001", { status: "done", doneAt: "2026-10-28", evidence: "正式执行并验证通过" }), { ...input, phase: "post_deploy" }).ledger;
+    expect(gateReport(afterOnly, "release")).toMatchObject({ blocking: [], after: [{ id: "P-0002" }] });
+    expect(gateReport(afterOnly, "complete").blocking.map(e => e.id)).toEqual(["P-0002"]);
+    expect(gateReport(base(), "release").blocking.map(e => e.id)).toEqual(["P-0001"]);
+    expect(gateReport(base(), undefined)).toEqual({ blocking: [], after: [] });
   });
 });
 
