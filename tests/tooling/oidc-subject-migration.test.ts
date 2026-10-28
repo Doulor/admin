@@ -124,4 +124,27 @@ describe("命令行", () => {
     expect(applied.stdout).toContain("回滚：DELETE FROM oauth_subjects");
     expect(applied.stdout).not.toContain("sub-a");
   });
+
+  it("export 的输出超过管道缓冲（64KB）、对端读得慢时也不被截断", () => {
+    const dir = mkdtempSync(join(tmpdir(), "oidc-sub-big-"));
+    dirs.push(dir);
+    const script = resolve(process.cwd(), "deploy/gitlab/migrate-oidc-subjects.mjs");
+    const path = join(dir, "big.db");
+    const db = new Database(path);
+    db.exec(`CREATE TABLE identities(user_id TEXT, provider TEXT, provider_uid TEXT);
+      CREATE TABLE oauth_subjects(sector_id TEXT NOT NULL, user_id TEXT NOT NULL, sub TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(sector_id, user_id), UNIQUE(sector_id, sub));`);
+    db.transaction(() => {
+      for (let i = 0; i < 1500; i += 1) {
+        db.prepare("INSERT INTO identities VALUES(?,?,?)").run(`u${i}`, "github", String(100000 + i));
+        db.prepare("INSERT INTO oauth_subjects VALUES(?,?,?,?)").run(SECTOR, `u${i}`, `subject-${"x".repeat(40)}-${i}`, 1);
+      }
+    })();
+    const expected = `${JSON.stringify(exportSubjects(db, SECTOR))}\n`;
+    db.close();
+    expect(expected.length).toBeGreaterThan(150_000);
+    const piped = spawnSync("bash", ["-c", 'node "$SCRIPT" export --sector "$SECTOR" | { sleep 1; wc -c; }'], {
+      env: { ...process.env, DB_PATH: path, SCRIPT: script, SECTOR }, encoding: "utf8",
+    });
+    expect(Number(piped.stdout.trim())).toBe(Buffer.byteLength(expected));
+  });
 });

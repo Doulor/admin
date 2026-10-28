@@ -655,8 +655,8 @@ jobs:
         run: |
           set -eu
           cfg="$RUNNER_TEMP/ssh/config"
-          host_dir=/opt/yzgc/host-incoming
-          ssh -F "$cfg" yzgc-target "rm -rf $host_dir && install -d -m 700 $host_dir"
+          host_dir=/opt/yzgc/host-incoming-${GITHUB_RUN_ID}
+          ssh -F "$cfg" yzgc-target "find /opt/yzgc -maxdepth 1 -name 'host-incoming-*' -mmin +1440 -exec rm -rf -- {} + ; rm -rf $host_dir && install -d -m 700 $host_dir"
           tar -C deploy/remote -cf - install-host.sh cdn-mirror.sh cdn-mirror.hosts systemd \
             | ssh -F "$cfg" yzgc-target "tar -C $host_dir -xf -"
           if [ -n "${CDN_MIRROR_ACCESS_KEY_ID:-}" ] && [ -n "${CDN_MIRROR_SECRET_ACCESS_KEY:-}" ]; then

@@ -251,7 +251,9 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
       - name: 清单必须清零
-        run: node scripts/parity.mjs check --release
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+        run: node scripts/parity.mjs check --release --version "$RELEASE_VERSION"
 
   cdn-plan:
     name: cdn-plan (静态资源 CDN 开关)
@@ -793,8 +795,8 @@ jobs:
         run: |
           set -eu
           cfg="$RUNNER_TEMP/ssh/config"
-          host_dir=/opt/yzgc/host-incoming
-          ssh -F "$cfg" yzgc-target "rm -rf $host_dir && install -d -m 700 $host_dir"
+          host_dir=/opt/yzgc/host-incoming-${GITHUB_RUN_ID}
+          ssh -F "$cfg" yzgc-target "find /opt/yzgc -maxdepth 1 -name 'host-incoming-*' -mmin +1440 -exec rm -rf -- {} + ; rm -rf $host_dir && install -d -m 700 $host_dir"
           tar -C deploy/remote -cf - install-host.sh cdn-mirror.sh cdn-mirror.hosts systemd \
             | ssh -F "$cfg" yzgc-target "tar -C $host_dir -xf -"
           if [ -n "${CDN_MIRROR_ACCESS_KEY_ID:-}" ] && [ -n "${CDN_MIRROR_SECRET_ACCESS_KEY:-}" ]; then

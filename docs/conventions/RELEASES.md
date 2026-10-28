@@ -43,7 +43,7 @@
 
 4. `deploy-preview.yml` 的 plan job 核对 tag、版本号、「提交在 `origin/stage` 上」，再在 tag 指向的提交上核对文档同步（[CICD](../ops/CICD.md#触发与职责)「发版时在 tag 指向的提交上再核对一次文档同步」），都通过才构建三个镜像并部署到预发布栈；部署记录的 payload 带上这个 rc tag。
 5. 在预发布环境实际试用这个 rc 的产物，按 [RELEASE-ACCEPTANCE-TEMPLATE](../ops/RELEASE-ACCEPTANCE-TEMPLATE.md) 记录结论，其中包括同构核对：这个 rc 在预发布做过而不在提交里的事（表结构的手工步骤、数据格式、env 键与密钥、宿主配置、外部服务）已登记进同构清单（[RELEASE-PARITY](RELEASE-PARITY.md)）。不通过就在 `stage` 上修复，打下一个 `rc.N+1`，回到第 4 步。
-6. 验收通过且 `node scripts/parity.mjs check --release` 清零后，把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
+6. 验收通过且 `node scripts/parity.mjs check --release --version <x.y.z>` 清零后，把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
 
    ```bash
    git switch main && git merge --ff-only v0.2.0-rc.1 && git push origin main

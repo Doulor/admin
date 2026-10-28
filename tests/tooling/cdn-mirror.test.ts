@@ -14,7 +14,7 @@ const hasJq = spawnSync("jq", ["--version"]).status === 0;
 const dirs: string[] = [];
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
 
-type Stub = { remote?: Record<string, { count: number; bytes: number }>; local?: Record<string, { count: number; bytes: number }>; syncRc?: number; checkRc?: number };
+type Stub = { remote?: Record<string, { count: number; bytes: number }>; local?: Record<string, { count: number; bytes: number }>; syncRc?: number; checkRc?: number; failRemoteSizeCall?: number };
 
 function fixture(stub: Stub = {}) {
   const dir = mkdtempSync(join(tmpdir(), "cdn-mirror-"));
@@ -27,6 +27,8 @@ function fixture(stub: Stub = {}) {
   writeFileSync(join(state, "local.json"), JSON.stringify(stub.local ?? {}));
   writeFileSync(join(state, "sync-rc"), String(stub.syncRc ?? 0));
   writeFileSync(join(state, "check-rc"), String(stub.checkRc ?? 0));
+  writeFileSync(join(state, "fail-remote-size-call"), String(stub.failRemoteSizeCall ?? 0));
+  writeFileSync(join(state, "remote-size-calls"), "0");
   // 假 rclone：size 读 remote/local 表，sync/check 返回预设退出码；假 flock 永远拿到锁
   writeFileSync(join(bin, "rclone"), `#!/usr/bin/env bash
 state="${state}"
@@ -35,6 +37,7 @@ target=""
 for a in "$@"; do case "$a" in -*) ;; *) [[ -z "$target" ]] && target="$a" ;; esac; done
 case "$sub" in
   size) case "$target" in CDN:*) f=remote ;; *) f=local ;; esac
+        if [[ "$f" == remote ]]; then n=$(( $(cat "$state/remote-size-calls") + 1 )); echo "$n" > "$state/remote-size-calls"; [[ "$n" == "$(cat "$state/fail-remote-size-call")" ]] && exit 1; fi
         name="\${target#CDN:}"; name="\${name##*/}"
         jq -c --arg n "$name" '.[$n] // {count:0,bytes:0}' "$state/$f.json" ;;
   sync) exit "$(cat "$state/sync-rc")" ;;
@@ -73,6 +76,20 @@ describe.skipIf(!hasJq)("cdn-mirror.sh run", () => {
     expect(status.last_success_at).toBe(status.finished_at);
     expect(status.buckets).toEqual({ alpha: { objects: 3, bytes: 30, verified: true }, beta: { objects: 1, bytes: 5, verified: true } });
     expect(existsSync(join(f.mirror, "ALERT"))).toBe(false);
+  });
+
+  it("二次核验时读不到大小：这个桶记失败，后面的桶照常同步，status 不停留在上次的成功", () => {
+    // alpha 第一次对不上才会走二次核验：源桶的第 3 次 size 调用就是二次核验里的那一次
+    const f = fixture({ remote: same, local: { alpha: { count: 3, bytes: 29 }, beta: same.beta }, failRemoteSizeCall: 3 });
+    mkdirSync(f.mirror, { recursive: true });
+    writeFileSync(join(f.mirror, "status.json"), JSON.stringify({ ok: true, last_success_at: "2026-10-27T00:00:00Z", buckets: {} }));
+    const result = f.run("run");
+    expect(result.status).toBe(1);
+    const status = f.status();
+    expect(status.ok).toBe(false);
+    expect(status.error).toContain("alpha");
+    expect(status.buckets.beta).toEqual({ objects: 1, bytes: 5, verified: true });
+    expect(status.last_success_at).toBe("2026-10-27T00:00:00Z");
   });
 
   it("镜像与源桶字节数对不上就失败，并保留上一次成功的时间", () => {

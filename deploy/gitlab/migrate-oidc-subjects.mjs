@@ -117,4 +117,5 @@ function main(argv) {
   return 2;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(main(process.argv.slice(2)));
+// 不调用 process.exit：stdout 是管道且对端读得慢时，立即退出会截断超过 64KB 的 export JSON
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = main(process.argv.slice(2));

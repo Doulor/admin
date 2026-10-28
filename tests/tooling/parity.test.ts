@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -58,19 +59,37 @@ describe("同构清单", () => {
   });
 
   it("phase 缺省按部署前算，post_deploy 的条目不拦发版但要被收尾核对看到", () => {
-    const { ledger } = addEntry(base(), { ...input, phase: "post_deploy" });
+    const { ledger } = addEntry(base(), { ...input, phase: "post_deploy", release: "0.1.1" });
     expect(pendingEntries(ledger, { phase: "pre_deploy" }).map(e => e.id)).toEqual(["P-0001"]);
     expect(pendingEntries(ledger, { phase: "post_deploy" }).map(e => e.id)).toEqual(["P-0002"]);
     expect(pendingEntries(ledger).map(e => e.id)).toEqual(["P-0001", "P-0002"]);
     expect(() => addEntry(base(), { ...input, phase: "later" })).toThrow(/phase/);
+    expect(() => addEntry(base(), { ...input, phase: "post_deploy" })).toThrow(/release/);
+    expect(() => addEntry(base(), { ...input, phase: "post_deploy", release: "next" })).toThrow(/release/);
   });
 
   it("release 只拦部署前的条目，complete 要求全部清零，缺省只校验格式", () => {
-    const afterOnly = addEntry(updateEntry(base(), "P-0001", { status: "done", doneAt: "2026-10-28", evidence: "正式执行并验证通过" }), { ...input, phase: "post_deploy" }).ledger;
-    expect(gateReport(afterOnly, "release")).toMatchObject({ blocking: [], after: [{ id: "P-0002" }] });
+    const afterOnly = addEntry(updateEntry(base(), "P-0001", { status: "done", doneAt: "2026-10-28", evidence: "正式执行并验证通过" }), { ...input, phase: "post_deploy", release: "0.1.1" }).ledger;
+    expect(gateReport(afterOnly, "release", { version: "0.1.1" })).toMatchObject({ blocking: [], after: [{ id: "P-0002" }] });
     expect(gateReport(afterOnly, "complete").blocking.map(e => e.id)).toEqual(["P-0002"]);
-    expect(gateReport(base(), "release").blocking.map(e => e.id)).toEqual(["P-0001"]);
+    expect(gateReport(base(), "release", { version: "0.1.1" }).blocking.map(e => e.id)).toEqual(["P-0001"]);
     expect(gateReport(base(), undefined)).toEqual({ blocking: [], after: [] });
+  });
+
+  it("下一个版本发布时，上一个版本遗留的 post_deploy 会拦住；release 不带版本直接报错", () => {
+    const leftover = addEntry(updateEntry(base(), "P-0001", { status: "done", doneAt: "2026-10-28", evidence: "正式执行并验证通过" }), { ...input, phase: "post_deploy", release: "0.1.1" }).ledger;
+    expect(gateReport(leftover, "release", { version: "0.1.2" }).blocking.map(e => e.id)).toEqual(["P-0002"]);
+    expect(gateReport(leftover, "release", { version: "0.1.1" }).blocking).toEqual([]);
+    expect(() => gateReport(leftover, "release")).toThrow(/--version/);
+  });
+
+  it("命令行：拼错的参数、release 缺版本都不是 0；仓库当前清单拦住 0.1.1 与更高版本", () => {
+    const cli = (...args: string[]) => spawnSync(process.execPath, ["scripts/parity.mjs", "check", ...args], { cwd: process.cwd(), encoding: "utf8" });
+    expect(cli("--relase").status).toBe(2);
+    expect(cli("--release").status).toBe(2);
+    expect(cli("--release", "--version", "v0.1.1").status).toBe(1);
+    expect(cli("--release", "--version", "9.9.9").stderr).toMatch(/P-0007/);
+    expect(cli().status).toBe(0);
   });
 });
 
@@ -173,10 +192,12 @@ describe("正式与 hotfix 部署工作流", () => {
   for (const name of ["deploy-production", "deploy-hotfix"]) {
     const text = readFileSync(resolve(process.cwd(), `.github/workflows/${name}.yml`), "utf8");
     it(`${name}：清单没清零就不构建，部署后跑线上烟测`, () => {
-      expect(section(text, "parity")).toContain("node scripts/parity.mjs check --release");
+      expect(section(text, "parity")).toContain('node scripts/parity.mjs check --release --version "$RELEASE_VERSION"');
+      expect(section(text, "parity")).toContain("RELEASE_VERSION: ${{ needs.plan.outputs.version }}");
       expect(section(text, "build")).toMatch(/\n {4}needs: \[plan, evidence, cdn-plan, parity\]\n/);
       const smoke = section(text, "smoke");
       expect(smoke).toContain("needs: [plan, deploy]");
+      expect(smoke).toContain("if: needs.deploy.result == 'success'");
       expect(smoke).toContain("node scripts/parity.mjs smoke");
       expect(smoke).toContain("--env production");
     });

@@ -13,7 +13,7 @@ afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: tru
 
 const RB_PREVIEW = `# 其它配置\n    issuer: '${PREVIEW}/oidc', discovery: true, client_auth_method: 'basic',\n    client_options: { identifier: 'gitlab', secret: File.read('/etc/gitlab/yzgc-oidc-secret').strip },\n`;
 
-function fixture(options: { prodClients?: string[]; discovery?: string; rb?: string } = {}) {
+function fixture(options: { prodClients?: string[]; discovery?: string; rb?: string; importOutput?: string; importExit?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "cutover-"));
   dirs.push(dir);
   const config = join(dir, "config");
@@ -23,6 +23,7 @@ function fixture(options: { prodClients?: string[]; discovery?: string; rb?: str
   mkdirSync(bin);
   writeFileSync(join(config, "gitlab.rb"), options.rb ?? RB_PREVIEW);
   writeFileSync(join(config, "yzgc-oidc-secret"), "preview-secret-value");
+  writeFileSync(join(dir, "import-output.txt"), options.importOutput ?? "演算 sector=git.yangtzeu.work：可迁 0，冲突 0，目标库对不上 0");
   writeFileSync(join(dir, "prod-clients.json"), JSON.stringify((options.prodClients ?? []).map(client_id => ({ client_id }))));
   // 假 docker：client list 读 prod-clients.json，client add 返回固定 secret，其余只记录调用
   writeFileSync(join(bin, "docker"), `#!/usr/bin/env bash
@@ -31,7 +32,7 @@ if [[ "$1" == exec && "$*" == *"client list"* ]]; then
   if [[ "$2" == *production* ]]; then cat "${dir}/prod-clients.json"; else echo '[{"client_id":"gitlab"}]'; fi
 elif [[ "$1" == exec && "$*" == *"client add"* ]]; then echo '{"client_id":"gitlab","client_secret":"brand-new-secret","redirect_uris":["x"]}'
 elif [[ "$1" == exec && "$*" == *"export"* ]]; then echo '{"sector":"git.example.test","entries":[],"withoutIdentity":0}'
-elif [[ "$1" == exec && "$*" == *"import"* ]]; then cat > /dev/null; echo "imported"
+elif [[ "$1" == exec && "$*" == *"import"* ]]; then cat > /dev/null; cat "${dir}/import-output.txt"; exit ${options.importExit ?? 0}
 fi
 exit 0
 `, { mode: 0o755 });
@@ -121,6 +122,47 @@ describe("cutover.sh switch-issuer 与 rollback-issuer", () => {
     expect(applied.stdout + applied.stderr).not.toContain("production-secret-value");
   });
 
+  it("还有 sub 没迁到正式库、或迁移有冲突时拒绝切换：否则现有 GitLab 用户首次登录会变成新账号", () => {
+    const pending = fixture({ prodClients: ["gitlab"], importOutput: "演算 sector=git.yangtzeu.work：可迁 3，冲突 0，目标库对不上 0" });
+    writeFileSync(join(pending.config, "yzgc-oidc-secret.production"), "production-secret-value");
+    const refused = pending.run("switch-issuer", "--production-origin", PROD, "--apply");
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("还有 sub 没迁到正式库");
+    expect(pending.read("gitlab.rb")).toBe(RB_PREVIEW);
+    expect(pending.called()).not.toContain("reconfigure");
+    const conflict = fixture({ prodClients: ["gitlab"], importOutput: "演算 sector=git.yangtzeu.work：可迁 0，冲突 1，目标库对不上 0", importExit: 1 });
+    writeFileSync(join(conflict.config, "yzgc-oidc-secret.production"), "production-secret-value");
+    expect(conflict.run("switch-issuer", "--production-origin", PROD, "--apply").status).toBe(1);
+    expect(conflict.called()).not.toContain("reconfigure");
+  });
+
+  it("reconfigure 失败后重跑 switch-issuer：回滚点仍是预发布的 secret，不会把正式的当成备份", () => {
+    const f = ready();
+    f.run("switch-issuer", "--production-origin", PROD, "--apply");
+    const again = f.run("switch-issuer", "--production-origin", PROD, "--apply");
+    expect(again.status, again.stderr).toBe(0);
+    const secretBackups = readdirSync(f.config).filter(name => name.startsWith("yzgc-oidc-secret.bak-"));
+    expect(secretBackups).toHaveLength(1);
+    expect(readFileSync(join(f.config, secretBackups[0]), "utf8")).toBe("preview-secret-value");
+    const rbBackups = readdirSync(f.config).filter(name => name.startsWith("gitlab.rb.bak-"));
+    expect(rbBackups).toHaveLength(1);
+    expect(readFileSync(join(f.config, rbBackups[0]), "utf8")).toBe(RB_PREVIEW);
+    const rolled = f.run("rollback-issuer", "--preview-origin", PREVIEW, "--apply");
+    expect(rolled.status, rolled.stderr).toBe(0);
+    expect(f.read("yzgc-oidc-secret")).toBe("preview-secret-value");
+    expect(f.read("yzgc-oidc-issuer")).toBe(`${PREVIEW}/oidc\n`);
+  });
+
+  it("最新的 secret 备份就是正式 secret 时 rollback 拒绝，不写出一个必然登录失败的状态", () => {
+    const f = ready();
+    f.run("switch-issuer", "--production-origin", PROD, "--apply");
+    for (const name of readdirSync(f.config).filter(name => name.startsWith("yzgc-oidc-secret.bak-"))) writeFileSync(join(f.config, name), "production-secret-value");
+    const rolled = f.run("rollback-issuer", "--preview-origin", PREVIEW, "--apply");
+    expect(rolled.status).toBe(1);
+    expect(rolled.stderr).toContain("就是正式的 secret");
+    expect(f.read("yzgc-oidc-secret")).toBe("production-secret-value");
+  });
+
   it("rollback-issuer 用最近一次备份恢复 gitlab.rb 与 secret，issuer 写回预发布", () => {
     const f = ready();
     f.run("switch-issuer", "--production-origin", PROD, "--apply");
@@ -142,6 +184,13 @@ describe("cutover.sh migrate-subjects 与参数校验", () => {
     f.run("migrate-subjects", "--production-origin", PROD, "--apply");
     expect(f.called()).toMatch(/import --sector git\.yangtzeu\.work --apply/);
     expect(f.called()).toContain("rm -f /tmp/migrate-oidc-subjects.mjs");
+  });
+
+  it("导入有冲突以非 0 退出时，容器里的脚本也要删掉", () => {
+    const f = fixture({ importOutput: "演算 sector=git.yangtzeu.work：可迁 0，冲突 1，目标库对不上 0", importExit: 1 });
+    const result = f.run("migrate-subjects", "--production-origin", PROD, "--apply");
+    expect(result.status).toBe(1);
+    expect(f.called().match(/rm -f \/tmp\/migrate-oidc-subjects\.mjs/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("origin、sector、步骤名不合法时退出", () => {

@@ -149,7 +149,7 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 
 规则见 [RELEASE-PARITY](../conventions/RELEASE-PARITY.md)，实现是 `scripts/parity.mjs`，数据是 `deploy/parity/ledger.json`（同构清单）与 `deploy/parity/smoke.json`（烟测）。`deploy-production.yml` 与 `deploy-hotfix.yml` 各多两个 job，预发布部署不变：
 
-- `parity`（`needs: plan`，检出 plan 核对过的提交）：运行 `node scripts/parity.mjs check --release`。清单里还有 `pending` 条目就失败，`build` 的 `needs` 包含它，所以不构建镜像、不上传 CDN、不部署。没有网络访问和 secrets。
+- `parity`（`needs: plan`，检出 plan 核对过的提交）：运行 `node scripts/parity.mjs check --release --version "$RELEASE_VERSION"`（版本取自 plan 的 `version`）。部署后才能做的条目只拦属于更早版本的遗留。清单里还有 `pending` 条目就失败，`build` 的 `needs` 包含它，所以不构建镜像、不上传 CDN、不部署。没有网络访问和 secrets。
 - `smoke`（`needs: [plan, deploy]`，仅在 `deploy` 成功后运行）：用 `node scripts/parity.mjs smoke --origin <正式 origin> --env production` 核对 `smoke.json` 的 `require` 段（含内部赛事官网 `/c/oss-challenge-2026-1/`），最多重试 6 次、间隔 30 秒。`deploy-production.yml` 里还会读 `deploy/environments.json` 得到预发布 origin，运行 `parity.mjs compare` 核对 `mirror` 段；证据 job 已核对预发布与正式是同一提交。`deploy-hotfix.yml` 不做 `compare`，因为 `main` 上的修复提交与预发布的 rc 提交可以不同。
 - `smoke` 失败只让这次运行变红，不回滚已切换的栈；回滚按 [DEPLOY](DEPLOY.md) 的步骤处理。部署开关关闭时 `deploy` 被跳过，`smoke` 随之跳过。
 

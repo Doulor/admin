@@ -6,10 +6,10 @@
  * 不在提交里，靠这份清单（deploy/parity/ledger.json）记账：预发布做的时候登记，正式做完改成 done，发版前清零。
  *
  *   node scripts/parity.mjs list
- *   node scripts/parity.mjs check [--release|--complete]   校验清单格式；--release 要求部署前的条目（phase 缺省或 pre_deploy）没有 pending，
- *                                                    部署后才能做的条目（phase: post_deploy）只列出来；--complete 要求全部清零（部署后收尾核对）
+ *   node scripts/parity.mjs check [--release --version <版本>|--complete]   校验清单格式；--release 要求部署前的条目（phase 缺省或 pre_deploy）没有 pending，
+ *                                                    部署后才能做的条目（phase: post_deploy）只拦不属于这次版本的遗留（release 字段 ≠ --version）；--complete 要求全部清零（部署后收尾核对）
  *   node scripts/parity.mjs add --surface <schema|data|env|host|external> --title <一句话> --issue <编号> \
- *        --preview-evidence <预发布做了什么、怎么验证的> --production-action <正式要做的动作和命令> [--phase pre_deploy|post_deploy]
+ *        --preview-evidence <预发布做了什么、怎么验证的> --production-action <正式要做的动作和命令> [--phase pre_deploy|post_deploy --release <版本>]
  *   node scripts/parity.mjs done <P-0001> --evidence <正式做了什么、怎么验证的>
  *   node scripts/parity.mjs not-applicable <P-0001> --reason <为什么正式不需要>
  *   node scripts/parity.mjs waive <P-0001> --by Crosery --quote <所有者的原话>   只记录所有者的豁免，不替所有者决定
@@ -29,6 +29,7 @@ export const SURFACES = Object.freeze(['schema', 'data', 'env', 'host', 'externa
 export const STATUSES = Object.freeze(['pending', 'done', 'not_applicable', 'waived']);
 // pre_deploy（缺省）：部署之前必须做完；post_deploy：依赖这次部署本身（如要等正式服务起来才能改接），部署后立刻做，--complete 收尾核对
 export const PHASES = Object.freeze(['pre_deploy', 'post_deploy']);
+const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\+08:00)?)?$/;
 
 export function beijingNow(date = new Date()) {
@@ -51,6 +52,7 @@ export function validateLedger(ledger) {
     if (!SURFACES.includes(entry?.surface)) problems.push(`${at}：surface 只能是 ${SURFACES.join('、')}`);
     if (!text(entry?.title, 4)) problems.push(`${at}：缺 title`);
     if (entry?.phase !== undefined && !PHASES.includes(entry.phase)) problems.push(`${at}：phase 只能是 ${PHASES.join('、')}`);
+    if (entry?.phase === 'post_deploy' && !VERSION_RE.test(entry?.release ?? '')) problems.push(`${at}：post_deploy 要写 release（随哪个版本部署，形如 0.1.1），下一个版本发布前它必须已经收尾`);
     if (!Number.isInteger(entry?.issue) || entry.issue < 1) problems.push(`${at}：issue 必须是正整数`);
     if (!DATE_RE.test(entry?.preview?.doneAt ?? '') || !text(entry?.preview?.evidence)) problems.push(`${at}：preview 要有 doneAt 和 evidence（预发布做了什么、怎么验证）`);
     const production = entry?.production ?? {};
@@ -68,10 +70,16 @@ export function pendingEntries(ledger, { phase } = {}) {
   return ledger.entries.filter(entry => entry.production?.status === 'pending' && (phase === undefined || (entry.phase ?? 'pre_deploy') === phase));
 }
 
-/** check 的判定：release 只拦部署前的条目（post_deploy 只列出来），complete 要求全部清零，缺省只校验格式。 */
-export function gateReport(ledger, mode) {
-  const blocking = mode === 'complete' ? pendingEntries(ledger) : mode === 'release' ? pendingEntries(ledger, { phase: 'pre_deploy' }) : [];
-  const after = mode === 'release' ? pendingEntries(ledger, { phase: 'post_deploy' }) : [];
+/**
+ * check 的判定：release 拦部署前的条目，以及属于更早版本的 post_deploy 遗留（本版本的 post_deploy 只列出来，部署后立刻做）；
+ * complete 要求全部清零；缺省只校验格式。release 必须给 version，否则遗留无从判断。
+ */
+export function gateReport(ledger, mode, { version } = {}) {
+  if (mode === 'release' && !VERSION_RE.test(version ?? '')) throw new Error('check --release 要带 --version <x.y.z>');
+  const postDeploy = mode === 'release' ? pendingEntries(ledger, { phase: 'post_deploy' }) : [];
+  const leftover = postDeploy.filter(entry => entry.release !== version);
+  const blocking = mode === 'complete' ? pendingEntries(ledger) : mode === 'release' ? [...pendingEntries(ledger, { phase: 'pre_deploy' }), ...leftover] : [];
+  const after = postDeploy.filter(entry => entry.release === version);
   return { blocking, after };
 }
 
@@ -80,9 +88,9 @@ export function nextId(ledger) {
   return `P-${String(max + 1).padStart(4, '0')}`;
 }
 
-export function addEntry(ledger, { surface, title, issue, previewEvidence, productionAction, phase, now = beijingNow() }) {
+export function addEntry(ledger, { surface, title, issue, previewEvidence, productionAction, phase, release, now = beijingNow() }) {
   const entry = {
-    id: nextId(ledger), surface, title, issue: Number(issue), ...(phase === undefined ? {} : { phase }),
+    id: nextId(ledger), surface, title, issue: Number(issue), ...(phase === undefined ? {} : { phase }), ...(release === undefined ? {} : { release }),
     preview: { doneAt: now, evidence: previewEvidence },
     production: { status: 'pending', action: productionAction },
   };
@@ -252,15 +260,19 @@ export async function main(argv) {
   if (command === 'list') { printTable(ledger); return 0; }
   if (command === 'check') {
     const pending = pendingEntries(ledger);
+    const unknown = rest.filter((arg, index) => !['--complete', '--release', '--version'].includes(arg) && rest[index - 1] !== '--version');
+    if (unknown.length) { console.error(`check 不认识 ${unknown.join(' ')}：只有 --release --version <x.y.z>、--complete，或不带参数只校验格式`); return 2; }
     const mode = rest.includes('--complete') ? 'complete' : rest.includes('--release') ? 'release' : undefined;
-    const { blocking, after } = gateReport(ledger, mode);
+    let report;
+    try { report = gateReport(ledger, mode, { version: option(rest, 'version')?.replace(/^v/, '') }); } catch (error) { console.error(error.message); return 2; }
+    const { blocking, after } = report;
     if (blocking.length) {
       console.error(`同构清单还有 ${blocking.length} 条正式没做完，${mode === 'complete' ? '收尾前' : '发版前'}必须清零（做完改 done，确实不需要写 not-applicable，所有者豁免写 waive）：`);
       for (const entry of blocking) console.error(`  ${entry.id} [${entry.surface}] #${entry.issue} ${entry.title}\n      正式要做：${entry.production.action}`);
       return 1;
     }
     if (after.length) {
-      console.log(`部署后立刻要做的有 ${after.length} 条（部署完成后用 check --complete 收尾核对）：`);
+      console.log(`随这个版本部署后立刻要做的有 ${after.length} 条（下一个版本发布前必须收尾，check --complete 核对）：`);
       for (const entry of after) console.log(`  ${entry.id} [${entry.surface}] #${entry.issue} ${entry.title}`);
     }
     console.log(`同构清单格式正确：共 ${ledger.entries.length} 条，pending ${pending.length} 条。`);
@@ -268,7 +280,7 @@ export async function main(argv) {
   }
   if (command === 'add') {
     const surface = need(rest, 'surface');
-    const { ledger: next, entry } = addEntry(ledger, { surface, title: need(rest, 'title'), issue: need(rest, 'issue'), previewEvidence: need(rest, 'preview-evidence'), productionAction: need(rest, 'production-action'), phase: option(rest, 'phase') });
+    const { ledger: next, entry } = addEntry(ledger, { surface, title: need(rest, 'title'), issue: need(rest, 'issue'), previewEvidence: need(rest, 'preview-evidence'), productionAction: need(rest, 'production-action'), phase: option(rest, 'phase'), release: option(rest, 'release') });
     writeLedger(next);
     console.log(`已登记 ${entry.id}：${entry.title}（正式待做）`);
     return 0;
@@ -277,7 +289,7 @@ export async function main(argv) {
   if (command === 'done') { writeLedger(updateEntry(ledger, id, { status: 'done', doneAt: beijingNow(), evidence: need(rest, 'evidence') })); console.log(`${id} 已标 done`); return 0; }
   if (command === 'not-applicable') { writeLedger(updateEntry(ledger, id, { status: 'not_applicable', reason: need(rest, 'reason') })); console.log(`${id} 已标 not_applicable`); return 0; }
   if (command === 'waive') { writeLedger(updateEntry(ledger, id, { status: 'waived', waiver: { by: need(rest, 'by'), at: beijingNow(), quote: need(rest, 'quote') } })); console.log(`${id} 已记录所有者豁免`); return 0; }
-  console.error('用法：node scripts/parity.mjs <list|check [--release|--complete]|add|done|not-applicable|waive|smoke|compare>，详见文件头注释');
+  console.error('用法：node scripts/parity.mjs <list|check [--release --version <x.y.z>|--complete]|add|done|not-applicable|waive|smoke|compare>，详见文件头注释');
   return 2;
 }
 

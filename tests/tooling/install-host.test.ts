@@ -82,6 +82,14 @@ describe("install-host.sh", () => {
     expect(f.run("apply", ["--mirror-env-stdin"], "CDN_MIRROR_ACCESS_KEY_ID=GK;rm\nCDN_MIRROR_SECRET_ACCESS_KEY=x\n").status).toBe(2);
   });
 
+  it("凭据不合法时在动任何文件之前退出，不留下装了一半的单元", () => {
+    const f = fixture({});
+    const result = f.run("apply", ["--mirror-env-stdin"], "CDN_MIRROR_ACCESS_KEY_ID=GK;rm\nCDN_MIRROR_SECRET_ACCESS_KEY=x\n");
+    expect(result.status).toBe(2);
+    expect(readdirSync(f.root)).toEqual([]);
+    expect(existsSync(f.calls)).toBe(false);
+  });
+
   it("接入 systemd 时只 daemon-reload 并在有凭据时启用定时器，绝不重启或停止任何服务", () => {
     const f = fixture({});
     expect(f.run("apply").status).toBe(0);
@@ -131,6 +139,9 @@ describe("部署工作流里的宿主层步骤", () => {
       expect(step).toMatch(/CDN_MIRROR_SECRET_ACCESS_KEY: \$\{\{ secrets\.CDN_MIRROR_SECRET_ACCESS_KEY \}\}/);
       expect(step).not.toMatch(/echo[^\n]*\$\{?CDN_MIRROR_SECRET|--mirror-env-stdin[^\n]*\$\{?CDN_MIRROR_SECRET/);
       expect(workflow.indexOf("- name: 记录部署结果")).toBeLessThan(workflow.indexOf("- name: 同步宿主层物料"));
+      // preview 与 production 可能同时发布到同一台机器：目录按运行编号分开，只清一天前遗留的
+      expect(step).toContain("host_dir=/opt/yzgc/host-incoming-${GITHUB_RUN_ID}");
+      expect(step).toContain("-mmin +1440");
     });
   }
 });

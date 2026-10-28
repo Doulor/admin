@@ -48,9 +48,12 @@ SYSTEMCTL="${INSTALL_HOST_SYSTEMCTL:-systemctl}"
 use_systemd() { [[ -z "${ROOT}" || -n "${INSTALL_HOST_SYSTEMCTL:-}" ]]; }
 
 digest() { sha256sum "$1" | cut -d' ' -f1; }
-status_of() { # 源 目标 → same|changed|missing
-    local src="$1" dest="$2"
-    if [[ ! -e "${dest}" ]]; then echo missing; elif [[ "$(digest "${src}")" == "$(digest "${dest}")" ]]; then echo same; else echo changed; fi
+status_of() { # 源 目标 → same|changed|missing；算不出摘要时直接失败，不能当作 same
+    local src="$1" dest="$2" a b
+    if [[ ! -e "${dest}" ]]; then echo missing; return; fi
+    a="$(digest "${src}")" && [[ -n "${a}" ]] || { echo "install-host: 算不出 ${src} 的摘要" >&2; exit 2; }
+    b="$(digest "${dest}")" && [[ -n "${b}" ]] || { echo "install-host: 算不出 ${dest} 的摘要" >&2; exit 2; }
+    if [[ "${a}" == "${b}" ]]; then echo same; else echo changed; fi
 }
 
 differences=0
@@ -66,16 +69,24 @@ plan() {
     done
 }
 
-write_mirror_env() {
-    local id="" secret="" line
+# 先读完并校验 stdin，再动任何文件：凭据不合法时不会留下装了一半的单元
+MIRROR_ID=""
+MIRROR_SECRET=""
+read_mirror_credentials() {
+    local line
     while IFS= read -r line; do
         case "${line}" in
-            CDN_MIRROR_ACCESS_KEY_ID=*) id="${line#*=}" ;;
-            CDN_MIRROR_SECRET_ACCESS_KEY=*) secret="${line#*=}" ;;
+            CDN_MIRROR_ACCESS_KEY_ID=*) MIRROR_ID="${line#*=}" ;;
+            CDN_MIRROR_SECRET_ACCESS_KEY=*) MIRROR_SECRET="${line#*=}" ;;
         esac
     done
-    if [[ -z "${id}" || -z "${secret}" ]]; then echo "install-host: stdin 里没有完整的镜像凭据，保持原文件不动" >&2; return 0; fi
-    [[ "${id}" =~ ^[A-Za-z0-9]+$ && "${secret}" =~ ^[A-Za-z0-9+/=_-]+$ ]] || { echo "install-host: 镜像凭据含非法字符" >&2; exit 2; }
+    if [[ -z "${MIRROR_ID}" || -z "${MIRROR_SECRET}" ]]; then echo "install-host: stdin 里没有完整的镜像凭据，保持原文件不动" >&2; MIRROR_ID=""; MIRROR_SECRET=""; return 0; fi
+    [[ "${MIRROR_ID}" =~ ^[A-Za-z0-9]+$ && "${MIRROR_SECRET}" =~ ^[A-Za-z0-9+/=_-]+$ ]] || { echo "install-host: 镜像凭据含非法字符" >&2; exit 2; }
+}
+
+write_mirror_env() {
+    local id="${MIRROR_ID}" secret="${MIRROR_SECRET}"
+    [[ -n "${id}" && -n "${secret}" ]] || return 0
     install -d -m 0700 "$(dirname "${MIRROR_ENV}")"
     printf 'CDN_MIRROR_ACCESS_KEY_ID=%s\nCDN_MIRROR_SECRET_ACCESS_KEY=%s\n' "${id}" "${secret}" >"${MIRROR_ENV}.new"
     chmod 0600 "${MIRROR_ENV}.new"
@@ -86,6 +97,7 @@ write_mirror_env() {
 apply() {
     local entry rel dest mode src target state stamp
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    if [[ "${MIRROR_ENV_STDIN}" == 1 ]]; then read_mirror_credentials; fi
     for entry in "${MANIFEST[@]}"; do
         IFS='|' read -r rel dest mode <<<"${entry}"
         src="${SOURCE}/${rel}"

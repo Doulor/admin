@@ -89,9 +89,10 @@ register_client() {
 migrate_subjects() {
     need_production
     sector_ok
-    local work
-    work="$(mktemp -d)"
-    trap 'rm -rf "${work}"; "${DOCKER}" exec "${PREVIEW_SERVER}" rm -f /tmp/migrate-oidc-subjects.mjs >/dev/null 2>&1 || true; "${DOCKER}" exec "${PROD_SERVER}" rm -f /tmp/migrate-oidc-subjects.mjs >/dev/null 2>&1 || true' RETURN
+    WORK="$(mktemp -d)"
+    local work="${WORK}"
+    # EXIT 而不是 RETURN：import 遇到冲突以非 0 退出时，导出文件（sub 与身份的对应）和容器里的脚本也要清掉
+    trap 'rm -rf "${WORK}"; "${DOCKER}" exec "${PREVIEW_SERVER}" rm -f /tmp/migrate-oidc-subjects.mjs >/dev/null 2>&1 || true; "${DOCKER}" exec "${PROD_SERVER}" rm -f /tmp/migrate-oidc-subjects.mjs >/dev/null 2>&1 || true' EXIT
     "${DOCKER}" cp "${HERE}/migrate-oidc-subjects.mjs" "${PREVIEW_SERVER}:/tmp/migrate-oidc-subjects.mjs"
     "${DOCKER}" cp "${HERE}/migrate-oidc-subjects.mjs" "${PROD_SERVER}:/tmp/migrate-oidc-subjects.mjs"
     "${DOCKER}" exec "${PREVIEW_SERVER}" node /tmp/migrate-oidc-subjects.mjs export --sector "${SECTOR}" >"${work}/export.json"
@@ -106,12 +107,18 @@ switch_issuer() {
     [[ ",$(client_ids "${PROD_SERVER}")," == *,gitlab,* ]] || die "正式库没有 gitlab 客户端：先 register-client"
     [[ -f "${SECRET_PRODUCTION}" ]] || die "缺 ${SECRET_PRODUCTION##*/}"
     [[ "$(grep -Ec "${ISSUER_LINE_RE}" "${GITLAB_RB}" || true)" == 1 ]] || grep -q "File.read('/etc/gitlab/yzgc-oidc-issuer')" "${GITLAB_RB}" || die "gitlab.rb 里找不到唯一的 issuer 行"
+    # 已有 GitLab 用户的 sub 没带到正式库就切换，他们首次登录会被建成新账号，rollback 撤销不了：先要求演算结果是「可迁 0，冲突 0」
+    local pending
+    pending="$(APPLY=0 migrate_subjects 2>&1 || true)"
+    grep -q '可迁 0，冲突 0' <<<"${pending}" || die "还有 sub 没迁到正式库（或有冲突），先 migrate-subjects --apply：$(grep -m1 '^演算' <<<"${pending}" || echo 演算失败)"
     echo "前置满足：将备份 gitlab.rb 与 yzgc-oidc-secret，issuer 改为 ${PROD_ORIGIN}/oidc，secret 换成正式的，reconfigure"
     writes || return 0
     local stamp
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-    cp -p "${GITLAB_RB}" "${GITLAB_RB}.bak-${stamp}-issuer"
-    [[ -f "${SECRET_FILE}" ]] && cp -p "${SECRET_FILE}" "${SECRET_FILE}.bak-${stamp}"
+    # gitlab.rb 里已经是读文件的写法（上次重跑）时不再备份，原始写法的备份只留第一次的
+    if grep -Eq "${ISSUER_LINE_RE}" "${GITLAB_RB}"; then cp -p "${GITLAB_RB}" "${GITLAB_RB}.bak-${stamp}-issuer"; fi
+    # secret 已经是正式的（上次 reconfigure 失败后重跑）时不再备份：回滚要找的是预发布的 secret，重复备份会把正式的当成回滚点
+    if [[ -f "${SECRET_FILE}" ]] && ! cmp -s "${SECRET_FILE}" "${SECRET_PRODUCTION}"; then cp -p "${SECRET_FILE}" "${SECRET_FILE}.bak-${stamp}"; fi
     [[ -f "${ISSUER_FILE}" ]] && cp -p "${ISSUER_FILE}" "${ISSUER_FILE}.bak-${stamp}"
     printf '%s/oidc\n' "${PROD_ORIGIN}" >"${ISSUER_FILE}.new"
     mv "${ISSUER_FILE}.new" "${ISSUER_FILE}"
@@ -132,6 +139,7 @@ rollback_issuer() {
     rb="$(find "${CONFIG}" -maxdepth 1 -name 'gitlab.rb.bak-*-issuer' | sort | tail -1)"
     secret="$(find "${CONFIG}" -maxdepth 1 -name 'yzgc-oidc-secret.bak-*' | sort | tail -1)"
     [[ -n "${rb}" && -n "${secret}" ]] || die "没有 switch-issuer 留下的备份，无法回滚"
+    if [[ -f "${SECRET_PRODUCTION}" ]] && cmp -s "${secret}" "${SECRET_PRODUCTION}"; then die "${secret##*/} 就是正式的 secret，回滚后 GitLab 会用正式 secret 去连预发布，登录失败：人工确认预发布 secret 再处理"; fi
     echo "将用 ${rb##*/} 与 ${secret##*/} 回滚，issuer 写回 ${PREVIEW_ORIGIN}/oidc，reconfigure"
     writes || return 0
     cp -p "${rb}" "${GITLAB_RB}"

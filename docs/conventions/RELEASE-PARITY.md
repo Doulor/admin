@@ -77,18 +77,18 @@
 ```bash
 node scripts/parity.mjs list
 node scripts/parity.mjs add --surface data --title "…" --issue <编号> \
-  --preview-evidence "预发布做了什么、怎么验证的" --production-action "正式要做的动作和命令" [--phase post_deploy]
+  --preview-evidence "预发布做了什么、怎么验证的" --production-action "正式要做的动作和命令" [--phase post_deploy --release <x.y.z>]
 node scripts/parity.mjs done P-0010 --evidence "正式做了什么、怎么验证的"
 node scripts/parity.mjs not-applicable P-0010 --reason "为什么正式不需要"
 node scripts/parity.mjs waive P-0010 --by Crosery --quote "所有者的原话"
-node scripts/parity.mjs check --release
+node scripts/parity.mjs check --release --version <x.y.z>
 node scripts/parity.mjs check --complete
 ```
 
 - 谁登记：在预发布做这件事的人或 agent，做的当时就登记，写进同一个 PR；清单条目里的 `production.action` 要具体到别人照着就能执行。
 - 谁关闭：在正式做完的人，`done` 要写证据；确实不需要写 `not-applicable` 和理由；只有所有者能豁免，`waive` 必须带所有者的署名和原话，agent 不替所有者写豁免。
-- 门禁：`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 运行 `check --release`，部署前的条目还有 `pending` 就不构建、不部署。预发布部署不受它拦截。已写的结论不改，写错了追加一条新记录说明。
-- 阶段：条目默认是部署前（`pre_deploy`）。有些事要等这次部署把正式服务起来才能做（例如 GitLab 签发者改接正式、正式构建换新 CDN 的验收），登记时加 `--phase post_deploy`：`check --release` 只把它们列出来、不拦发版；部署完成后做完并 `done`，再跑 `check --complete`，它要求所有条目清零，这条没过这次发版就没有收尾。阶段只决定什么时候必须做完，不决定要不要做。
+- 门禁：`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 运行 `check --release --version <版本>`，部署前的条目还有 `pending` 就不构建、不部署。拼错的参数、`--release` 不带 `--version` 都退出 2，不会当作通过。预发布部署不受它拦截。已写的结论不改，写错了追加一条新记录说明。
+- 阶段：条目默认是部署前（`pre_deploy`）。有些事要等这次部署把正式服务起来才能做（例如 GitLab 签发者改接正式、正式构建换新 CDN 的验收），登记时加 `--phase post_deploy --release <x.y.z>`（随哪个版本部署）：`check --release --version` 对本版本的 post_deploy 条目只列出来、不拦；部署完成后做完并 `done`，再跑 `check --complete`，它要求所有条目清零。属于更早版本、仍是 `pending` 的 post_deploy 条目会拦住下一个版本的发布（hotfix 也一样），所以上一次部署后的收尾不会被悄悄跳过。阶段只决定什么时候必须做完，不决定要不要做。
 - 记账靠执行者：脚本只保证登记过的条目会被核对，发现不了漏登记；漏登记由第六节的烟测兜底可见的差异，只在内部可见的差异（例如没人访问的数据）仍然是盲区，所以登记要在做事的当时完成，不留到发版前回忆。
 
 ## 六、发版烟测
@@ -151,7 +151,7 @@ hotfix 从 `main` 修（[RELEASES](RELEASES.md)「线上紧急缺陷（Hotfix）
 
 | 要做的事 | 仓库里的路径 | CI 怎么测到 |
 |---|---|---|
-| systemd 单元、隧道看门狗覆盖项、CDN 镜像脚本等宿主层物料 | `deploy/remote/install-host.sh`（`plan` 只读比对、`apply` 备份后覆盖并 daemon-reload、`verify` 核对一致与 systemd 状态）；`deploy-preview/production/hotfix.yml` 在栈部署成功后自动运行，镜像凭据由环境 secret `CDN_MIRROR_ACCESS_KEY_ID`、`CDN_MIRROR_SECRET_ACCESS_KEY` 经 stdin 写入 | `tests/tooling/install-host.test.ts`：临时根目录加假 systemctl，覆盖 changed/missing、备份、凭据 0600 与不回显、绝不重启服务 |
+| systemd 单元、隧道看门狗覆盖项、CDN 镜像脚本等宿主层物料 | `deploy/remote/install-host.sh`（`plan` 只读比对、`apply` 备份后覆盖并 daemon-reload、`verify` 核对一致与 systemd 状态）；`deploy-preview/production/hotfix.yml` 在栈部署成功后自动运行（物料落在 `/opt/yzgc/host-incoming-<运行编号>`，preview 与 production 同时发布互不踩；这一步失败让部署 job 变红，随后的线上烟测 job 因此被跳过：先按 `docs/ops/DEPLOY.md` 查宿主层，再在本机运行 `node scripts/parity.mjs smoke --origin <正式 origin> --env production` 补做线上核对，只读 HTTP，不需要登录目标机），镜像凭据由环境 secret `CDN_MIRROR_ACCESS_KEY_ID`、`CDN_MIRROR_SECRET_ACCESS_KEY` 经 stdin 写入 | `tests/tooling/install-host.test.ts`：临时根目录加假 systemctl，覆盖 changed/missing、备份、凭据 0600 与不回显、绝不重启服务 |
 | GitLab 统一登录改接（登记客户端、搬 `sub`、换签发者与 secret、回滚） | `deploy/gitlab/cutover.sh`，由 `gitlab-cutover.yml` 手动触发（production 环境审批，缺省演算，勾 `apply` 才写） | `tests/tooling/gitlab-cutover.test.ts`：假 docker 与 curl，覆盖前置检查、备份、回滚、不回显 secret |
 | 预发布到正式的数据格式迁移、一次性数据修复 | 先写成带演算模式的脚本放进仓库，再接进上面这类工作流 | 临时库上的测试 |
 

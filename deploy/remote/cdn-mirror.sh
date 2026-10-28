@@ -125,7 +125,10 @@ sync_bucket() {
     if [[ "$(jq -c '[.count,.bytes]' <<<"${remote_after}")" != "$(jq -c '[.count,.bytes]' <<<"${local_after}")" ]]; then
         # 同步期间源端有新写入时对象数会不一致：再同步一次，仍不一致才算失败
         rclone sync "CDN:${bucket}" "${local_dir}" --backup-dir "${ROOT}/trash/${STAMP}/${bucket}" "${RCLONE_NET[@]}" >/dev/null 2>&1 || true
-        remote_after="$(size_json "CDN:${bucket}")"; local_after="$(size_json "${local_dir}")"
+        if ! remote_after="$(size_json "CDN:${bucket}")" || ! local_after="$(size_json "${local_dir}")"; then
+            fail_bucket "${bucket}" "二次核验时读不到大小"
+            return
+        fi
     fi
     if [[ "$(jq -c '[.count,.bytes]' <<<"${remote_after}")" != "$(jq -c '[.count,.bytes]' <<<"${local_after}")" ]]; then
         fail_bucket "${bucket}" "核验失败：对象数或字节数与源桶不一致"

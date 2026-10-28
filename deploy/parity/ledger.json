@@ -111,7 +111,8 @@
       "production": {
         "status": "pending",
         "action": "部署带 OIDC_JWKS 的正式版本后，在 GitHub Actions 手动触发 gitlab-cutover：先 migrate-subjects 演算、看过可迁/冲突/对不上三个数再 apply，再 switch-issuer（演算后 apply）；验收：status 显示 GitLab 签发者读宿主文件且 yzgc-oidc-issuer 是正式 origin，正式成员能经「极客班统一登录」进 GitLab，原有 GitLab 账号没有变成新账号。回滚：rollback-issuer。不需要登录目标机"
-      }
+      },
+      "release": "0.1.1"
     },
     {
       "id": "P-0008",
@@ -140,7 +141,8 @@
       "production": {
         "status": "pending",
         "action": "前置 P-0002、P-0008。下一次正式 hotfix 部署由 static-cdn 环境的凭据构建；验收：正式首页脚本地址在新 CDN 上，宣传片 HLS 能播"
-      }
+      },
+      "release": "0.1.1"
     },
     {
       "id": "P-0010",
@@ -171,7 +173,8 @@
       "production": {
         "status": "pending",
         "action": "先发预发布把 GITLAB_SYNC 改 off（需所有者授权 rc 标签），再把正式 GITLAB_SYNC 改 on 并重新部署；验收：正式 level.member 账号都有 GitLab 账号并在 geek 组内（只读核对数量）。这一步改的是 env 模板和部署，不需要登录目标机"
-      }
+      },
+      "release": "0.1.1"
     },
     {
       "id": "P-0012",
