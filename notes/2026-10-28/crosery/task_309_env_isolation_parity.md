@@ -44,3 +44,9 @@
 - 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
 - 做了什么：按 CODE-REVIEW 逐项对照 origin/main...HEAD（51 个文件）：新增行里没有任何环境域名（git diff 过滤为空）；env 三份键集一致由 check:env-isolation 核对；sameShape 记录内部只比同名字段类型；删除的 GET /api/console/departments 在 catalog 213 条显式路由中是唯一没有调用方的，44 条静态搜不到的逐条人工确认；同构清单 7 条 pending 会拦住 deploy-hotfix 与 deploy-production，包括本次 hotfix 自己
 - 结果：结论：有条件通过。条件：1 这是作者本人自审，进 main 前需要另一位审查人或所有者复核；2 parity 与 smoke 两个 job 没有在真实 GitHub Actions 上跑过，只有 actionlint 和结构测试；3 P-0003..P-0009 需所有者授权在正式环境做完或逐条豁免，否则 hotfix 部署被自己的门禁拦住；4 没有正式访问日志，无法证明 departments 接口在页面之外没有外部调用。验证：tests/server 与 tests/tooling 118 个文件 2187 passed、27 skipped；typecheck 通过；check-architecture、check:catalog、docs-index、doc-sync（对 origin/main）、check:notes、check:secrets 通过
+
+## 20:12:11 +08:00 · 开发 · #309 · 同构清单 P-0004 按实测标 done，并核对线上 GitLab、CDN、内部赛事
+
+- 执行者：agent-claude-geek-main-09（Claude Code，claude-sonnet-5-5）
+- 做了什么：P-0004：gh secret list --env production 有 GOOGLE_CLIENT_ID/SECRET（07:23Z 创建），线上 /auth/providers 列出 google，/auth/google 302 到 Google。线上只读实测：git.yangtzeu.work 30 次请求 30 次 200；GitLab 单点登录 POST 后 302 到 prev.yangtzeu.work/oidc/auth（正式跳预发布的根因）；cdn.yangtzeu.work 直连 103.240.197.216 30 次里 18 次超时；内部赛事 /api/public/competitions/oss-challenge-2026-1 的 7 个接口两边都是 200 且格式一致
+- 结果：pending 由 7 条降为 6 条（P-0003、P-0005..P-0009）；正式 /api/public/gitlab/projects 返回 unavailable:true，两边 stats.updated_at 都是 0；deploy/remote/garage-archive.mjs 的备份端点写死 cdn.yangtzeu.work，而该域名当前解析到不稳定的直连 IP

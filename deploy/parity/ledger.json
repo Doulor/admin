@@ -3,9 +3,14 @@
   "note": "预发布到正式的同构清单：预发布做过的、不在提交里的事（表结构、数据、env 键与密钥、宿主配置、外部服务），正式都要有对应动作。规则见 docs/conventions/RELEASE-PARITY.md。回填条目的预发布日期是登记日，建立日期未追溯。",
   "entries": [
     {
-      "id": "P-0001", "surface": "data", "issue": 309,
+      "id": "P-0001",
+      "surface": "data",
+      "issue": 309,
       "title": "内部赛事官网 oss-challenge-2026-1 的 competition_sites 与 competition_site_versions 数据",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布两张表各 1 行，/c/oss-challenge-2026-1/ 返回 200（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布两张表各 1 行，/c/oss-challenge-2026-1/ 返回 200（回填登记）"
+      },
       "production": {
         "status": "done",
         "action": "把预发布的两张表各 1 行迁入正式库，competition 的 site_url 写成 /c/oss-challenge-2026-1/",
@@ -14,9 +19,14 @@
       }
     },
     {
-      "id": "P-0002", "surface": "host", "issue": 309,
+      "id": "P-0002",
+      "surface": "host",
+      "issue": 309,
       "title": "正式前置 Caddy 的 CSP 与预发布对齐（script-src、media-src、connect-src 放行新 CDN 与 blob:）",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布 CSP 含新 CDN 与 blob:（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布 CSP 含新 CDN 与 blob:（回填登记）"
+      },
       "production": {
         "status": "done",
         "action": "改正式站点块的 CSP 两行，caddy validate 后 reload，保留备份",
@@ -25,63 +35,100 @@
       }
     },
     {
-      "id": "P-0003", "surface": "env", "issue": 308,
+      "id": "P-0003",
+      "surface": "env",
+      "issue": 308,
       "title": "正式缺 OIDC_JWKS：对外授权关闭，/oidc/* 全部 404",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布已配，/oidc/.well-known/openid-configuration 返回 200（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布已配，/oidc/.well-known/openid-configuration 返回 200（回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "在正式 server 容器里 node app/server/dist/cli/oidc.js keygen 生成，写进 GitHub 环境 production 的 secret OIDC_JWKS，由 hotfix 部署重新渲染 env；验收：parity compare 的 /oidc/.well-known/openid-configuration 两边都是 200 且 issuer 是各自的 PUBLIC_ORIGIN/oidc"
       }
     },
     {
-      "id": "P-0004", "surface": "env", "issue": 307,
+      "id": "P-0004",
+      "surface": "env",
+      "issue": 307,
       "title": "正式缺 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET：登录页没有 Google",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布两项已配，登录页有 Google（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布两项已配，登录页有 Google（回填登记）"
+      },
       "production": {
-        "status": "pending",
-        "action": "所有者在 Google Cloud 给正式 PUBLIC_ORIGIN 建 Web 应用客户端（重定向 URI <PUBLIC_ORIGIN>/auth/google/callback），两项写进 GitHub 环境 production 的 secrets，hotfix 部署重新渲染；验收：正式登录页出现 Google"
+        "status": "done",
+        "action": "所有者在 Google Cloud 给正式 PUBLIC_ORIGIN 建 Web 应用客户端（重定向 URI <PUBLIC_ORIGIN>/auth/google/callback），两项写进 GitHub 环境 production 的 secrets，hotfix 部署重新渲染；验收：正式登录页出现 Google",
+        "doneAt": "2026-10-28T20:06:56+08:00",
+        "evidence": "20:2x 实测：gh secret list --env production 有 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET（2026-10-28T07:23Z 创建）；GET /auth/providers 列出 google；GET /auth/google 302 到 accounts.google.com，redirect_uri 是正式回调。Google 控制台里是否登记了正式回调没有验证"
       }
     },
     {
-      "id": "P-0005", "surface": "env", "issue": 308,
+      "id": "P-0005",
+      "surface": "env",
+      "issue": 308,
       "title": "正式缺 GITLAB_API_TOKEN，GITLAB_SYNC 保持 off",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布 GITLAB_SYNC=on 且令牌已配，gitlab_accounts 6 行（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布 GITLAB_SYNC=on 且令牌已配，gitlab_accounts 6 行（回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "按 docs/ops/GITLAB.md 的单写者顺序：先把预发布 GITLAB_SYNC 改 off，再迁 sector 的 sub 与登记 gitlab 客户端（P-0006）、改 GitLab 签发者（P-0007），最后写 GITLAB_API_TOKEN 并把正式 GITLAB_SYNC 改 on；两边不得同时 on"
       }
     },
     {
-      "id": "P-0006", "surface": "data", "issue": 308,
+      "id": "P-0006",
+      "surface": "data",
+      "issue": 308,
       "title": "正式库没有登记 OIDC 客户端 gitlab（oauth_clients 0 行）",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布 oauth_clients 1 行 client_id=gitlab、status=active（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布 oauth_clients 1 行 client_id=gitlab、status=active（回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "在正式 server 容器里 node app/server/dist/cli/oidc.js client add --client-id gitlab ...，secret 落宿主 /srv/gitlab/config/yzgc-oidc-secret 与本机凭据库 GITLAB_OIDC_CLIENT_SECRET；验收：正式 oauth_clients 出现 gitlab 且 status=active"
       }
     },
     {
-      "id": "P-0007", "surface": "host", "issue": 308,
+      "id": "P-0007",
+      "surface": "host",
+      "issue": 308,
       "title": "GitLab 统一登录的签发者改接正式（deploy/gitlab/gitlab-oidc.rb 读 /etc/gitlab/yzgc-oidc-issuer）",
-      "preview": { "doneAt": "2026-10-28", "evidence": "GitLab 现在信任预发布签发者，预发布账号能登录（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "GitLab 现在信任预发布签发者，预发布账号能登录（回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "前置 P-0003、P-0005、P-0006 完成。宿主 /srv/gitlab/config/yzgc-oidc-issuer 写正式 PUBLIC_ORIGIN/oidc，把本仓库的 gitlab-oidc.rb 片段替换进 gitlab.rb，gitlab-ctl reconfigure；验收：正式成员能经「极客班统一登录」进 GitLab"
       }
     },
     {
-      "id": "P-0008", "surface": "external", "issue": 305,
+      "id": "P-0008",
+      "surface": "external",
+      "issue": 305,
       "title": "cdn 子域的 A 记录从 Garage 直连换到香港边缘",
-      "preview": { "doneAt": "2026-10-28", "evidence": "边缘 12/12 成功，直连 6 次只成功 2 次（omp:01a181c9 实测，回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "边缘 12/12 成功，直连 6 次只成功 2 次（omp:01a181c9 实测，回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "所有者登录 DNSPod 把 cdn 子域 A 记录指向香港边缘；验收：cdn-verify.sh 连续 12 次 200"
       }
     },
     {
-      "id": "P-0009", "surface": "external", "issue": 295,
+      "id": "P-0009",
+      "surface": "external",
+      "issue": 295,
       "title": "正式构建改走新 CDN（静态资源由 cdn-upload 上传，页面引用 CDN 地址）",
-      "preview": { "doneAt": "2026-10-28", "evidence": "预发布 rc.29 的 portal 脚本在新 CDN 上（回填登记）" },
+      "preview": {
+        "doneAt": "2026-10-28",
+        "evidence": "预发布 rc.29 的 portal 脚本在新 CDN 上（回填登记）"
+      },
       "production": {
         "status": "pending",
         "action": "前置 P-0002、P-0008。下一次正式 hotfix 部署由 static-cdn 环境的凭据构建；验收：正式首页脚本地址在新 CDN 上，宣传片 HLS 能播"
