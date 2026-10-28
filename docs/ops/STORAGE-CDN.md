@@ -2,14 +2,15 @@
 
 > 一台守在香港的 1 vCPU / 1 GiB 小机器：Garage 提供 S3 兼容对象存储，Caddy 做网关与自动 TLS，S3 Manager 提供可视控制台，Policy Bridge 把控制台里的「设为公共桶」翻译成 Garage 的 website 开关。本文件是这套系统的**唯一现行合同**，配置模板在 [`deploy/storage-cdn/`](../../deploy/storage-cdn/)。
 
-状态：`current` · 更新：2026-10-27 · 适用：香港 CDN 机（DogYun `hk.st.s`）。与业务代码无关，不被任何应用服务 import。
+状态：`current` · 更新：2026-10-28 · 适用：香港 CDN 机（DogYun `hk.st.s`）。与业务代码无关，不被任何应用服务 import。
 
 ## 它是什么、不是什么
 
 | 是 | 不是 |
 |---|---|
-| 一个 S3 兼容的**对象存储**（Garage），带公共桶直链与私有桶预签名外链 | 网站静态资源的公共 CDN — 官网/控制台/论坛的带哈希资源仍走七牛 `https://cdn.crosery.com`（见 [CICD](CICD.md#静态资源-cdn146)） |
-| 平台与 GitLab 备份的归档目的地（私有桶 `geek-backup`） | 七牛桶 `crosery-backup` 的替代或迁移对象；两者的保留策略各自独立 |
+| 一个 S3 兼容的**对象存储**（Garage），带公共桶直链与私有桶预签名外链 | 带边缘节点的多地 CDN：只有香港这一台，掉线时没有第二份可回源 |
+| 站点静态资源的公共出口：官网、控制台、论坛带哈希的 JS、CSS、字体、图片和论坛内置表情包放在 `geek-public/static/site/`（见 [CICD](CICD.md#静态资源-cdn146)、[CDN](CDN.md)） | 七牛 `https://cdn.crosery.com` 的运行依赖：新构建不再引用它，旧对象只留给 rc.25 及更早版本回滚 |
+| 平台与 GitLab 备份的归档目的地（私有桶 `geek-backup`） | Arch 本机备份的替代：单副本，本机副本继续保留 |
 | 图床/开放文档的公共桶（`geek-public`、`cdn`） | 一个多节点集群：`replication_factor = 1`，单机单副本 |
 
 ## 主机与端口
@@ -41,7 +42,7 @@ Caddy 的路由顺序是合同的一部分：S3 签名请求 → 桶策略桥接
 | `geek-public` | 公共 | 图床与开放文档 |
 | `geek-production-private` | 私有 | 正式站私密资源（匿名 404） |
 | `geek-preview-private` | 私有 | 预发布私密资源 |
-| `geek-backup` | 私有 | 备份归档桶。**目前没有任何代码写它**：归档器 `deploy/remote/garage-archive.mjs` 随 Arch 迁移分支（!33）合入后才生效；平台侧的一键备份仍走浏览器下载（[BACKUP](BACKUP.md)），不写这里。!33 合入后删掉本句，并同步 `tests/tooling/storage-cdn-config.test.ts` 里对应的断言 |
+| `geek-backup` | 私有 | 备份归档桶。写入方是归档器 `deploy/remote/garage-archive.mjs`：GitLab 经 `deploy/gitlab/backup.sh` 写 `gitlab/<日期>/<run>/`，平台经 `deploy/remote/platform-archive.sh` 写 `platform/<环境>/<日期>/<run>/`，各自只保留最近 3 个备份日期（[GITLAB](GITLAB.md)、[BACKUP](BACKUP.md)）；平台侧的一键系统备份仍走浏览器下载，不写这里 |
 
 公共直链：`https://cdn.yangtzeu.work/{bucket}/{key}`。私有桶只能用控制台生成的带签名外链，过期即失效。
 
@@ -98,7 +99,7 @@ ufw status verbose; fail2ban-client status sshd
 ## 明确不做
 
 - 不在本仓库保存任何真实密钥、口令、basic-auth 哈希或私钥；发现泄漏先轮换再清理。
-- 不把业务站点的静态资源切到这台机器（那是七牛 CDN 的职责，切换需另案）。
+- 不在这台机器上做图片处理、转码或回源：站点静态资源由发布流水线按内容哈希上传到 `geek-public/static/site/`，这台机器只存和出。
 - 不在这台机器上跑应用容器、数据库或 CI Runner（1 vCPU / 1 GiB 的余量全部留给存储与 TLS）。
 - 不修改 `replication_factor`、不接第二个节点、不改 UFW 放行端口，除非有明确的容量与安全评审。
 - 不删除既有桶与对象：删除只能在所有者批准、且有异地校验记录之后进行。

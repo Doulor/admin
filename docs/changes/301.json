@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "issue": 301,
+  "kind": "engineering",
+  "summary": "站点资源与备份迁到新 CDN 的收口：改正 STORAGE-CDN、DEPLOY、.env.example 里「带哈希资源仍走七牛」「没有代码写 geek-backup」的过期说法，并让合同测试守住新说法；边缘 CSP 与备份安装是目标机操作，不在源码里。",
+  "applications": [],
+  "domains": [
+    "platform"
+  ],
+  "flows": [],
+  "assessments": {
+    "business": {
+      "status": "unchanged",
+      "reason": "不改登录、论坛、比赛或投递的任何规则；只改运维文档和示例环境文件里关于静态资源与备份去向的描述。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    "backend": {
+      "status": "unchanged",
+      "reason": "不新增应用接口、数据库表或服务端代码。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    "permissions": {
+      "status": "unchanged",
+      "reason": "不涉及权限节点、令牌或 scope。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md"
+      ]
+    },
+    "data": {
+      "status": "unchanged",
+      "reason": "不读写业务数据；桶、前缀、保留规则的合同本身不变，只是把过期的描述改成与实际一致。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md"
+      ]
+    },
+    "dependencies": {
+      "status": "unchanged",
+      "reason": "不新增依赖；CDN 构建开关、上传脚本与归档器的行为不变。",
+      "evidence": [
+        "scripts/static-cdn-base.mjs"
+      ]
+    },
+    "documentation": {
+      "status": "changed",
+      "reason": "STORAGE-CDN 的「是/不是」表、geek-backup 桶行和「明确不做」改成与现行路径一致；DEPLOY 的香港对象存储一节改成站点静态资源与备份归档；.env.example 的邮件图片示例改用新域名。",
+      "evidence": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md",
+        ".env.example"
+      ]
+    },
+    "verification": {
+      "status": "changed",
+      "reason": "合同测试原先断言文档里有「目前没有任何代码写它」，现改为断言写明归档器路径且旧说法已删。",
+      "evidence": [
+        "tests/tooling/storage-cdn-config.test.ts"
+      ]
+    },
+    "delivery": {
+      "status": "unchanged",
+      "reason": "不改部署工作流、镜像或 tag；预发布边缘 CSP 的放行与备份脚本的安装是目标机操作，取证在 issue 与执行记录里。",
+      "evidence": [
+        "docs/ops/DEPLOY.md"
+      ]
+    }
+  },
+  "coverage": [
+    {
+      "paths": [
+        "docs/ops/STORAGE-CDN.md",
+        "docs/ops/DEPLOY.md",
+        ".env.example",
+        "tests/tooling/storage-cdn-config.test.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "运维文档、示例环境文件和合同测试同步改成站点静态资源走新 CDN、备份写 geek-backup 的现行事实。"
+    },
+    {
+      "paths": [
+        "docs/architecture/catalog/CATALOG.md",
+        "docs/architecture/catalog/catalog.json",
+        "docs/architecture/catalog/data-model.md",
+        "docs/architecture/catalog/map.html",
+        "docs/architecture/catalog/permissions.md",
+        "docs/architecture/catalog/routes.md"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform"
+      ],
+      "reason": "STORAGE-CDN、DEPLOY 更新后重新生成的项目目录，只有来源摘要变化（生成物，由 catalog:generate 产出，不手工编辑）。"
+    }
+  ],
+  "documents": [
+    "docs/ops/STORAGE-CDN.md",
+    "docs/ops/DEPLOY.md"
+  ],
+  "tests": [
+    "tests/tooling/storage-cdn-config.test.ts"
+  ],
+  "compatibility": "只改文档、示例环境文件和一条合同测试断言；构建开关、上传脚本、归档器和部署工作流的行为不变。",
+  "migration": "不涉及数据或接口迁移：没有表结构、接口或配置变化。边缘 CSP 的放行与备份脚本安装是目标机操作，各自有备份和回滚命令，记录在 issue 与执行记录里。",
+  "rollback": "回滚本次改动即可，文档回到「带哈希资源仍走七牛」的旧说法，与实际不符。"
+}
