@@ -89,7 +89,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "携带环境隔离、同构、宿主运维和双仓同步行为回归。源修复已验证核心 2955 条、论坛 701 条与构建；本 PR 还须通过 GitHub 三项必需检查，未完成不能称通过。",
+      "reason": "携带环境隔离、同构、宿主运维和双仓同步行为回归。真实 GitHub hotfix-core 揭示临时工作仓库未配置提交身份，现仅修夹具的仓库本地身份，全部行为断言保留，并在禁用系统和全局 Git 配置下验证。本 PR 仍须通过三项必需检查，不用本机通过替代 CI。",
       "evidence": [
         "tests/tooling/hotfix-sync.test.ts",
         "tests/tooling/env-isolation.test.ts",
@@ -456,6 +456,15 @@
     },
     {
       "paths": [
+        "tests/tooling/hotfix-sync.test.ts",
+        "docs/conventions/TESTING.md"
+      ],
+      "domains": ["platform"],
+      "nodes": ["domain:platform"],
+      "reason": "真实 CI 暴露的夹具隔离缺陷：提交身份只配置在临时仓库供 worktree 继承，不改生产同步脚本，不增设全局身份，不删断言或放宽门禁；测试规范给出无全局配置的验证命令。"
+    },
+    {
+      "paths": [
         "docs/changes/306.json",
         "docs/changes/309.json",
         "docs/history/changes/gitlab/284.json",
@@ -473,6 +482,7 @@
   "documents": [
     "docs/architecture/API.md",
     "docs/conventions/RELEASE-PARITY.md",
+    "docs/conventions/TESTING.md",
     "docs/ops/CICD.md",
     "docs/ops/DEPLOY.md",
     "docs/ops/ENVIRONMENTS.md",

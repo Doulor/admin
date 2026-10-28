@@ -31,3 +31,9 @@
 - 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
 - 做了什么：核对 main86e504ac 合回无冲突，源 app/工具代码与已验证版本一致，本任务额外只有284影响声明、同号历史声明原字节保全、索引和 append-only notes。宏观对齐明确business与被删部门接口消费者/旧锚点；无依赖、密钥、数据、tag、DNS变更。原GitLab284声明完整保全于docs/history/changes/gitlab/284.json，新增历史说明，不将旧声明伪称GitHub284。
 - 结果：结论有条件通过：check-architecture（93文件/37节点）、文档同步、note check --pr --for-review 均通过；条件是GitHub必需architecture-alignment、pr-contract、verify成功后才合并。源执行证据为核心2955/论坛701、构建与真实CLI，不把CI运行中写成成功。
+
+## 23:59:18 +08:00 · 返工 · #284 · 真实 hotfix CI 揭示同步夹具依赖全局 Git 身份
+
+- 执行者：agent-omp-geek-main-handoff（omp，gpt-6.1-sol）
+- 做了什么：生产运行40719126473在hotfix-core失败，182文件通过、hotfix-sync 8条失败，日志均为临时仓库缺user.name/email；本机全局身份掩盖了夹具问题。只在fixture()的临时工作仓库配置Fixture及fixture@example.invalid，供被测脚本的worktree继承；生产脚本和全部断言不改。TESTING给出禁用全局/系统配置的命令，284影响声明同步。
+- 结果：GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null pnpm exec vitest run tests/tooling/hotfix-sync.test.ts：12 passed，0 failed；宏观对齐94文件/37节点通过。旧生产运行没有构建/上传/部署，正式未切换；不重跑旧错误SHA，待本修复经受保护stage合并后将已审查同一提交快进main，再派发同版本hotfix。

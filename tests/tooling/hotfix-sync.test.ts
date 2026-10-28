@@ -28,6 +28,8 @@ function fixture() {
   run(root, "init", "--bare", "--initial-branch=main", github);
   mkdirSync(work);
   run(work, "init", "--initial-branch=main");
+  run(work, "config", "user.name", "Fixture");
+  run(work, "config", "user.email", "fixture@example.invalid");
   run(work, "remote", "add", "gitlab", gitlab);
   run(work, "remote", "add", "origin", github);
   const commit = (file: string, content: string, message: string) => { mkdirSync(join(work, file, ".."), { recursive: true }); writeFileSync(join(work, file), content); run(work, "add", file); run(work, "commit", "-m", message); return run(work, "rev-parse", "HEAD"); };
