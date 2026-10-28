@@ -8,6 +8,8 @@
 
 **先遵守 [RELEASES](../conventions/RELEASES.md) 与 [BRANCHING](../conventions/BRANCHING.md)：发版只靠打 tag。`vX.Y.Z-rc.N` 打在 `stage` 的提交上部署预发布；在预发布试用并明确批准后，`main` 快进到同一提交，再打 `vX.Y.Z` 部署正式。** push `stage`/`main` 不部署。发布内容由发布 tag 指向的提交决定；镜像 tag 是该提交的 `<sha12>`。
 
+发布前先过同构这一关（[RELEASE-PARITY](../conventions/RELEASE-PARITY.md)）：预发布做过、不在提交里的事（表结构的手工步骤、数据、env 键与密钥、宿主配置、外部服务）正式都做完，`node scripts/parity.mjs check --release` 清零；`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 会在清单有 `pending` 时拒绝构建与部署。三份 env（`.env.production`、`.env.preview`、`.env.dev`）由 `pnpm check:env-isolation` 核对，正式的值不会混进预发布，反之亦然。
+
 发布者明确目标环境、commit、镜像 tag、回滚对象和维护窗口。先在本地或 CI 完成 `pnpm verify` 与相关浏览器检查，再部署；不从含无关修改的工作区发布。核心与论坛使用两套工具链（Node 22/pnpm 9.15.9 与 Node ≥26/pnpm 11.24.0），镜像构建在容器内完成，不上传 Mac 原生依赖。
 
 ## 迁移现状与授权边界
@@ -233,6 +235,8 @@ bash /opt/yzgc/production/incoming/rollback-stack.sh --environment production --
 ## 发布和回滚验收
 
 检查 `/healthz`（server 与 web 各一次）、入口域名与深链接（`/`、`/join-us`、`/admin`、`/console/...` 分别进官网与管理端）、`github.yangtzeu.work` 的 301（仅正式环境）、`/api/*` 与 `/forum/*` 是否正确反代（`/forum` 308 到相对地址 `/forum/`，直接打开 `/forum/users` 返回 200、不跳转，#140）、缺失资产 404、真实 OAuth/Cookie、验证码、权限、邀请结果、服务重启后的数据保留。HTML/资产/后端必须来自同一镜像 tag：用 `docker inspect` 的镜像 digest 与 `<栈根>/.env.<environment>` 的 `IMAGE_TAG` 交叉核对，web 容器内置的 `/release.json`（`no-store`）可作为发布身份的第二证据。数据库有新增字段时，回滚旧镜像前确认兼容，不以重置数据卷代替回滚。
+
+部署工作流在部署成功后自动运行 `smoke`（`node scripts/parity.mjs smoke --origin <站点> --env <环境>`），按 `deploy/parity/smoke.json` 核对关键地址，含内部赛事官网 `/c/oss-challenge-2026-1/`；正式 tag 部署还会与预发布做 `compare`。烟测失败时这次运行变红，已切换的栈不会被它回滚：先按上文「回滚」切回上一个镜像，再查清差异；数据缺口用服务自带的函数补，不手写对正式库的 UPDATE（[RELEASE-PARITY](../conventions/RELEASE-PARITY.md) 第四节）。
 
 未执行的生产验证明确标注，不将本机的 `pnpm verify` PASS、模板文件或模拟测试称为线上验收。
 

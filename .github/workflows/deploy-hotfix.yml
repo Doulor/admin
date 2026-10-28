@@ -231,6 +231,28 @@ jobs:
   # 环境契约：deploy/env/.env.<environment> ↔ deploy/environments.json ↔ deploy/compose/*.yml。
   # 这一条是部署前的硬门禁——两套栈的端口、目录、域名、密钥留空状态不许静默漂移。
 
+  # 同构清单：预发布做过、不在提交里的事（表结构、数据、env 键与密钥、宿主配置、外部服务），正式都要做完才能构建。
+  # 规则见 docs/conventions/RELEASE-PARITY.md；清单里还有 pending 就失败，不构建、不部署。
+  parity:
+    name: parity (预发布到正式的同构清单)
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: 检出 plan 核对过的提交
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: 清单必须清零
+        run: node scripts/parity.mjs check --release
+
   cdn-plan:
     name: cdn-plan (静态资源 CDN 开关)
     needs: [plan, evidence]
@@ -276,7 +298,7 @@ jobs:
   # 构建：与预发布同构，但按正式身份（无 @ 后缀）构建。
   build:
     name: build (镜像归档)
-    needs: [plan, evidence, cdn-plan]
+    needs: [plan, evidence, cdn-plan, parity]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -783,3 +805,35 @@ jobs:
             echo "回滚：\`deploy/remote/rollback-stack.sh\`（把 IMAGE_TAG 切回更早的正式 tag 的镜像 → compose up -d）；tag 本身不移动、不删除。"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "正式入口：${ORIGIN}"
+
+  # 发版烟测：部署成功后按 deploy/parity/smoke.json 的 require 段核对线上（含内部赛事官网）。失败时这次运行变红，
+  # 已经切换的栈不会被它回滚：按 docs/ops/DEPLOY.md 的回滚步骤处理。
+  smoke:
+    name: smoke (线上烟测)
+    needs: [plan, deploy]
+    if: needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: 检出本次部署的提交
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: 线上必须满足 require 段
+        env:
+          ORIGIN: ${{ needs.plan.outputs.origin }}
+        run: |
+          set -eu
+          for attempt in 1 2 3 4 5 6; do
+            if node scripts/parity.mjs smoke --origin "$ORIGIN" --env production; then exit 0; fi
+            echo "第 $attempt 次未通过，30 秒后重试" >&2
+            sleep 30
+          done
+          exit 1

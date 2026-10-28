@@ -2,7 +2,7 @@
 
 > `deploy/gitlab/` 的来源、安装映射、OIDC 与头像边界、私有备份及恢复验收门禁；源码纳管不代表重新部署或统一登录恢复。
 
-状态：`current` · 更新：2026-10-27 · 适用：既有 GitLab 旁路服务的源码维护与获批恢复。依据：[GitHub admin#270](https://github.com/Yangtze-University-Geek-Class/admin/issues/270)（Arch 预部署与运维源码纳管）；历史身份事项分别为 [GitLab geek/admin#270](https://git.yangtzeu.work/geek/admin/-/issues/270)（统一登录）、[GitLab geek/admin#271](https://git.yangtzeu.work/geek/admin/-/issues/271)（资料头像同步）、[GitLab geek/admin#272](https://git.yangtzeu.work/geek/admin/-/issues/272)（提交邮箱同步）。
+状态：`current` · 更新：2026-10-28 · 适用：既有 GitLab 旁路服务的源码维护与获批恢复。依据：[GitHub admin#270](https://github.com/Yangtze-University-Geek-Class/admin/issues/270)（Arch 预部署与运维源码纳管）；历史身份事项分别为 [GitLab geek/admin#270](https://git.yangtzeu.work/geek/admin/-/issues/270)（统一登录）、[GitLab geek/admin#271](https://git.yangtzeu.work/geek/admin/-/issues/271)（资料头像同步）、[GitLab geek/admin#272](https://git.yangtzeu.work/geek/admin/-/issues/272)（提交邮箱同步）。
 
 
 ## 架构拓扑与运行网络
@@ -49,7 +49,7 @@
 | `gitlab-backup.service` | 296 B | `b097e2467d8b5718d8e92a020df0d976018bbe69d6e15ee7e6bdcdfd0a731d6f` |
 | `gitlab-backup.timer` | 193 B | `d524d35c27a384a06b30e0b8fd61696766e5cef1ae8f69009f44e2d976a2c39c` |
 | `gitlab-compose.service` | 699 B | `568289608539ed2bb77b24935d0da8851c6c7384009c03aefdc69533d0247e64` |
-| `gitlab-oidc.rb` | 1,485 B | `d3045aa6241c611ceb32590311133ad69279b2ca1d323646266f0ad0b3017176` |
+| `gitlab-oidc.rb` | 1,923 B | `7cef7549ca9ea456e5f07b9d0cb5c25b2e1d6670a880ef3a939ebcaf499d3262` |
 | `gitlab-ui.rb` | 587 B | `e12e9d77ef6a2215babef2cc0086fb5a5a6a370346320b81e41ac5bd9450a277` |
 | `gitlab.caddy` | 1,250 B | `aa577a62c2911a1178ec1712a058ea91b1f21cb00f9fc5e8f1fd5c43df8cb5a8` |
 | `restore-drill.sh` | 10,443 B | `fba9106323f447d392cb3a699fff813e65a070f429ba85870408f40ce1378212` |
@@ -83,11 +83,12 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 
 ## 极客班统一登录（OIDC）契约
 
-身份实现及服务验收以 [Server OIDC 合同](../services/server/oidc.md)、[安全模型](../architecture/SECURITY.md#对外授权与-gitlab-账号同步270) 为准；导入的 [gitlab-oidc.rb](../../deploy/gitlab/gitlab-oidc.rb) 仅保存 GitLab 侧片段，目前写的是 `https://prev.yangtzeu.work/oidc`、client id `gitlab`、`uid_field: sub`、PKCE、回调 `https://git.yangtzeu.work/users/auth/openid_connect/callback`。`File.read('/etc/gitlab/yzgc-oidc-secret')` 指向宿主配置挂载内的文件，不在源码里放 secret。
+身份实现及服务验收以 [Server OIDC 合同](../services/server/oidc.md)、[安全模型](../architecture/SECURITY.md#对外授权与-gitlab-账号同步270) 为准；导入的 [gitlab-oidc.rb](../../deploy/gitlab/gitlab-oidc.rb) 仅保存 GitLab 侧片段：client id `gitlab`、`uid_field: sub`、PKCE、回调 `https://git.yangtzeu.work/users/auth/openid_connect/callback`。签发者和 secret 都不写在片段里（#309）：`File.read('/etc/gitlab/yzgc-oidc-issuer')` 读一行 `<PUBLIC_ORIGIN>/oidc`，`File.read('/etc/gitlab/yzgc-oidc-secret')` 读 secret，两者都在宿主配置挂载内（Arch `/srv/gitlab/config/`）。GitLab 信任哪个环境，就在 `yzgc-oidc-issuer` 里写哪个环境的 `PUBLIC_ORIGIN`（`deploy/env/.env.production|.env.preview`）；仓库里不存在任何环境的签发者域名，`scripts/check-env-isolation.mjs` 在 `pnpm check` 里核对这一点。
 
 - `users.id` 是内部账号 ID，不是给 GitLab 的主体标识；下游 `sub` 按 sector（回调主机）生成 32 字节随机值，持久化于 `oauth_subjects`，不能从账号 ID 重新计算。GitLab `openid_connect` 的 `extern_uid` 必须沿用该值。
 - 迁移保全 `oauth_clients`、GitLab sector 的 `oauth_subjects`、`gitlab_accounts` 和原 `ENCRYPTION_KEY`；跨库内部 ID 可不同，须按不可变身份及认领证明对账，不按邮箱/昵称自动合号或直接照抄内部 ID。
 - 改接正式签发者的门禁顺序：关闭旧预发布 sync → 对账并保全原 sector/sub、client 与账号关联 → 经批准改 GitLab issuer/client secret → 只开启正式 sync。Arch 副本先保持 sync off；不能让两个环境同时写同一 GitLab。
+- 改接的具体步骤（同构清单 P-0003、P-0005、P-0006、P-0007，[RELEASE-PARITY](../conventions/RELEASE-PARITY.md)）：① 正式 `OIDC_JWKS`、`GITLAB_API_TOKEN` 写进 GitHub 环境 `production` 并由 hotfix 部署渲染进正式 env，② 正式库登记 `gitlab` 客户端（`oidc.js client add`，secret 落 `/srv/gitlab/config/yzgc-oidc-secret`），③ 先备份宿主 `gitlab.rb`，把 `yzgc-oidc-issuer` 的内容换成正式 `PUBLIC_ORIGIN` + `/oidc`，`gitlab-ctl reconfigure`，④ 核对 `parity.mjs compare` 里 `/oidc/.well-known/openid-configuration` 两边都是 200 且 `issuer` 各是自己的 origin，⑤ 用一个正式成员账号真实登录 GitLab。回滚：把 `yzgc-oidc-issuer` 改回原值再 reconfigure。
 - root 的应急地址为 `/users/sign_in?auto_sign_in=false`；普通成员的密码限制、组权限和资料传播须另验，不能从配置片段推断已生效。默认头像优先级也不等于核心同步永不改用户头像。
 - 交接中的真实 SSO 成员资格故障仍未在本任务修复或复测；“同步无错误”、资产纳管、语法通过均不证明有效成员/往届/站长可登录。历史资料头像同步不是 NANO 头像池任务，不混用两平台同号 issue 或在 GitLab MR 写关闭 GitHub issue 的裸编号。
 

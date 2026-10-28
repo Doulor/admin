@@ -46,7 +46,7 @@
 - `branch-guard` 运行 `node scripts/check-branch-invariants.mjs`（`--require-remote-refs`）：核对两条不变量（`stage ≥ main`、`main` 不领先 `stage`）与分支命名卫生，并检查写入 `main` 的提交来源。不变量定义见 [BRANCHING](../conventions/BRANCHING.md)。同一脚本的 `--push` 模式还在本地 pre-push 里核对发布 tag（格式、所在分支、版本号、不可删除和移动）；`ci.yml` 不由 tag 触发，tag 的服务端核对在两条部署工作流的 plan job 里。
 - **文档跟着模块改**（对照表与规则见 [docs/README](../README.md)「文档跟着模块改」，`scripts/check-doc-sync.mjs`）：`core` 的 `pnpm check` 里有 `check:doc-sync`：PR 运行时检出的是 GitHub 做的合并提交，push `stage`/`main`/`dev/**` 时是分支本身，都按第一父链的时间比较每一对模块与文档；push `task/**` 时按 PR 对 `origin/stage` 核对。检出写 `fetch-depth: 0`，浅克隆直接失败。`branch-guard` 在 task 分支进 `stage` 的 PR 上再跑 `--base origin/stage --head <task 分支>`：merge-base 以来动了模块，就要改对应文档的说明，或者在这个 task 的执行记录里写文档核对（`--head` 用来找到这个 task 的执行记录，检出的合并提交上没有分支名）。第一父链的比较依赖 PR 只用 merge commit 进 `stage`（[BRANCHING](../conventions/BRANCHING.md)）。改 `.github/workflows/` 就要同时改本文档；改 `deploy/` 就要改 [DEPLOY](DEPLOY.md)、[ENVIRONMENTS](ENVIRONMENTS.md) 或本文档里对应的说明（三份里至少动一份，改哪份看改了什么）。
 - **发版时在 tag 指向的提交上再核对一次文档同步**（#192）：两条部署工作流的 plan job 在 `release-policy` 规划与环境契约之后、任何构建之前跑「文档同步（发布 tag 指向的提交）」：先核对检出的 HEAD 就是 tag 指向的提交，再运行 `node scripts/check-doc-sync.mjs`。检出的是 tag（detached HEAD，没有分支名），脚本按第一父链的时间核对，与 push `stage` 时 `core` 里 `pnpm check` 的规则相同；完整历史来自 plan 检出的 `fetch-depth: 0`，浅克隆直接失败。脚本只用 Node 内置模块，plan job 只按 `.nvmrc` 装 Node，不装依赖。不通过 plan 就失败，后面每个 job 都 `needs: plan`，不构建、不上传 CDN、不部署；`scripts/deploy-manual.mjs` 只认 build 成功的运行，也部署不了。不通过时按报错在 `stage` 上补文档，再在补好的提交上打下一个 rc。rc tag 打在 `stage` 的合并提交上时比的是 `stage` 的第一父链；打在 PR 里面的某个提交上时比的是那条 task 分支的直线历史，模块提交排在文档提交后面就报不同步。这一步只在包含它的提交上生效：tag 触发的是 tag 所在提交里的工作流文件。`tests/tooling/deploy-doc-sync.test.ts` 核对两条工作流都有这一步、在 plan job 里、排在完整历史的 tag 检出与 Node 安装之后、没有条件和吞掉失败的写法、其它 job 都 `needs: plan`，并在临时仓库里照工作流的写法跑这一步：不同步的提交失败，同步的通过，HEAD 不是 tag 的提交或浅克隆都失败。
-- `env-contract` 校验两份 `.env` 的字段契约（非密值必填、契约外字段拒绝、密钥必空、`PUBLIC_ORIGIN` 逐字等于环境 origin、两环境端口/域名必须不同）与 `deploy/environments.json`、compose 文件的一致性，并用 `pnpm check:site-config` 确认前端 `app.config.json` 不含任何域名（每个环境一个 origin，管理端按路径区分）。
+- `env-contract` 校验两份 `.env` 的字段契约（非密值必填、契约外字段拒绝、密钥必空、`PUBLIC_ORIGIN` 逐字等于环境 origin、两环境端口/域名必须不同）与 `deploy/environments.json`、compose 文件的一致性，并用 `pnpm check:site-config` 确认前端 `app.config.json` 不含任何域名（每个环境一个 origin，管理端按路径区分）。 `pnpm check` 另跑 `check:env-isolation`（#309）：核对正式、预发布、本机三份 `.env` 键集一致、值互相隔离，正式与预发布除登记的差异键外取值相同，代码和部署片段里的环境域名都登记在 `deploy/env/origin-exceptions.json`（规则见 [RELEASE-PARITY](../conventions/RELEASE-PARITY.md)）。
 - 部署工作流用 **build args** 把发布身份注入镜像：`GEEK_RELEASE_VERSION`（正式 `X.Y.Z`，预发布 `X.Y.Z-rc.N@<sha12>`）与 `GEEK_RELEASE_COMMIT`（完整 SHA），不写进 `.env`；展示规则见 [RELEASES](../conventions/RELEASES.md)。
 - plan job 检出发布 tag（`fetch-depth: 0`，带全部分支与 tag），核对检出的 HEAD 就是 tag 指向的提交；build 与 deploy job 按 plan 输出的完整 SHA 检出，不再按 tag 名重新解析。
 - **镜像名按环境分开**：`deploy-preview.yml` 构建并打包 `yzgc-preview/{server,web,forum}:<sha12>`，`deploy-production.yml` 构建并打包 `yzgc-production/{server,web,forum}:<sha12>`（仓库名来自 plan 输出的 `imageRepository`，归档名 `yzgc-images-<environment>-<sha12>.tar.gz`）。目标机的 `deploy-stack.sh` 在 `docker load` 之前读归档清单，出现别的仓库或别的 tag 就拒绝。`ci.yml` 的 `docker` job 按正式身份构建 `yzgc-production/*`，并用同一个 `IMAGE_TAG` 解析两套 compose，两边出现相同镜像引用即失败；`docker-cdn` 在另一个 runner 上按同样的身份、打开静态资源 CDN 开关再构建 web、forum 两个镜像。
@@ -142,6 +142,14 @@ CI/manual 均从同一 tag 物料分发 `deploy-stack.sh` 和 `rollback-stack.sh
 - 审批后重新核对 main/tag/线上版本，分发前要求 `yzgc-backup@production.service` 完成一致性备份及隔离恢复验证。镜像与 env 仍经原有校验、`deploy-stack.sh` 健康门和自动回滚。模板密钥留空，production 的 Google 客户端配置经本环境 secrets 注入。
 - deployment 的 `ref` 是实际修复 SHA，payload 的 `mode=hotfix`、`base_tag_commit`、`issue` 与 `tag` 一起保留；required context 为真实运行的 `hotfix-verify`，不是修改普通 `verify` 状态。
 - 正式验证后将 main 合回 stage，再核对双仓 refs 与 `git merge-base --is-ancestor main stage`。回滚选择部署历史里的上一生产镜像 SHA，不恢复旧数据库覆盖上线后的新写入。
+
+## 同构清单与发版烟测（#309）
+
+规则见 [RELEASE-PARITY](../conventions/RELEASE-PARITY.md)，实现是 `scripts/parity.mjs`，数据是 `deploy/parity/ledger.json`（同构清单）与 `deploy/parity/smoke.json`（烟测）。`deploy-production.yml` 与 `deploy-hotfix.yml` 各多两个 job，预发布部署不变：
+
+- `parity`（`needs: plan`，检出 plan 核对过的提交）：运行 `node scripts/parity.mjs check --release`。清单里还有 `pending` 条目就失败，`build` 的 `needs` 包含它，所以不构建镜像、不上传 CDN、不部署。没有网络访问和 secrets。
+- `smoke`（`needs: [plan, deploy]`，仅在 `deploy` 成功后运行）：用 `node scripts/parity.mjs smoke --origin <正式 origin> --env production` 核对 `smoke.json` 的 `require` 段（含内部赛事官网 `/c/oss-challenge-2026-1/`），最多重试 6 次、间隔 30 秒。`deploy-production.yml` 里还会读 `deploy/environments.json` 得到预发布 origin，运行 `parity.mjs compare` 核对 `mirror` 段；证据 job 已核对预发布与正式是同一提交。`deploy-hotfix.yml` 不做 `compare`，因为 `main` 上的修复提交与预发布的 rc 提交可以不同。
+- `smoke` 失败只让这次运行变红，不回滚已切换的栈；回滚按 [DEPLOY](DEPLOY.md) 的步骤处理。部署开关关闭时 `deploy` 被跳过，`smoke` 随之跳过。
 
 ## 证据链与失败关闭
 

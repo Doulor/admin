@@ -42,8 +42,8 @@
    ```
 
 4. `deploy-preview.yml` 的 plan job 核对 tag、版本号、「提交在 `origin/stage` 上」，再在 tag 指向的提交上核对文档同步（[CICD](../ops/CICD.md#触发与职责)「发版时在 tag 指向的提交上再核对一次文档同步」），都通过才构建三个镜像并部署到预发布栈；部署记录的 payload 带上这个 rc tag。
-5. 在预发布环境实际试用这个 rc 的产物，按 [RELEASE-ACCEPTANCE-TEMPLATE](../ops/RELEASE-ACCEPTANCE-TEMPLATE.md) 记录结论。不通过就在 `stage` 上修复，打下一个 `rc.N+1`，回到第 4 步。
-6. 验收通过后，把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
+5. 在预发布环境实际试用这个 rc 的产物，按 [RELEASE-ACCEPTANCE-TEMPLATE](../ops/RELEASE-ACCEPTANCE-TEMPLATE.md) 记录结论，其中包括同构核对：这个 rc 在预发布做过而不在提交里的事（表结构的手工步骤、数据、env 键与密钥、宿主配置、外部服务）已登记进同构清单（[RELEASE-PARITY](RELEASE-PARITY.md)）。不通过就在 `stage` 上修复，打下一个 `rc.N+1`，回到第 4 步。
+6. 验收通过且 `node scripts/parity.mjs check --release` 清零后，把 `main` 快进到被验收的那个提交（只允许快进；push `main` 只跑 CI，不部署）：
 
    ```bash
    git switch main && git merge --ff-only v0.2.0-rc.1 && git push origin main
@@ -57,6 +57,10 @@
    ```
 
 8. `deploy-production.yml` 的 plan job 同样在 tag 指向的提交上核对文档同步，然后先跑证据 job（见下文），再构建镜像，经 `production` 环境审批后部署到正式栈（2026-09-27 起 `production` 配了 required reviewers；`v0.1.0` 即这样部署）。GitHub 计划让部署 job 按设计失败关闭时（例如仓库改回私有、免费版配不了 required reviewers），用 `scripts/deploy-manual.mjs --environment production --tag vX.Y.Z --acceptance <批准记录链接>` 部署这次运行构建的镜像，它重做同样的证据核对，见 [CICD](../ops/CICD.md#维护者机器部署免费版的退路)。环境保护被删掉、审批人被清空时，先查清原因、恢复保护再重跑工作流，不改用 `deploy-manual.mjs`。
+
+## 同构门禁
+
+预发布做过的每一件事，正式都要有对应动作（[RELEASE-PARITY](RELEASE-PARITY.md)）。代码靠提交和 tag 带过去；表结构、数据、env 键与密钥、宿主配置、外部服务不在提交里，登记在 `deploy/parity/ledger.json`。`deploy-production.yml` 与 `deploy-hotfix.yml` 的 `parity` job 运行 `node scripts/parity.mjs check --release`，清单还有 `pending` 就不构建、不部署；部署成功后 `smoke` job 按 `deploy/parity/smoke.json` 核对线上，含内部赛事官网。三份 env（`.env.production`、`.env.preview`、`.env.dev`）由 `pnpm check:env-isolation` 核对，代码里不写另一个环境的地址。
 
 ## 授权门禁
 
@@ -134,7 +138,7 @@ hotfix 不读取或制造 rc 验收记录。它独立运行完整核心检查/�
 1. **开 Issue 与打标**：按 [ISSUES](ISSUES.md) §1 先取得 Crosery 对紧急事项、操作范围和建单安排的确认，再开 Issue 记录故障现象并打上 `hot-fix` 与 `P0` 标签；不得因紧急或事后补单自动建单。
 2. **基线拉取与紧急上线**：直接以 `origin/main` 作为基线拉出快速修复，关键路径验证通过后合入 `main` 快速发布上线。修复改了模块（[docs/README](../README.md)「文档跟着模块改」表里的路径），就在同一个改动里把对应文档改对；文档里的事实确实没变时，在随修复一起提交的执行记录里写文档核对。没跟文档的修复，在它上面打的发布 tag 会被部署工作流的 plan 拦下。
 3. **强制合回 stage**：正式环境修复上线且验收通过后，**必须立即把该提交合并回 `stage`**，执行 `git merge-base --is-ancestor origin/main origin/stage` 恢复并确保 `stage >= main` 硬不变量成立。合回的合并提交把修复的模块改动和文档（或文档核对）一起带进 `stage`；修复没跟文档时，这个合并提交在 `stage` 上就不同步（例：`9b38684`、`7c01897`），push `stage` 的 CI `core` 报红，在它和它之后、文档补上之前的提交上打的 rc 都会被 plan 拦下，只能作废编号，补好文档后再打下一个。
-4. **同构预防**：预发布与正式环境必须保持最高同构（Nginx 模板、CSP 头、跨域白名单与环境变量结构对齐），任何配置与依赖在正式上线前必须在预发布真实走过完整改动路径，确保线上可控。
+4. **同构预防**：预发布与正式环境必须保持最高同构（Nginx 模板、CSP 头、跨域白名单与环境变量结构对齐），任何配置与依赖在正式上线前必须在预发布真实走过完整改动路径，确保线上可控。hotfix 不豁免同构：修复动了表结构的手工步骤、数据、env 键与密钥、宿主配置、外部服务，同样登记同构清单；`deploy-hotfix.yml` 同样被 `parity` job 把关，部署后跑 `smoke`；清单里有历史欠账时先做完，或由所有者逐条豁免并留原话（[RELEASE-PARITY](RELEASE-PARITY.md) 第七节）。
 
 ## tag 不可变
 

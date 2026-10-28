@@ -1,0 +1,224 @@
+#!/usr/bin/env node
+/**
+ * 预发布到正式的同构清单与烟测（#309）。
+ *
+ * 预发布上做过的每一件事，正式都要有对应动作。代码靠提交带过去；表结构、数据、env 键与密钥、宿主配置、外部服务
+ * 不在提交里，靠这份清单（deploy/parity/ledger.json）记账：预发布做的时候登记，正式做完改成 done，发版前清零。
+ *
+ *   node scripts/parity.mjs list
+ *   node scripts/parity.mjs check [--release]        校验清单格式；--release 还要求没有 pending（部署工作流的 parity job 用）
+ *   node scripts/parity.mjs add --surface <schema|data|env|host|external> --title <一句话> --issue <编号> \
+ *        --preview-evidence <预发布做了什么、怎么验证的> --production-action <正式要做的动作和命令>
+ *   node scripts/parity.mjs done <P-0001> --evidence <正式做了什么、怎么验证的>
+ *   node scripts/parity.mjs not-applicable <P-0001> --reason <为什么正式不需要>
+ *   node scripts/parity.mjs waive <P-0001> --by Crosery --quote <所有者的原话>   只记录所有者的豁免，不替所有者决定
+ *   node scripts/parity.mjs smoke --origin <站点> --env <production|preview>    deploy/parity/smoke.json 的 require 段
+ *   node scripts/parity.mjs compare --preview <站点> --production <站点>        mirror 段：两边状态、类型（与正文）必须一致
+ *
+ * 时间取系统时钟（北京时间），不手填；只追加条目，已写的条目只能把 production.status 从 pending 往前推。
+ */
+import { createHash } from 'node:crypto';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const LEDGER_FILE = 'deploy/parity/ledger.json';
+export const SMOKE_FILE = 'deploy/parity/smoke.json';
+export const SURFACES = Object.freeze(['schema', 'data', 'env', 'host', 'external']);
+export const STATUSES = Object.freeze(['pending', 'done', 'not_applicable', 'waived']);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\+08:00)?)?$/;
+
+export function beijingNow(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(date);
+  return `${parts.replace(' ', 'T')}+08:00`;
+}
+
+const text = (value, min = 8) => typeof value === 'string' && value.trim().length >= min;
+
+/** 校验清单，返回问题列表（空 = 格式正确）。 */
+export function validateLedger(ledger) {
+  const problems = [];
+  if (!ledger || ledger.schemaVersion !== 1 || !Array.isArray(ledger.entries)) return ['清单必须是 { schemaVersion: 1, entries: [] }'];
+  const ids = new Set();
+  for (const entry of ledger.entries) {
+    const at = `${entry?.id ?? '?'}`;
+    if (!/^P-\d{4}$/.test(entry?.id ?? '')) problems.push(`${at}：id 必须形如 P-0001`);
+    if (ids.has(entry?.id)) problems.push(`${at}：id 重复`);
+    ids.add(entry?.id);
+    if (!SURFACES.includes(entry?.surface)) problems.push(`${at}：surface 只能是 ${SURFACES.join('、')}`);
+    if (!text(entry?.title, 4)) problems.push(`${at}：缺 title`);
+    if (!Number.isInteger(entry?.issue) || entry.issue < 1) problems.push(`${at}：issue 必须是正整数`);
+    if (!DATE_RE.test(entry?.preview?.doneAt ?? '') || !text(entry?.preview?.evidence)) problems.push(`${at}：preview 要有 doneAt 和 evidence（预发布做了什么、怎么验证）`);
+    const production = entry?.production ?? {};
+    if (!STATUSES.includes(production.status)) problems.push(`${at}：production.status 只能是 ${STATUSES.join('、')}`);
+    if (!text(production.action)) problems.push(`${at}：production.action 要写清正式要做的动作`);
+    if (production.status === 'done' && (!DATE_RE.test(production.doneAt ?? '') || !text(production.evidence))) problems.push(`${at}：done 要有 doneAt 和 evidence`);
+    if (production.status === 'not_applicable' && !text(production.reason)) problems.push(`${at}：not_applicable 要写理由`);
+    if (production.status === 'waived' && !(production.waiver?.by === 'Crosery' && DATE_RE.test(production.waiver?.at ?? '') && text(production.waiver?.quote))) problems.push(`${at}：waived 要有所有者的 by、at 和原话 quote`);
+  }
+  return problems;
+}
+
+/** 发版前的清单核对：仍是 pending 的条目列出来。 */
+export function pendingEntries(ledger) {
+  return ledger.entries.filter(entry => entry.production?.status === 'pending');
+}
+
+export function nextId(ledger) {
+  const max = ledger.entries.reduce((m, entry) => Math.max(m, Number(/^P-(\d{4})$/.exec(entry.id)?.[1] ?? 0)), 0);
+  return `P-${String(max + 1).padStart(4, '0')}`;
+}
+
+export function addEntry(ledger, { surface, title, issue, previewEvidence, productionAction, now = beijingNow() }) {
+  const entry = {
+    id: nextId(ledger), surface, title, issue: Number(issue),
+    preview: { doneAt: now, evidence: previewEvidence },
+    production: { status: 'pending', action: productionAction },
+  };
+  const next = { ...ledger, entries: [...ledger.entries, entry] };
+  const problems = validateLedger(next);
+  if (problems.length) throw new Error(problems.join('\n'));
+  return { ledger: next, entry };
+}
+
+export function updateEntry(ledger, id, change) {
+  const entry = ledger.entries.find(item => item.id === id);
+  if (!entry) throw new Error(`没有这条同构记录：${id}`);
+  if (entry.production.status !== 'pending') throw new Error(`${id} 已经是 ${entry.production.status}，已写的结论不改；写错了追加一条说明的新记录`);
+  const next = { ...ledger, entries: ledger.entries.map(item => (item.id === id ? { ...item, production: { ...item.production, ...change } } : item)) };
+  const problems = validateLedger(next);
+  if (problems.length) throw new Error(problems.join('\n'));
+  return next;
+}
+
+// ───────────────────────── 烟测 ─────────────────────────
+
+const fill = (value, vars) => String(value).replaceAll('{origin}', vars.origin).replaceAll('{env}', vars.env);
+
+async function fetchOnce(fetchImpl, url) {
+  const response = await fetchImpl(url, { redirect: 'manual', headers: { 'user-agent': 'yzgc-parity-smoke' }, signal: AbortSignal.timeout(20000) });
+  const body = Buffer.from(await response.arrayBuffer());
+  return { status: response.status, type: (response.headers.get('content-type') ?? '').split(';')[0].trim(), location: response.headers.get('location') ?? '', body };
+}
+
+/** require 段：正式（或任一环境）必须满足的绝对期望。 */
+export async function runRequire(manifest, { origin, env }, fetchImpl = globalThis.fetch) {
+  const failures = [];
+  const base = origin.replace(/\/$/, '');
+  for (const item of manifest.require ?? []) {
+    let result;
+    try {
+      result = await fetchOnce(fetchImpl, base + item.path);
+    } catch (error) {
+      failures.push(`${item.path}：请求失败 ${error.message}`);
+      continue;
+    }
+    const body = result.body.toString('utf8');
+    if (result.status !== item.status) failures.push(`${item.path}：状态 ${result.status}，应为 ${item.status}`);
+    if (item.contains && !body.includes(fill(item.contains, { origin: base, env }))) failures.push(`${item.path}：正文缺少 ${fill(item.contains, { origin: base, env })}`);
+    for (const [key, expected] of Object.entries(item.json ?? {})) {
+      let parsed;
+      try { parsed = JSON.parse(body); } catch { failures.push(`${item.path}：不是 JSON`); break; }
+      if (String(parsed[key]) !== fill(expected, { origin: base, env })) failures.push(`${item.path}：${key} 是 ${JSON.stringify(parsed[key])}，应为 ${fill(expected, { origin: base, env })}`);
+    }
+    for (const forbidden of item.notContains ?? []) {
+      const value = fill(forbidden, { origin: base, env });
+      if (body.includes(value)) failures.push(`${item.path}：正文含有不该出现的 ${value}`);
+    }
+  }
+  return failures;
+}
+
+/** mirror 段：同一份提交在两个环境里，这些地址的状态、类型（与正文）必须一致。 */
+export async function runCompare(manifest, { preview, production }, fetchImpl = globalThis.fetch) {
+  const failures = [];
+  for (const item of manifest.mirror ?? []) {
+    const [a, b] = await Promise.all([preview, production].map(origin => fetchOnce(fetchImpl, origin.replace(/\/$/, '') + item.path).catch(error => ({ error: error.message }))));
+    if (a.error || b.error) { failures.push(`${item.path}：请求失败 ${a.error ?? b.error}`); continue; }
+    if (a.status !== b.status) failures.push(`${item.path}：预发布 ${a.status}，正式 ${b.status}`);
+    else if (a.type !== b.type) failures.push(`${item.path}：内容类型不同（预发布 ${a.type}，正式 ${b.type}）`);
+    else if (item.sameBody && createHash('sha256').update(a.body).digest('hex') !== createHash('sha256').update(b.body).digest('hex')) failures.push(`${item.path}：正文不同（预发布 ${a.body.length} 字节，正式 ${b.body.length} 字节）`);
+    for (const [name, origin, res] of [['预发布', preview, a], ['正式', production, b]]) {
+      const body = res.body.toString('utf8');
+      for (const key of item.issuerOwnOrigin ? ['issuer'] : []) {
+        try {
+          const issuer = JSON.parse(body)[key];
+          if (res.status === 200 && issuer !== `${origin.replace(/\/$/, '')}/oidc`) failures.push(`${item.path}：${name}的 ${key} 是 ${issuer}，应为 ${origin.replace(/\/$/, '')}/oidc`);
+        } catch { if (res.status === 200) failures.push(`${item.path}：${name}不是 JSON`); }
+      }
+    }
+  }
+  return failures;
+}
+
+// ───────────────────────── 命令行 ─────────────────────────
+
+function root() {
+  return resolve(dirname(fileURLToPath(import.meta.url)), '..');
+}
+const readJson = relative => JSON.parse(readFileSync(resolve(root(), relative), 'utf8'));
+const writeLedger = ledger => writeFileSync(resolve(root(), LEDGER_FILE), `${JSON.stringify(ledger, null, 2)}\n`);
+
+function option(argv, name) {
+  const index = argv.indexOf(`--${name}`);
+  return index >= 0 ? argv[index + 1] : undefined;
+}
+const need = (argv, name) => {
+  const value = option(argv, name);
+  if (!value) throw new Error(`缺少 --${name}`);
+  return value;
+};
+
+function printTable(ledger) {
+  for (const entry of ledger.entries) {
+    console.log(`${entry.id}  ${entry.production.status.padEnd(14)} ${entry.surface.padEnd(8)} #${entry.issue}  ${entry.title}`);
+  }
+}
+
+export async function main(argv) {
+  const [command, ...rest] = argv;
+  if (command === 'smoke') {
+    const env = need(rest, 'env');
+    const failures = await runRequire(readJson(SMOKE_FILE), { origin: need(rest, 'origin'), env });
+    if (failures.length) { console.error(`烟测未通过（${failures.length} 项）：\n  ${failures.join('\n  ')}`); return 1; }
+    console.log(`烟测通过：${env} 的 require 段全部满足。`);
+    return 0;
+  }
+  if (command === 'compare') {
+    const failures = await runCompare(readJson(SMOKE_FILE), { preview: need(rest, 'preview'), production: need(rest, 'production') });
+    if (failures.length) { console.error(`同构对比未通过（${failures.length} 项）：\n  ${failures.join('\n  ')}`); return 1; }
+    console.log('同构对比通过：mirror 段在预发布与正式一致。');
+    return 0;
+  }
+  const ledger = readJson(LEDGER_FILE);
+  const problems = validateLedger(ledger);
+  if (problems.length) { console.error(`同构清单格式有误：\n  ${problems.join('\n  ')}`); return 1; }
+  if (command === 'list') { printTable(ledger); return 0; }
+  if (command === 'check') {
+    const pending = pendingEntries(ledger);
+    if (rest.includes('--release') && pending.length) {
+      console.error(`同构清单还有 ${pending.length} 条正式没做完，发版前必须清零（做完改 done，确实不需要写 not-applicable，所有者豁免写 waive）：`);
+      for (const entry of pending) console.error(`  ${entry.id} [${entry.surface}] #${entry.issue} ${entry.title}\n      正式要做：${entry.production.action}`);
+      return 1;
+    }
+    console.log(`同构清单格式正确：共 ${ledger.entries.length} 条，pending ${pending.length} 条。`);
+    return 0;
+  }
+  if (command === 'add') {
+    const surface = need(rest, 'surface');
+    const { ledger: next, entry } = addEntry(ledger, { surface, title: need(rest, 'title'), issue: need(rest, 'issue'), previewEvidence: need(rest, 'preview-evidence'), productionAction: need(rest, 'production-action') });
+    writeLedger(next);
+    console.log(`已登记 ${entry.id}：${entry.title}（正式待做）`);
+    return 0;
+  }
+  const id = rest[0];
+  if (command === 'done') { writeLedger(updateEntry(ledger, id, { status: 'done', doneAt: beijingNow(), evidence: need(rest, 'evidence') })); console.log(`${id} 已标 done`); return 0; }
+  if (command === 'not-applicable') { writeLedger(updateEntry(ledger, id, { status: 'not_applicable', reason: need(rest, 'reason') })); console.log(`${id} 已标 not_applicable`); return 0; }
+  if (command === 'waive') { writeLedger(updateEntry(ledger, id, { status: 'waived', waiver: { by: need(rest, 'by'), at: beijingNow(), quote: need(rest, 'quote') } })); console.log(`${id} 已记录所有者豁免`); return 0; }
+  console.error('用法：node scripts/parity.mjs <list|check [--release]|add|done|not-applicable|waive|smoke|compare>，详见文件头注释');
+  return 2;
+}
+
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+  main(process.argv.slice(2)).then(code => process.exit(code), error => { console.error(error.message); process.exit(1); });
+}

@@ -92,6 +92,7 @@ node scripts/check-branch-invariants.mjs --strict-long-lived # 把「main/stage 
    - 杜绝 Hotfix 的关键在于**预发布环境必须与正式环境保持最高程度的同构**。
    - 宿主 Nginx 模板（CSP 头规则、旁路 Map、反代参数、跨域与缓存策略）、环境变量结构必须 100% 对齐，仅允许域名/端口绑定与真实环境密钥存在差异。
    - 严禁「预发布未配/未测、正式才配置」；所有改动必须在预发布真实走过完整改动路径，确保线上变更完全可控。
+   - 反过来也成立：预发布做过的每一件事，正式都要有对应动作。三份 env 的隔离、代码里不写另一个环境的地址、同构清单与发版烟测由 [RELEASE-PARITY](RELEASE-PARITY.md) 规定，`pnpm check:env-isolation`、`deploy-*.yml` 的 `parity` job 与 `smoke` job 强制。
 
 ## task worktree：一个 issue 一个工作目录
 
