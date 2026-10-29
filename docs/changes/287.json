@@ -2,234 +2,231 @@
   "version": 1,
   "issue": 287,
   "kind": "business",
-  "summary": "控制台全量界面审计（P01）：在预发布真实数据上逐页逐尺寸（1440×900、390×844）测量并查看，修掉窄屏遗留。邀请码、GitLab 账号同步、论坛分类、备份记录、权限节点、计分基础分六处表格在手机上横向滚动、右边的列被截掉，窄于 640px 时改成一行一张卡；表格里的空状态改成贴着可见区域居中，不再被滚动区截掉；操作记录里「动作」列的键改名，避开 Tuffex 对 action 列钉在右边的处理。",
+  "summary": "PENTEST-20261029 复核后的账号与登录链路加固：用户名/昵称占用判定并进论坛命名空间，挡住冒用官方账号；密码重置与改密码后吊销该账号其它会话；OAuth 回调先收敛 query 类型，重复 state 参数回 400 而不是 500。",
   "applications": [
-    "console"
+    "server"
   ],
   "domains": [
     "identity",
-    "gitlab",
-    "forum",
-    "platform",
-    "permissions",
-    "competitions",
     "audit",
-    "feedback",
-    "github",
     "organization",
-    "recruitment",
-    "invitations"
+    "forum",
+    "github",
+    "invitations",
+    "platform"
   ],
   "flows": [
-    "flow:identity.invites.list",
-    "flow:gitlab.accounts.list",
-    "flow:console.forum.categories.list",
-    "flow:platform.system_backup",
-    "flow:permissions.nodes.list",
-    "flow:competition.rules.read",
-    "flow:audit.console.activity.list",
-    "flow:feedback.categories",
+    "flow:identity.profile.update",
+    "flow:identity.email.reset",
+    "flow:identity.account.password",
     "flow:identity.callback",
-    "flow:console.forum.categories.update"
+    "flow:identity.google.callback",
+    "flow:forum.state"
   ],
   "assessments": {
     "business": {
-      "status": "unchanged",
-      "reason": "业务规则不变：邀请码、GitLab 同步、论坛分类可见范围、备份记录、权限节点、计分规则的含义与操作都沿用原来的。变的只是手机上列表怎么排：同一份数据，窄屏一行一张卡，操作按钮和宽屏一样。",
+      "status": "changed",
+      "reason": "用户名/昵称的占用判定从 account_profiles 扩到论坛命名空间；改密码后旧会话不再有效。这两条都是用户可见的账号规则变化（同名不能再共用、换密码会踢掉其它设备）。",
       "evidence": [
-        "app/console/src/pages/Invites.vue",
-        "app/console/src/pages/gitlab/Accounts.vue",
-        "app/console/src/pages/forum/CategoriesTab.vue"
+        "app/server/src/routes/identity/profile.ts",
+        "app/server/src/lib/forum-store.ts"
       ]
     },
     "backend": {
-      "status": "not-applicable",
-      "reason": "没有改服务端：所有页面读写的接口、参数和错误处理都未动；卡片和表格用同一份 resource 数据与同一组操作函数（编辑、停用、重试同步、改可见范围）。",
+      "status": "changed",
+      "reason": "PATCH /api/identity/profile 在写库前多一道占用判定；两个回调路由在读取 query 前做类型收敛；auth 新增 revokeAccountSessions 并由两条改密路径调用。接口形状不变，只新增 409 与 400 分支。",
       "evidence": [
-        "app/console/src/pages/Invites.vue",
-        "app/console/src/pages/gitlab/Accounts.vue",
-        "app/console/src/pages/forum/CategoriesTab.vue"
+        "app/server/src/lib/auth.ts",
+        "app/server/src/routes/identity/email.ts",
+        "app/server/src/routes/admin/auth.ts"
       ]
     },
     "permissions": {
-      "status": "unchanged",
-      "reason": "权限判断不变：同步按钮仍只在 gitlab.sync 且账号可同步时出现，备份记录仍要 activity.read，路由守卫未动；卡片复用表格里同一条 v-if 与 disabled 条件。",
+      "status": "changed",
+      "reason": "占用判定按账号豁免自己、只拦别人的名字，不能用来占住他人的用户名；会话吊销只作用于该账号自己的 sessions 行，不跨账号。",
       "evidence": [
-        "app/console/src/pages/gitlab/Accounts.vue",
-        "app/console/src/pages/Backup.vue",
-        "app/console/src/router.ts"
+        "app/server/src/routes/identity/account.ts",
+        "app/server/src/routes/identity/google.ts"
       ]
     },
     "data": {
-      "status": "not-applicable",
-      "reason": "不涉及数据：没有表、字段、存储或迁移，页面只读同一批接口返回。",
+      "status": "unchanged",
+      "reason": "不新增表、不改物理结构：占用判定只读 forum_users，会话吊销只 DELETE sessions 行；没有迁移。",
       "evidence": [
-        "app/console/src/pages/Backup.vue",
-        "app/console/src/pages/permissions/NodesTab.vue"
+        "app/server/src/lib/auth.ts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增依赖，也没有新组件库：沿用 Tuffex 的 TxRadioGroup、TxStatusBadge、TxButton、TxEmptyState；卡片样式在 layout.css 里，和用户页 .user-cards 同一种做法。",
+      "reason": "不新增依赖，不调用新的外部服务；邮箱重置仍走既有发信队列。",
       "evidence": [
-        "app/console/src/styles/layout.css",
-        "app/console/src/pages/Users.vue"
+        "app/server/src/routes/identity/email.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "控制台服务文档写明窄屏表格的约定（哪些表换卡片、哪些继续横向滚动、空状态怎么居中）和 Tuffex 对 action 列的特殊处理。",
+      "reason": "安全模型文档补「密码换掉之后旧会话作废」与「用户名占用并进论坛命名空间」两条现状说明。",
       "evidence": [
-        "docs/services/console/README.md"
+        "docs/architecture/SECURITY.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "新增 tests/console/narrow-layout.test.ts（4 条）核对源码约定；预发布 rc.22 上逐页测量并截图得到问题清单，改完在样板数据与注入新样式的真实页面上复看；控制台全部 247 条测试、类型检查、构建通过。",
+      "reason": "新增 5 条回归用例覆盖冒名、昵称撞官方名、改回原名、重复 state；signin-methods 增 1 条覆盖重置密码后旧会话失效、新会话可用。未验证真实浏览器双设备流程。",
       "evidence": [
-        "tests/console/narrow-layout.test.ts"
+        "tests/server/auth-chain-hardening.test.ts",
+        "tests/server/signin-methods.test.ts"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "只改控制台前端产物，随下一个预发布镜像发布；回滚换回上一个镜像即可，没有数据变化。",
+      "status": "not-applicable",
+      "reason": "不涉及镜像、环境变量、工作流或宿主配置，发布流程不变。",
       "evidence": [
-        "app/console/src/styles/layout.css"
+        "docs/architecture/SECURITY.md"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/console/src/pages/Invites.vue"
+        "app/server/src/routes/identity/profile.ts"
       ],
       "domains": [
         "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:identity.invites.list"
+        "route:PATCH /api/identity/profile",
+        "flow:identity.profile.update"
       ],
-      "reason": "邀请码列表窄屏改成一码一卡：状态、已用次数、过期日、备注与建立信息，编辑和停用/启用按钮沿用原有处理函数。"
+      "reason": "PATCH 资料：username/display_name 先过 identityNameTaken 再写库"
     },
     {
       "paths": [
-        "app/console/src/pages/gitlab/Accounts.vue"
+        "app/server/src/lib/forum-store.ts"
       ],
       "domains": [
-        "gitlab"
+        "forum"
       ],
       "nodes": [
-        "application:console",
-        "flow:gitlab.accounts.list"
+        "domain:forum",
+        "flow:forum.state"
       ],
-      "reason": "GitLab 账号同步窄屏改成一账号一卡：头像与用户名、上次同步、GitLab 用户名与状态、错误与待办、重试按钮。"
+      "reason": "新增 identityNameTaken：与 displayNameTaken 共用 nameKey 命名空间"
     },
     {
       "paths": [
-        "app/console/src/pages/forum/CategoriesTab.vue"
+        "app/server/src/lib/auth.ts"
       ],
       "domains": [
-        "forum",
-        "audit",
-        "competitions",
-        "feedback",
-        "github",
-        "organization",
-        "recruitment"
+        "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:console.forum.categories.list"
+        "domain:identity",
+        "flow:identity.callback"
       ],
-      "reason": "论坛分类窄屏一类一卡：名称、编号、话题数，下面整行的「谁能看」三选一，改动沿用原有保存函数。"
+      "reason": "新增 revokeAccountSessions，保留指定 sid、删其它会话行"
     },
     {
       "paths": [
-        "app/console/src/pages/Backup.vue"
+        "app/server/src/routes/identity/email.ts"
       ],
       "domains": [
-        "platform"
+        "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:platform.system_backup"
+        "route:POST /auth/email/reset",
+        "flow:identity.email.reset"
       ],
-      "reason": "备份记录窄屏一条一卡：时间、结果、发起人、归档内容。"
+      "reason": "重置密码成功后吊销其它会话（本次改动对应的对齐说明）"
     },
     {
       "paths": [
-        "app/console/src/pages/permissions/NodesTab.vue"
+        "app/server/src/routes/identity/account.ts"
       ],
       "domains": [
-        "permissions"
+        "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:permissions.nodes.list"
+        "route:POST /api/identity/password",
+        "flow:identity.account.password"
       ],
-      "reason": "权限节点窄屏一节点一卡：名称、编号、取值标记、说明、直接授予它的组。"
+      "reason": "改密码成功后吊销其它会话，保留当前会话"
     },
     {
       "paths": [
-        "app/console/src/pages/competition/RulesPanel.vue"
+        "app/server/src/routes/admin/auth.ts"
       ],
       "domains": [
-        "competitions"
+        "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:competition.rules.read"
+        "route:GET /auth/callback",
+        "flow:identity.callback"
       ],
-      "reason": "计分基础分表窄屏一档一卡，三种核心度的说明收成一行。"
+      "reason": "回调 query 类型收敛，重复 state 回 400"
     },
     {
       "paths": [
-        "app/console/src/pages/Activity.vue"
+        "app/server/src/routes/identity/google.ts"
       ],
       "domains": [
-        "audit"
+        "identity"
       ],
       "nodes": [
-        "application:console",
-        "flow:audit.console.activity.list"
+        "route:GET /auth/google/callback",
+        "flow:identity.google.callback"
       ],
-      "reason": "「动作」列的键从 action 改成 event：Tuffex 把叫 action 的列当操作列钉在右边，窄屏横向滚动时盖住「谁」。"
+      "reason": "Google 回调同样的类型收敛"
     },
     {
       "paths": [
-        "app/console/src/styles/layout.css",
-        "tests/console/narrow-layout.test.ts",
-        "docs/services/console/README.md"
+        "tests/server/auth-chain-hardening.test.ts",
+        "tests/server/signin-methods.test.ts"
       ],
       "domains": [
-        "platform"
+        "identity"
       ],
       "nodes": [
-        "application:console"
+        "flow:identity.profile.update",
+        "flow:identity.email.reset"
       ],
-      "reason": "共用的窄屏卡片样式、表格空状态贴着可见区域居中的规则、核对这些约定的测试，以及控制台文档。"
+      "reason": "新增回归：冒名被拒、改名成功、重复 state 400、重置后旧会话失效"
+    },
+    {
+      "paths": [
+        "docs/architecture/SECURITY.md"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "domain:identity"
+      ],
+      "reason": "安全模型补两条现状说明（本次改动对应的对齐说明）"
     },
     {
       "paths": [
         "docs/architecture/catalog/"
       ],
       "domains": [
-        "platform"
+        "identity",
+        "forum"
       ],
       "nodes": [
-        "application:console"
+        "domain:identity",
+        "domain:forum"
       ],
-      "reason": "按当前源码重新生成项目目录，来源摘要随控制台页面改动变化，不手改。"
+      "reason": "源码行号与路由证据随本次改动重新生成，属于派生产物"
     }
   ],
   "documents": [
-    "docs/services/console/README.md"
+    "docs/architecture/SECURITY.md"
   ],
   "tests": [
-    "tests/console/narrow-layout.test.ts"
+    "tests/server/auth-chain-hardening.test.ts",
+    "tests/server/signin-methods.test.ts"
   ],
-  "compatibility": "接口、路由与权限不变；宽屏（641px 以上）的表格和原来一致，只有窄屏显示卡片；操作记录的列键改名不影响接口字段。",
-  "migration": "不涉及迁移：没有表结构、配置键或存储格式变化。",
-  "rollback": "换回上一个镜像即可恢复原来的窄屏表格；没有数据变化，不需要回滚数据。"
+  "compatibility": "不改变既有请求与响应形状：只新增 409 username_taken / display_name_taken 与 400 invalid_state 两个失败分支；旧客户端把 409 当通用失败也能工作。",
+  "migration": "无数据迁移：不改表结构、不回填历史用户名；已有重名（若存在）仍能登录与显示，只是新的改名请求会被拦。",
+  "rollback": "revert 合并提交即可；会话吊销只多删 sessions 行，不影响其它表，回滚后旧会话需要重新登录。"
 }
