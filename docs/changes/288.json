@@ -2,167 +2,200 @@
   "version": 1,
   "issue": 288,
   "kind": "business",
-  "summary": "第一期比赛官网上线验收（P02）与个人赛文案统一（C28）发现的两处缺陷：库里第一期赛事的描述还写着团队赛的旧文案，而第一期是个人赛；比赛官网 SDK 的 --api 代理把上游的压缩响应解开后仍带着原来的编码与长度头，浏览器读到乱码或被截断。启动迁移把旧描述行改成个人赛的写法，代理按解压后的响应体重写这两个头。",
+  "summary": "PENTEST-20261029 复核后的匿名入口加固：意见箱与投递共用的 PoW 证明改为一次性（摘要进 limit_events 的 pow.nonce 桶，5 分钟窗口），同一份证明重放回 400；OIDC 协议端点对带 Origin 的浏览器请求统一回 401 invalid_client，去掉 client_id 枚举 oracle。",
   "applications": [
     "server"
   ],
   "domains": [
-    "competitions",
-    "identity",
     "audit",
-    "platform",
-    "recruitment",
-    "organization",
+    "competitions",
     "feedback",
     "forum",
-    "gitlab",
+    "github",
+    "identity",
     "invitations",
-    "mail",
-    "permissions",
-    "github"
+    "organization",
+    "platform",
+    "public_content",
+    "recruitment",
+    "mail"
   ],
   "flows": [
-    "flow:identity.authorize",
-    "flow:audit.console.activity.list",
-    "flow:platform.public_config",
-    "flow:application.cancel",
-    "flow:competition.public.list",
-    "flow:console.identity",
-    "flow:feedback.categories",
+    "flow:feedback.submit",
+    "flow:application.submit",
+    "flow:identity.callback",
+    "flow:identity.google.callback",
+    "flow:identity.oidc.token",
+    "flow:identity.oidc.protocol",
+    "flow:competition.create",
     "flow:forum.state",
-    "flow:gitlab.accounts.list",
-    "flow:identity.email.verify",
-    "flow:permissions.nodes.list",
-    "flow:identity.callback"
+    "flow:documentation.read"
   ],
   "assessments": {
     "business": {
       "status": "changed",
-      "reason": "第一期是个人赛，赛事描述是报名页和桌面窗口展示给参赛者的第一段话，不能写成按团队报名。规则本身（个人报名、个人计分）不变，只改描述文字。",
+      "reason": "防刷规则收紧：同一份 PoW 只能提交一次；OIDC 对外错误码统一，不再区分 client_id 是否存在。两者都是对外行为变化。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "tests/server/competitions.test.ts"
+        "app/server/src/middleware/pow.ts",
+        "app/server/src/routes/oidc/index.ts"
       ]
     },
     "backend": {
       "status": "changed",
-      "reason": "启动迁移只改 competitions.description 里命中旧团队赛原句的那一行，别的行不动；公开列表与详情读到的是改后的文字，接口形状不变。",
+      "reason": "checkPow 返回摘要，preflight 增加 consumeNonce 回调；services 把它接到 limits.hit；OIDC 协议端点在交给 oidc-provider 之前拦掉带 Origin 的请求。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "tests/server/competitions.test.ts"
+        "app/server/src/middleware/pow.ts",
+        "app/server/src/services.ts",
+        "app/server/src/routes/oidc/index.ts"
       ]
     },
     "permissions": {
-      "status": "unchanged",
-      "reason": "权限节点、角色与授权判断都没有改，没有新的接口或鉴权点；迁移在服务启动时执行，不接受外部输入，只改赛事描述这一列文字。SDK 代理只在开发者本机转发，不带站点的会话。",
+      "status": "changed",
+      "reason": "不新增权限节点；但匿名写入面被收紧（一次性证明），OIDC 协议端点对浏览器来源统一拒绝，授权边界更明确。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "scripts/contest-site.mjs"
+        "app/server/src/services.ts"
       ]
     },
     "data": {
-      "status": "changed",
-      "reason": "competitions.description 一列的内容变化，无表结构变化。迁移只匹配旧原句，重复执行行数不再变化；已经手工改过描述的赛事不命中，不被覆盖。",
+      "status": "unchanged",
+      "reason": "不新增表、不改结构：只向 limit_events 写 pow.nonce 桶的行，按既有 prune 清理。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "docs/services/server/data-model.md"
+        "app/server/src/services.ts"
       ]
     },
     "dependencies": {
       "status": "unchanged",
-      "reason": "没有新增或升级依赖：迁移只用已有的 better-sqlite3 语句，代理只用 Node 自带的 http 与已解压的响应体。",
+      "reason": "不新增依赖，不调用新的外部服务；OIDC 仍走 oidc-provider 内部实现。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "scripts/contest-site.mjs"
+        "app/server/src/routes/oidc/index.ts"
       ]
     },
     "documentation": {
       "status": "changed",
-      "reason": "数据模型文档写明描述迁移的匹配条件与幂等性，比赛官网快速接入文档去掉团队赛的示例说法。",
+      "reason": "安全模型补匿名入口一条；服务合同里意见箱提交的 PoW 与 OIDC token 的错误码说明同步更新。",
       "evidence": [
-        "docs/services/server/data-model.md",
-        "docs/services/server/contest-site-quickstart.md"
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/endpoint-contracts.md"
       ]
     },
     "verification": {
       "status": "changed",
-      "reason": "服务端用例对旧原句、已改过的描述、别的赛事三种行跑两次迁移并核对行数与内容；工具用例用 gzip 响应核对代理转发的编码头与长度头同响应体一致。",
+      "reason": "新增 2 条回归：同一份 PoW 重放回 400 且不落库；带 Origin 的 token 请求，已登记与未登记 client_id 状态码与响应体一致。",
       "evidence": [
-        "tests/server/competitions.test.ts",
-        "tests/tooling/contest-site.test.ts"
+        "tests/server/anonymous-surface-hardening.test.ts"
       ]
     },
     "delivery": {
-      "status": "changed",
-      "reason": "迁移随服务镜像发布，首次启动执行一次；回滚换回上一个镜像即可，已改的描述不影响旧代码读取。SDK 代理是仓库脚本，随仓库更新。",
+      "status": "not-applicable",
+      "reason": "不涉及镜像、环境变量、工作流或宿主配置，发布流程不变。",
       "evidence": [
-        "app/server/src/lib/db.ts",
-        "scripts/contest-site.mjs"
+        "docs/architecture/SECURITY.md"
       ]
     }
   },
   "coverage": [
     {
       "paths": [
-        "app/server/src/lib/db.ts",
-        "tests/server/competitions.test.ts",
-        "docs/services/server/data-model.md"
+        "app/server/src/middleware/pow.ts"
       ],
       "domains": [
-        "competitions",
-        "identity",
         "audit",
-        "platform",
-        "recruitment",
-        "organization",
+        "competitions",
         "feedback",
         "forum",
-        "gitlab",
+        "github",
+        "identity",
         "invitations",
-        "mail",
-        "permissions"
+        "organization",
+        "platform",
+        "public_content",
+        "recruitment"
       ],
       "nodes": [
-        "application:server"
+        "flow:feedback.submit",
+        "flow:application.submit"
       ],
-      "reason": "启动迁移把第一期赛事描述里的团队赛旧原句改成个人赛的写法；用例覆盖命中、不命中和重复执行；数据模型文档同步。"
+      "reason": "PoW 校验返回摘要并接入一次性消费，意见箱与投递共用"
     },
     {
       "paths": [
-        "scripts/contest-site.mjs",
-        "tests/tooling/contest-site.test.ts",
-        "docs/services/server/contest-site-quickstart.md"
+        "app/server/src/services.ts"
       ],
       "domains": [
-        "competitions"
+        "platform"
       ],
       "nodes": [
-        "application:server"
+        "domain:platform"
       ],
-      "reason": "官网 SDK 的 --api 代理按解压后的响应体重写 content-encoding 与 content-length；快速接入文档同步。"
+      "reason": "把 consumeNonce 接到 limits 的 pow.nonce 桶（max 1，窗口 5 分钟）"
+    },
+    {
+      "paths": [
+        "app/server/src/routes/oidc/index.ts"
+      ],
+      "domains": [
+        "identity"
+      ],
+      "nodes": [
+        "route:POST /oidc/*",
+        "flow:identity.oidc.token"
+      ],
+      "reason": "协议端点带 Origin 统一回 401，不再暴露 client_id 是否存在"
+    },
+    {
+      "paths": [
+        "tests/server/anonymous-surface-hardening.test.ts"
+      ],
+      "domains": [
+        "identity",
+        "feedback"
+      ],
+      "nodes": [
+        "flow:identity.oidc.token",
+        "flow:feedback.submit"
+      ],
+      "reason": "新增两条回归：PoW 重放与 OIDC client_id 不可区分"
+    },
+    {
+      "paths": [
+        "docs/architecture/SECURITY.md",
+        "docs/services/server/endpoint-contracts.md"
+      ],
+      "domains": [
+        "identity",
+        "feedback"
+      ],
+      "nodes": [
+        "domain:identity",
+        "domain:feedback"
+      ],
+      "reason": "安全模型与接口合同同步新行为与新错误码"
     },
     {
       "paths": [
         "docs/architecture/catalog/"
       ],
       "domains": [
-        "competitions"
+        "identity",
+        "feedback",
+        "platform"
       ],
       "nodes": [
-        "application:server"
+        "domain:identity",
+        "domain:feedback",
+        "domain:platform"
       ],
-      "reason": "按当前源码重新生成项目目录，来源摘要随迁移和代理脚本的改动变化，不手改。"
+      "reason": "ownership 增加 pow 中间件的流程证据，目录按源码重新生成"
     }
   ],
   "documents": [
-    "docs/services/server/data-model.md",
-    "docs/services/server/contest-site-quickstart.md"
+    "docs/architecture/SECURITY.md",
+    "docs/services/server/endpoint-contracts.md"
   ],
   "tests": [
-    "tests/server/competitions.test.ts",
-    "tests/tooling/contest-site.test.ts"
+    "tests/server/anonymous-surface-hardening.test.ts"
   ],
-  "compatibility": "接口形状与字段不变，只有第一期赛事描述的文字变化；SDK 代理对不压缩的响应行为不变。",
-  "migration": "启动迁移只更新命中旧原句的 competitions 行，幂等；执行前后用 sqlite3 对比行数，部署前备份预发布库。",
-  "rollback": "换回上一个镜像即可；描述文字留在库里不影响旧代码。要还原文字时，从部署前的数据库备份取回 competitions.description。"
+  "compatibility": "客户端不需要改：PoW 的摘要公式不变，只是同一份证明不能用第二次；OIDC 只影响带 Origin 的浏览器请求，下游服务器（不带 Origin）行为不变。",
+  "migration": "无数据迁移；pow.nonce 的行按既有 limit_events 清理策略过期，不回填历史。",
+  "rollback": "revert 合并提交即可；pow.nonce 行是独立桶，不参与其它限流判断，回滚后不影响既有计数。"
 }

@@ -3171,6 +3171,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "id": "flow:application.submit",
@@ -3983,6 +3987,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "id": "flow:feedback.submit",
@@ -16943,7 +16951,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "c9a4ca2d9139f0167ac937fb41538ada17be9fddc0675988939b0be55ef0c07d",
+    "fingerprint": "cbe8170b4c806c9525c11ffcd76775b008113786170db5467c1238f175059e51",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18155,7 +18163,7 @@
       },
       {
         "path": "app/server/src/middleware/pow.ts",
-        "sha256": "cc30fa501363f5b06927fd07625382e8e3b7078f54b4a19e44404bddd1c48407"
+        "sha256": "7557eefe3ae0baa0b1d201f511b67ef60bfeef1bfbeeaa05d13bc7569d02d45a"
       },
       {
         "path": "app/server/src/middleware/require-auth.ts",
@@ -18351,7 +18359,7 @@
       },
       {
         "path": "app/server/src/routes/oidc/index.ts",
-        "sha256": "4137f4662987f61a0df402988dda9436e965e390de7b5c0af8593c46c94bbba7"
+        "sha256": "19da799ec32192a9d5143be90f34f2ac52e4016f4c55f2654543f97cb967a5c2"
       },
       {
         "path": "app/server/src/routes/portal/apply.ts",
@@ -18407,7 +18415,7 @@
       },
       {
         "path": "app/server/src/services.ts",
-        "sha256": "a3557924ddffbe90f30e7437383b02a1a6271a8a7a6aa3a81560200ef74c1066"
+        "sha256": "ae14f575bc594ea82d3658e43dfed01562017bedfb3667c568c3f0e513b0bd90"
       },
       {
         "path": "app/web/Dockerfile",
@@ -18875,7 +18883,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "3eec465dc5a6c68c2c4cf6654cdace42b8d964f2216e78821e0994aeaa1f0816"
+        "sha256": "f2d2a1a2ce59a0497ac315854df853a3fb27754f0fd14db6c7a0c8a0bba93bb4"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18935,7 +18943,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "4a8435667e47352010a8950ff0ec3a72f24c3e10f061178c3ed07336129b4d6a"
+        "sha256": "e954f2c0aa3c5a152fbb26fe82be5a04fb7a6f3d5cd2f9493a4e516c5aa8afb8"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -25376,6 +25384,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25444,6 +25456,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25512,6 +25528,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25622,6 +25642,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25690,6 +25714,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25758,6 +25786,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25826,6 +25858,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -25894,6 +25930,10 @@
         {
           "line": 9,
           "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:application.submit",
@@ -54314,6 +54354,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:feedback.submit",
@@ -54348,6 +54392,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:feedback.submit",
@@ -54364,6 +54412,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:feedback.submit",
@@ -54380,6 +54432,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:feedback.submit",
@@ -54396,6 +54452,10 @@
         {
           "line": 91,
           "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
         }
       ],
       "from": "flow:feedback.submit",
