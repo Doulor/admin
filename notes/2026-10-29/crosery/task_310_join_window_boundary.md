@@ -13,3 +13,9 @@
 - 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
 - 做了什么：在 deploy/hotfix/windows.json 登记 #310（tag v0.1.1，approvedBy Crosery，原话见 #310 确认依据），提交 windows 登记；node scripts/check-branch-invariants.mjs
 - 结果：分支不变量通过：stage ≥ main（9438af8b），没有 main 领先 stage 的提交；MR !54 已开（task/310 → main）
+
+## 13:57:33 +08:00 · 提交 · #310 · 文档核对：deploy/ 模块改动（热修复窗口 #310 登记）
+
+- 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
+- 做了什么：文档核对：docs/ops/DEPLOY.md 不用改——只登记热修复窗口 #310（deploy/hotfix/windows.json），部署流程、回滚与烟测步骤未变；头部更新日期跟到 2026-10-29 文档核对：docs/ops/ENVIRONMENTS.md 不用改——没有新增、删除或修改 env 键与值；头部更新日期跟到 2026-10-29 文档核对：docs/ops/CICD.md 不用改——.github/workflows 未改，窗口登记不改变工作流；头部日期已是 2026-10-29
+- 结果：只改文档头部日期与执行记录，无内容改动；deploy-hotfix 计划在 c9a12bf 上因 deploy/ 文档未跟上失败（run 40826173116）
