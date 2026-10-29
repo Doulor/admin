@@ -216,6 +216,8 @@ export default async function emailRoutes(app: FastifyInstance) {
       // 新密码已经生效：这个邮箱之前猜错的次数清零
       throttle.reset(challenge.email);
       clearChallengeCookie(reply, "/auth/email");
+      // 旧会话一律作废，只留这次刚签发的一条（PENTEST-20261029 finding 14）
+      app.services.auth.revokeAccountSessions(result.accountId, result.sid);
       setSessionCookie(reply, result.sid);
       app.services.activity.recordActivity(req, { action: "auth.password_reset", surface: "portal", outcome: "ok", meta: { provider: "email" }, account_id: result.accountId });
       return { return_to: gatedReturn(app.services, config.publicOrigin, result.accountId, challenge.return_to ?? fallback) };

@@ -134,6 +134,8 @@ export default async function accountRoutes(app: FastifyInstance) {
       }
     }
     identity.setPassword(session.account_id, await hashPassword(req.body.password), { login: session.login, ip: req.ip });
+    // 改密码后其它会话作废，只留当前这次（PENTEST-20261029 finding 14）；不这么做，盗号者手里的 sid 还能继续用
+    app.services.auth.revokeAccountSessions(session.account_id, session.id);
     app.services.activity.recordActivity(req, { action: hadPassword ? "auth.password_change" : "auth.password_set", surface: "portal", outcome: "ok" });
     return { ok: true };
   });

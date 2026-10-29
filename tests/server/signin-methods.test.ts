@@ -958,6 +958,25 @@ describe('forgot password and the bind-email gate (#273)', () => {
     expect(view.recent.map((r: { action: string }) => r.action)).toContain('password_reset');
   });
 
+  it('revokes the account\'s other sessions when the password is reset (PENTEST-20261029 finding 14)', async () => {
+    const context = await setup();
+    const { app, mail, invite, tick } = context;
+    invite('yugc-test-2026');
+    await emailAccount(context, 'revoke@example.test', 'old passphrase here');
+    tick(61_000);
+    // 旧设备或已经泄露的那条会话：用旧密码登录出来的另一个 sid
+    const stale = browser(app);
+    expect((await stale.send('POST', '/auth/email/password', { email: 'revoke@example.test', password: 'old passphrase here' })).statusCode).toBe(200);
+    expect((await stale.send('GET', '/auth/me')).json().signed_in).toBe(true);
+    // 受害者走「忘了密码」重设
+    const user = browser(app);
+    await user.send('POST', '/auth/email/start', { email: 'revoke@example.test', purpose: 'reset' });
+    expect((await user.send('POST', '/auth/email/reset', { code: await mail.codeFor('revoke@example.test', 2), password: 'new passphrase here' })).statusCode).toBe(200);
+    // 重设之前签发的会话必须失效，这次新签发的照常能用
+    expect((await stale.send('GET', '/auth/me')).json().signed_in).toBe(false);
+    expect((await user.send('GET', '/auth/me')).json().signed_in).toBe(true);
+  });
+
   it('sets a first password the same way for an email account that never had one', async () => {
     const context = await setup();
     const { app, mail, invite, tick } = context;
