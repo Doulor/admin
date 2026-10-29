@@ -2961,13 +2961,15 @@
       "reads": [
         "application_limits",
         "mail_outbox",
-        "app_state"
+        "app_state",
+        "limit_events"
       ],
       "writes": [
         "applications",
         "application_limits",
         "mail_outbox",
-        "activity_events"
+        "activity_events",
+        "limit_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [
@@ -3778,18 +3780,21 @@
       "domain": "feedback",
       "relatedDomains": [
         "identity",
-        "audit"
+        "audit",
+        "platform"
       ],
       "assessment": "declared-with-source-evidence",
       "operation": "POST /api/feedback",
       "capabilities": [],
       "reads": [
-        "sessions"
+        "sessions",
+        "limit_events"
       ],
       "writes": [
         "feedback",
         "activity_events",
-        "sessions"
+        "sessions",
+        "limit_events"
       ],
       "doesNotEnqueue": [],
       "invariants": [

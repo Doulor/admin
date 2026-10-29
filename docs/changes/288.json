@@ -2,7 +2,7 @@
   "version": 1,
   "issue": 288,
   "kind": "business",
-  "summary": "PENTEST-20261029 复核后的匿名入口加固：意见箱与投递共用的 PoW 证明改为一次性（摘要进 limit_events 的 pow.nonce 桶，5 分钟窗口），同一份证明重放回 400；OIDC 协议端点对带 Origin 的浏览器请求统一回 401 invalid_client，去掉 client_id 枚举 oracle。",
+  "summary": "PENTEST-20261029 复核后的匿名入口加固：意见箱与投递共用的 PoW 证明改为一次性（摘要进 limit_events 的 pow.nonce 桶，5 分钟窗口），同一份证明重放回 400，并把 pow.nonce 桶登记进 limit_events 的留存表避免只涨不消；OIDC 协议端点对带 Origin 的浏览器请求统一回 401 invalid_client，去掉 client_id 枚举 oracle。",
   "applications": [
     "server"
   ],
@@ -58,7 +58,7 @@
     },
     "data": {
       "status": "unchanged",
-      "reason": "不新增表、不改结构：只向 limit_events 写 pow.nonce 桶的行，按既有 prune 清理。",
+      "reason": "不新增表、不改结构：向 limit_events 写 pow.nonce 桶的行，并把该桶登记进 BUCKET_RETENTION_MS 由既有 pruneAll 清理。",
       "evidence": [
         "app/server/src/services.ts"
       ]
@@ -80,7 +80,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增 2 条回归：同一份 PoW 重放回 400 且不落库；带 Origin 的 token 请求，已登记与未登记 client_id 状态码与响应体一致。",
+      "reason": "新增 2 条回归：同一份 PoW 重放回 400 且不落库；带 Origin 的 token 请求，已登记与未登记 client_id 状态码与响应体一致。未验证 pruneAll 在真实库上的执行。",
       "evidence": [
         "tests/server/anonymous-surface-hardening.test.ts"
       ]
@@ -186,6 +186,19 @@
         "domain:platform"
       ],
       "reason": "ownership 增加 pow 中间件的流程证据，目录按源码重新生成"
+    },
+    {
+      "paths": [
+        "app/server/src/lib/limits.ts"
+      ],
+      "domains": [
+        "platform"
+      ],
+      "nodes": [
+        "domain:platform",
+        "flow:application.submit"
+      ],
+      "reason": "把 pow.nonce 登记进 BUCKET_RETENTION_MS（1 小时留存），pruneAll 才会清掉这个桶"
     }
   ],
   "documents": [

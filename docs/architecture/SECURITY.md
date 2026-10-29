@@ -14,7 +14,7 @@
 
 **还剩的**：打开 `secure_delete` 之前删掉的行（本改动上线前预发布、正式库里删过的会话），字节留在空闲空间里，要等被新数据覆盖；本机实测正常运行几趟之后 30 条里还剩 3 条，做一次 `VACUUM` 后为 0。在预发布、正式库上做 `VACUUM` 是对业务数据库的维护操作，要先获得授权，另开 issue。上面这些保证只到文件为止：`data.db`、`-wal` 和在线备份这几个文件里找不到被删会话的字节；`-wal` 截断时交还给文件系统的块并没有写成 0，文件系统释放的块、卷或磁盘的块级快照和裸盘镜像不在范围内，卷本身泄漏时这些块里可能还有旧密文。
 
-**匿名入口的抗滥用与枚举**（2026-10-29 安全复核）：`POST /api/feedback` 与 `POST /api/apply` 共用的 PoW 证明改成一次性——摘要进 `limit_events` 的 `pow.nonce` 桶，窗口同时钟偏差上限（5 分钟），同一份 `{timestamp,nonce}` 第二次提交一律 400。OIDC 的协议端点（`/oidc/token`、`/oidc/token/revocation`、`/oidc/me` 等）对带 `Origin` 的请求统一回 401 `invalid_client`：`oidc-provider` 的 per-client Origin 校验排在客户端认证之前，原来已知 `client_id` 回 400、未知回 401，等于一个 `client_id` 枚举 oracle；浏览器本来就用不了这些端点，下游服务器调用不带 `Origin`。
+**匿名入口的抗滥用与枚举**（2026-10-29 安全复核）：`POST /api/feedback` 与 `POST /api/portal/apply`（需要 `apply.submit`，不是匿名入口）共用的 PoW 证明改成一次性——摘要进 `limit_events` 的 `pow.nonce` 桶，窗口同时钟偏差上限（5 分钟），同一份 `{timestamp,nonce}` 第二次提交一律 400。OIDC 的协议端点（`/oidc/token`、`/oidc/token/revocation`、`/oidc/me` 等）对带 `Origin` 的请求统一回 401 `invalid_client`：`oidc-provider` 的 per-client Origin 校验排在客户端认证之前，原来已知 `client_id` 回 400、未知回 401，等于一个 `client_id` 枚举 oracle；浏览器本来就用不了这些端点，下游服务器调用不带 `Origin`。
 
 **登录门槛：开放注册，邀请码选填**（#274，SPEC §3.2）。GitHub、Google、邮箱三种方式第一次登录都可以建号：不填邀请码建成注册用户（`level.registered`），填了有效邀请码建成极客班成员（`level.member`），填了但无效回 `invite_invalid`，不悄悄降级。登录不再查 GitHub 组织，身份和权限只看站内的权限表（见下文「权限只认极客班账号」）。官网、论坛、控制台共用这一个登录和同一个 `sid`。建号受注册限额约束：同一个 IP（哈希）每个北京日 5 个、同一个设备（`yugc_vid`）每个北京日 3 个，超了 GitHub、Google 回跳带 `signin=registration_limited`，邮箱回 429 `bucket: "auth.register.daily"`（`lib/register-limits.ts`）；填错邀请码与 `POST /api/identity/invite/redeem` 共用同一套按 IP 的猜码锁定。以下是 GitHub 这条路：`/auth/callback` 通过签名 state 校验、换到 token、取到 `/user` 之后（`routes/admin/auth.ts`）：
 

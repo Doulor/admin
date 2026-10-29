@@ -4,7 +4,7 @@
 
 状态：`current` · 更新：2026-10-27 · 自动生成，不手工编辑。
 
-来源摘要：`cbe8170b4c806c9525c11ffcd76775b008113786170db5467c1238f175059e51`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
+来源摘要：`3abe870b5d2f5f30fcba75884eda5cb6504897fcfff9de787283716869b4bc7c`。更新日期指目录声明版本，数据新鲜度由摘要和 `pnpm check:catalog` 核对。
 
 [使用与维护](README.md) · [总览](CATALOG.md) · [接口](routes.md) · [数据](data-model.md) · [权限](permissions.md) · [机器目录](catalog.json)
 
@@ -741,8 +741,8 @@
 
 - 操作：`POST /api/portal/apply`
 - 能力：
-- 读取：`application_limits`、`mail_outbox`、`app_state`
-- 写入：`applications`、`application_limits`、`mail_outbox`、`activity_events`
+- 读取：`application_limits`、`mail_outbox`、`app_state`、`limit_events`
+- 写入：`applications`、`application_limits`、`mail_outbox`、`activity_events`、`limit_events`
 - 不入队：
 - 权限与资源：匿名；蜜罐、PoW、可选Turnstile、每IP分钟5次和IP(/64)/设备24小时各5份。
 - 响应与错误：201 {id,submitted_at,message}；字段错误400附fields，429 apply_limited/rate_limited。蜜罐回相同201形状但不落库。
@@ -885,7 +885,7 @@
 - 响应与错误：200 {status,skip_reason,error,subject,to}，status 是 sent、failed、skipped 或 pending，to 是脱敏后的地址；400 invalid_address、template_required、template_invalid、preview_failed；404 not_found。没配置发信商或收件地址不在白名单里回 skipped，不入队，也不占次数。
 - 数据与副作用：只发给请求里填的这一个地址、一封，kind 为 recruitment.test，事件键 test:<随机 UUID>，主题前加「【测试】」；数据只用示例，不带任何真实投递人的内容，不读不写 applications 和 application_reviews；这种信只试一次、失败不重试，失败原因回给页面；操作记录 mail.template.test_send 只留脱敏邮箱和模板 id，不留邮箱明文和信的内容。
 
-源码：[app/server/src/routes/console/mail-templates.ts:244](../../../app/server/src/routes/console/mail-templates.ts#L244) · [app/server/src/lib/mail/outbox.ts:29](../../../app/server/src/lib/mail/outbox.ts#L29) · [app/server/src/lib/mail/mailer.ts:38](../../../app/server/src/lib/mail/mailer.ts#L38) · [app/server/src/lib/mail/template-contract.ts:92](../../../app/server/src/lib/mail/template-contract.ts#L92) · [app/console/src/pages/mail-templates/TestSend.vue:26](../../../app/console/src/pages/mail-templates/TestSend.vue#L26) · [app/console/src/lib/mail-templates.ts:394](../../../app/console/src/lib/mail-templates.ts#L394) · [app/server/src/lib/limits.ts:123](../../../app/server/src/lib/limits.ts#L123)
+源码：[app/server/src/routes/console/mail-templates.ts:244](../../../app/server/src/routes/console/mail-templates.ts#L244) · [app/server/src/lib/mail/outbox.ts:29](../../../app/server/src/lib/mail/outbox.ts#L29) · [app/server/src/lib/mail/mailer.ts:38](../../../app/server/src/lib/mail/mailer.ts#L38) · [app/server/src/lib/mail/template-contract.ts:92](../../../app/server/src/lib/mail/template-contract.ts#L92) · [app/console/src/pages/mail-templates/TestSend.vue:26](../../../app/console/src/pages/mail-templates/TestSend.vue#L26) · [app/console/src/lib/mail-templates.ts:394](../../../app/console/src/lib/mail-templates.ts#L394) · [app/server/src/lib/limits.ts:125](../../../app/server/src/lib/limits.ts#L125)
 
 测试入口：[tests/server/mail-templates.test.ts](../../../tests/server/mail-templates.test.ts) · [tests/server/mail-outbox.test.ts](../../../tests/server/mail-outbox.test.ts) · [tests/console/mail-templates.test.ts](../../../tests/console/mail-templates.test.ts)。生成器未执行这些测试。
 
@@ -980,8 +980,8 @@
 
 - 操作：`POST /api/feedback`
 - 能力：
-- 读取：`sessions`
-- 写入：`feedback`、`activity_events`、`sessions`
+- 读取：`sessions`、`limit_events`
+- 写入：`feedback`、`activity_events`、`sessions`、`limit_events`
 - 不入队：
 - 权限与资源：匿名可提交；仅CONSOLE_ORG，5至5000字，固定分类，PoW/蜜罐/Turnstile与每分钟10次限流；sid仅补充提交人身份。
 - 响应与错误：200 {ok:true,id,message}；非法org/内容/分类或人机校验失败400，超额429。

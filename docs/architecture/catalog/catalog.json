@@ -3190,7 +3190,8 @@
       "reads": [
         "application_limits",
         "mail_outbox",
-        "app_state"
+        "app_state",
+        "limit_events"
       ],
       "relatedDomains": [
         "mail",
@@ -3212,7 +3213,8 @@
         "applications",
         "application_limits",
         "mail_outbox",
-        "activity_events"
+        "activity_events",
+        "limit_events"
       ]
     },
     {
@@ -3740,7 +3742,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -4003,11 +4005,13 @@
       "operationLabel": "POST /api/feedback",
       "operationNodeId": "route:POST /api/feedback",
       "reads": [
-        "sessions"
+        "sessions",
+        "limit_events"
       ],
       "relatedDomains": [
         "identity",
-        "audit"
+        "audit",
+        "platform"
       ],
       "testStatus": "linked-not-executed-by-generator",
       "tests": [
@@ -4019,7 +4023,8 @@
       "writes": [
         "feedback",
         "activity_events",
-        "sessions"
+        "sessions",
+        "limit_events"
       ]
     },
     {
@@ -16951,7 +16956,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "cbe8170b4c806c9525c11ffcd76775b008113786170db5467c1238f175059e51",
+    "fingerprint": "3abe870b5d2f5f30fcba75884eda5cb6504897fcfff9de787283716869b4bc7c",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -18019,7 +18024,7 @@
       },
       {
         "path": "app/server/src/lib/limits.ts",
-        "sha256": "86661caea58d7db6c5781ad95675a609cf5ceacb97ea5fbbd8b2745df71f8c6c"
+        "sha256": "0e10214270a35bac31c0d95c243362e3c540cdb79f5ed657b7e2162f66d82fea"
       },
       {
         "path": "app/server/src/lib/mail/envelope-pieces.ts",
@@ -18879,11 +18884,11 @@
       },
       {
         "path": "docs/architecture/SECURITY.md",
-        "sha256": "64c9d4994465c9f05de15883b3ca2124df82a28ea71c0dac2ba1f23b02b00af0"
+        "sha256": "21c52b74eb8fc934084a17332fef44856cf1328982b0203fa7305a764b308349"
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "f2d2a1a2ce59a0497ac315854df853a3fb27754f0fd14db6c7a0c8a0bba93bb4"
+        "sha256": "5e42b6a4cfb882a66f20067d987f1a36b7459610d44aa41e67e638578a3c28d9"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -25535,6 +25540,78 @@
         }
       ],
       "from": "flow:application.submit",
+      "to": "table:limit_events",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 119,
+          "path": "app/server/src/routes/portal/apply.ts"
+        },
+        {
+          "line": 115,
+          "path": "app/server/src/routes/portal/apply.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/apply-settings.ts"
+        },
+        {
+          "line": 59,
+          "path": "app/server/src/lib/mail/mailer.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 167,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
+        },
+        {
+          "line": 88,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 48,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
+        }
+      ],
+      "from": "flow:application.submit",
       "to": "table:mail_outbox",
       "type": "reads"
     },
@@ -25866,6 +25943,78 @@
       ],
       "from": "flow:application.submit",
       "to": "table:applications",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 119,
+          "path": "app/server/src/routes/portal/apply.ts"
+        },
+        {
+          "line": 115,
+          "path": "app/server/src/routes/portal/apply.ts"
+        },
+        {
+          "line": 12,
+          "path": "app/server/src/lib/apply-settings.ts"
+        },
+        {
+          "line": 59,
+          "path": "app/server/src/lib/mail/mailer.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/limits.ts"
+        },
+        {
+          "line": 4,
+          "path": "app/server/src/lib/apply-quota.ts"
+        },
+        {
+          "line": 167,
+          "path": "app/web/sites/portal/components/os/JoinBox.tsx"
+        },
+        {
+          "line": 88,
+          "path": "app/web/sites/portal/components/PromoLazy.tsx"
+        },
+        {
+          "line": 48,
+          "path": "app/web/sites/portal/components/PromoPlayer.tsx"
+        },
+        {
+          "line": 10,
+          "path": "app/web/sites/portal/lib/promoWindow.ts"
+        },
+        {
+          "line": 22,
+          "path": "app/web/sites/portal/lib/promo.ts"
+        },
+        {
+          "line": 8,
+          "path": "app/web/sites/portal/lib/applyOpen.ts"
+        },
+        {
+          "line": 7,
+          "path": "app/web/sites/portal/components/os/JoinClosed.tsx"
+        },
+        {
+          "line": 321,
+          "path": "app/server/src/lib/mail/envelope.ts"
+        },
+        {
+          "line": 9,
+          "path": "app/server/src/lib/mail/envelope-pieces.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
+        }
+      ],
+      "from": "flow:application.submit",
+      "to": "table:limit_events",
       "type": "writes"
     },
     {
@@ -54361,6 +54510,26 @@
         }
       ],
       "from": "flow:feedback.submit",
+      "to": "table:limit_events",
+      "type": "reads"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 26,
+          "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
+        }
+      ],
+      "from": "flow:feedback.submit",
       "to": "table:sessions",
       "type": "reads"
     },
@@ -54440,6 +54609,26 @@
       ],
       "from": "flow:feedback.submit",
       "to": "table:feedback",
+      "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 26,
+          "path": "app/server/src/routes/portal/feedback.ts"
+        },
+        {
+          "line": 91,
+          "path": "app/web/sites/portal/components/os/FeedbackBox.tsx"
+        },
+        {
+          "line": 14,
+          "path": "app/server/src/middleware/pow.ts"
+        }
+      ],
+      "from": "flow:feedback.submit",
+      "to": "table:limit_events",
       "type": "writes"
     },
     {
@@ -83852,7 +84041,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -83888,7 +84077,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -83924,7 +84113,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -83978,7 +84167,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -84014,7 +84203,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -84050,7 +84239,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
@@ -84086,7 +84275,7 @@
           "path": "app/console/src/lib/mail-templates.ts"
         },
         {
-          "line": 123,
+          "line": 125,
           "path": "app/server/src/lib/limits.ts"
         }
       ],
