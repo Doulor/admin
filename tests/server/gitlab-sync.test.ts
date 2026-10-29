@@ -37,7 +37,7 @@ const CONFIRMED = '2026-10-23T12:00:00.000Z';
  * 假 GitLab：只认管理员令牌，用户名和邮箱不分大小写唯一（主邮箱和次邮箱一起算），组成员按 user id 记权限。`fail` 让下一次匹配的请求失败。
  * 邮箱列表和真的 GitLab 一样连主邮箱也列出来（`emails` 只放次邮箱），主邮箱删不掉；换主邮箱后旧的留成已确认的次邮箱。
  */
-function fakeGitlab() {
+function fakeGitlab(base = GITLAB) {
   const users: FakeUser[] = [];
   let nextEmailId = 900;
   const owns = (user: FakeUser, email: string) => [user.email, ...(user.emails ?? []).map(item => item.email)].some(item => item.toLowerCase() === email.toLowerCase());
@@ -61,11 +61,13 @@ function fakeGitlab() {
   async function fetch(input: string, init: RequestInit = {}): Promise<Response> {
     if (unreachable) throw new TypeError('fetch failed');
     const url = new URL(input);
-    expect(url.origin).toBe(GITLAB);
+    expect(url.origin).toBe(new URL(base).origin);
     expect((init.headers as Record<string, string>)['PRIVATE-TOKEN']).toBe('test-gitlab-token');
     expect(init.redirect).toBe('error');
     const method = init.method ?? 'GET';
-    const path = url.pathname.replace(/^\/api\/v4/, '');
+    const prefix = `${new URL(base).pathname.replace(/\/+$/, '')}/api/v4`;
+    expect(url.pathname.startsWith(`${prefix}/`)).toBe(true);
+    const path = url.pathname.slice(prefix.length);
     const call = `${method} ${path}`;
     calls.push(call);
     const hold = holds.findIndex(item => call.startsWith(item.match));
@@ -205,7 +207,7 @@ const contexts: Awaited<ReturnType<typeof testApp>>[] = [];
 afterEach(async () => { for (const context of contexts.splice(0)) await context.close(); });
 
 async function setup(env: Record<string, string> = SYNC_ENV, profiles: Record<number, Record<string, unknown>> = {}, callback: string | null = `${GITLAB}/users/auth/openid_connect/callback`) {
-  const gitlab = fakeGitlab();
+  const gitlab = fakeGitlab(env.GITLAB_URL?.replace(/\/+$/, '') ?? GITLAB);
   const github = fakeGithub(profiles);
   const context = await testApp({ gitlabFetch: gitlab.fetch, githubProfileFetch: github.fetch }, false, env);
   contexts.push(context);
@@ -1284,6 +1286,26 @@ describe('GitLab console overview, projects and settings (#274)', () => {
     const { app } = await setup({});
     expect((await app.inject('/api/public/gitlab/projects')).json()).toEqual({ projects: [], unavailable: true });
   });
+
+  it('opens only the current environment group and preserves its GitLab base path', async () => {
+    const { app, gitlab } = await setup({ ...SYNC_ENV, GITLAB_URL: `${GITLAB}/gitlab/`, GITLAB_OIDC_CLIENT: 'gitlab_preview' });
+    expect((await app.inject('/api/public/gitlab?next=https://untrusted.example')).statusCode).toBe(400);
+    const entry = await app.inject('/api/public/gitlab');
+    expect(entry.statusCode).toBe(302);
+    expect(entry.headers.location).toBe(`${GITLAB}/gitlab/geek`);
+    expect(entry.headers['cache-control']).toContain('no-store');
+    app.services.oidcStore.registerClient({ name: 'Preview', clientId: 'gitlab_preview', redirectUris: ['https://preview.example.test/gitlab/users/auth/openid_connect/callback'] });
+    signIn(app, 'preview-member', 801);
+    const accountId = app.services.identity.accountForGithub(801)!;
+    await app.services.gitlab.reconcile();
+    const user = gitlab.users.find(user => user.username === 'preview-member');
+    expect(user?.extern_uid).toBe(app.services.oidcStore.existingSubject('preview.example.test', accountId));
+    expect(user?.extern_uid).toBeTruthy();
+    expect(app.services.oidcStore.existingSubject('git.example.test', accountId)).toBeNull();
+    expect((await app.inject('/api/public/gitlab/projects')).json().unavailable).not.toBe(true);
+    const disabled = await setup({});
+    expect((await disabled.app.inject('/api/public/gitlab')).statusCode).toBe(503);
+  });
 });
 
 describe('GitLab and OIDC configuration (#270)', () => {
@@ -1294,14 +1316,16 @@ describe('GitLab and OIDC configuration (#270)', () => {
   });
 
   it('keeps sync off by default and asks for the URL and token when it is on', () => {
-    expect(createConfig(env()).gitlab).toEqual({ mode: 'off', url: null, token: null, group: 'geek' });
-    expect(createConfig({ ...env(), ...SYNC_ENV, GITLAB_URL: `${GITLAB}/` }).gitlab).toEqual({ mode: 'on', url: GITLAB, token: 'test-gitlab-token', group: 'geek' });
+    expect(createConfig(env()).gitlab.mode).toBe('off');
+    expect(createConfig({ ...env(), ...SYNC_ENV, GITLAB_URL: `${GITLAB}/` }).gitlab.url).toBe(GITLAB);
     expect(() => createConfig({ ...env(), GITLAB_SYNC: 'yes' })).toThrow('off, dry-run or on');
     // dry-run 只算出要做什么，不调 GitLab，不要令牌；on 才要
-    expect(createConfig({ ...env(), GITLAB_SYNC: 'dry-run', GITLAB_URL: GITLAB }).gitlab).toEqual({ mode: 'dry-run', url: GITLAB, token: null, group: 'geek' });
+    expect(createConfig({ ...env(), GITLAB_SYNC: 'dry-run', GITLAB_URL: GITLAB }).gitlab.mode).toBe('dry-run');
     expect(() => createConfig({ ...env(), GITLAB_SYNC: 'dry-run' })).toThrow('GITLAB_SYNC needs GITLAB_URL');
     expect(() => createConfig({ ...env(), GITLAB_SYNC: 'on', GITLAB_URL: GITLAB })).toThrow('GITLAB_SYNC=on needs GITLAB_API_TOKEN');
-    expect(() => createConfig({ ...env(), ...SYNC_ENV, GITLAB_URL: `${GITLAB}/gitlab` })).toThrow('plain HTTP(S) origin');
+    for (const url of ['file:///gitlab', `https://user:secret@git.example.test/gitlab`, `${GITLAB}/gitlab?token=x`, `${GITLAB}/gitlab#anchor`]) {
+      expect(() => createConfig({ ...env(), ...SYNC_ENV, GITLAB_URL: url })).toThrow();
+    }
     expect(() => createConfig({ ...env(), ...SYNC_ENV, GITLAB_GROUP: 'geek group' })).toThrow('group path');
   });
 

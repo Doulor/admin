@@ -55,3 +55,27 @@
 - 执行者：agent-omp-recovery-20261029
 - 做了什么：已向所有者说明prev.yangtzeu.work/gitlab独立预发布实例方案及GitLab官方Beta限制，并给出已有域名独立端口替代。选择工具超时自动选推荐，不能当成人工批准。
 - 结果：仅保留子路径为候选；不启动第二实例、不改现有GitLab卷/账号/签发者、不改DNS或公网端口。现有修复与完整验证已保存于双仓task/308/gitlab_sso_sync和MR53；等待所有者确认子路径Beta取舍后继续新的隔离实现。
+
+## 10:44:01 +08:00 · 方案 · #308 · 所有者确认现有预发布域名子路径独立GitLab
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：所有者对已说明Beta限制的prev.yangtzeu.work/gitlab独立预发布方案明确回复「我觉得可以」。沿原GitLab308实施，现有git.yangtzeu.work保持正式实例；不改DNS、不复制正式业务数据，不把此前超时选择当授权。
+- 结果：开始贯通应用子路径、独立编排/凭据/SSO/备份和受保护流水线；上线仍需真实路径验收，旧账号与sub继续保全。
+
+## 11:07:24 +08:00 · 方案 · #308 · 所有者批准香港专用受限入口通道
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：选择工具由所有者明确选择「安装专用受限通道」：独立密钥仅执行本项目入口安装器，备份、校验后reload，失败恢复；保留原转发权限，不开放任意shell，不改其他站点或DNS。
+- 结果：按最小权限实现固定GitLab预发布动作接收器；首次安装经现有管理员连接和仓库install-host入口，后续操作只走production保护的GitLab运维流水线。
+
+## 11:59:55 +08:00 · 开发 · #308 · 香港受限入口通道已安装并拒绝任意命令
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：按所有者明确选择通过仓库install-host.sh首次安装edge-gitlab固定动作接收器，独立ed25519公钥以restrict和forced-command追加，原授权行保全；私钥仅进入GitHub production环境GITLAB_EDGE_SSH_KEY，临时私钥已删除。真实Caddy adapt --validate通过，正式块逐字未变。
+- 结果：专用SSH执行plan退出0、返回site_sha256=c9ef6f81db7e9e2b569546b031669df5bf7f6469c66be4417d794694be92271a；执行id退出1并拒绝。没有reload Caddy、没有启动新GitLab、没有改DNS。真实TCP子路径烟测302/400/200/401/health200通过，74条宿主和备份隔离回归通过。身份补建选择超时自动选推荐，不是人工批准，未补建账号。
+
+## 12:41:56 +08:00 · 提交 · #308 · 保存独立GitLab部署路径与环境入口改造
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：准备提交feat(deploy): 支持独立GitLab预发布与受限入口部署。后端保留子路径并选择独立OIDC客户端，门户去掉正式GitLab静态地址；新增独立编排、失败保护、备份角色与受限入口流水线。只按新契约更新环境差异并新增共用目标拒绝，不放宽密钥、审批或身份对账。删除退役的文本/静态链接断言，保留行为回归。
+- 结果：最终pnpm verify退出0：核心3025 passed/27 skipped，论坛701 passed，核心构建与论坛61路由生成通过；宏观对齐76文件/29节点。真实TCP 302/400/200/401/health200、1440与390浏览器、Caddy真实validate、受限SSH允许plan拒绝id均已验证；actionlint通过。已安装接收器与仓库SHA256均2fadf48a9ffaac2fa637cf78b58bfee5f42a877805057405813277eb82d58020，现行Caddy配置摘要不变。新GitLab未启动、SSO/Git/Issue/MR/真实备份恢复未验收，两个身份补建尚无明确授权。

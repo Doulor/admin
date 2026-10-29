@@ -265,13 +265,13 @@
     }
   ],
   "coverage": {
-    "automaticHead": 90,
-    "businessOperations": 184,
-    "businessOperationsWithFlow": 184,
+    "automaticHead": 91,
+    "businessOperations": 185,
+    "businessOperationsWithFlow": 185,
     "capabilities": 16,
-    "declaredFlows": 191,
-    "responseSchemas": 153,
-    "routeMethods": 303,
+    "declaredFlows": 192,
+    "responseSchemas": 154,
+    "routeMethods": 305,
     "supplementalInterfaces": 6,
     "supplementalInterfacesWithFlow": 6,
     "tables": 69
@@ -1743,7 +1743,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -2630,7 +2630,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 45,
+          "line": 49,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -7360,7 +7360,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -10199,7 +10199,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -10505,7 +10505,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -10521,7 +10521,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11142,12 +11142,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -11518,7 +11514,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11597,7 +11593,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11621,11 +11617,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -11697,11 +11693,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11762,7 +11758,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11819,11 +11815,55 @@
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 37,
+          "line": 36,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 83,
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
+        }
+      ],
+      "id": "flow:gitlab.entry.open",
+      "invariants": [
+        "只按本环境 GITLAB_URL 与有效群组设置生成 302 Location，保留部署子路径；查询参数不能改变目的地。",
+        "无基址返回 503；不发送管理员令牌、不读私有项目、不缓存重定向。"
+      ],
+      "operation": "GET /api/public/gitlab",
+      "operationLabel": "GET /api/public/gitlab",
+      "operationNodeId": "route:GET /api/public/gitlab",
+      "reads": [],
+      "relatedDomains": [
+        "platform"
+      ],
+      "testStatus": "linked-not-executed-by-generator",
+      "tests": [
+        "tests/server/gitlab-sync.test.ts"
+      ],
+      "title": "门户进入本环境的 GitLab 群组",
+      "writes": []
+    },
+    {
+      "assessment": "declared-with-source-evidence",
+      "capabilities": [],
+      "docs": [
+        "docs/services/server/oidc.md",
+        "docs/services/server/endpoint-contracts.md",
+        "docs/architecture/API.md",
+        "docs/services/web/portal.md"
+      ],
+      "doesNotEnqueue": [],
+      "domain": "gitlab",
+      "evidence": [
+        {
+          "line": 19,
+          "path": "app/server/src/routes/portal/gitlab.ts"
+        },
+        {
+          "line": 41,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 81,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -11890,11 +11930,11 @@
       "domain": "gitlab",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -11976,7 +12016,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -12035,11 +12075,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -14321,6 +14361,11 @@
       "title": "控制台立即同步一个账号到 GitLab"
     },
     {
+      "id": "flow:gitlab.entry.open",
+      "kind": "flow",
+      "title": "门户进入本环境的 GitLab 群组"
+    },
+    {
       "id": "flow:gitlab.projects.console.list",
       "kind": "flow",
       "title": "控制台查看 GitLab 组与项目清单（含私有）"
@@ -15126,6 +15171,11 @@
       "title": "GET /api/public/departments"
     },
     {
+      "id": "route:GET /api/public/gitlab",
+      "kind": "route",
+      "title": "GET /api/public/gitlab"
+    },
+    {
       "id": "route:GET /api/public/gitlab/projects",
       "kind": "route",
       "title": "GET /api/public/gitlab/projects"
@@ -15579,6 +15629,11 @@
       "id": "route:HEAD /api/public/departments",
       "kind": "route",
       "title": "HEAD /api/public/departments"
+    },
+    {
+      "id": "route:HEAD /api/public/gitlab",
+      "kind": "route",
+      "title": "HEAD /api/public/gitlab"
     },
     {
       "id": "route:HEAD /api/public/gitlab/projects",
@@ -17043,7 +17098,7 @@
   ],
   "provenance": {
     "basis": "source-and-isolated-runtime",
-    "fingerprint": "314e3ee3c4ab942d22f74fbf5cbc59d46abea870cda0a9d0814b82ba54f6a46b",
+    "fingerprint": "29582f9420cd1527aa752fa4e8cee62c53b5d788d96382092706ab142a6f4291",
     "sources": [
       {
         "path": "app/cli/package.json",
@@ -17939,7 +17994,7 @@
       },
       {
         "path": "app/server/src/config.ts",
-        "sha256": "c232778b65744241c44e2578beab7eab9bc97aa9a039fe05993212a4dd65bc9b"
+        "sha256": "4c1e3d3876a24873b20fc67f931cba18f201a016300b7cf405d2893125f7a499"
       },
       {
         "path": "app/server/src/index.ts",
@@ -18087,7 +18142,7 @@
       },
       {
         "path": "app/server/src/lib/gitlab-sync.ts",
-        "sha256": "2cc0752069a56a64d48439ad20a45f63aec1656c88de0f3570d680d1e5d1eaaa"
+        "sha256": "2b9568b626c5b33a570f37f5ac0083c40cf7c0a0ead48de4ab99ff2912f8e66e"
       },
       {
         "path": "app/server/src/lib/google.ts",
@@ -18467,7 +18522,7 @@
       },
       {
         "path": "app/server/src/routes/portal/contracts.ts",
-        "sha256": "459c495ebcc6aec7175af00f4ef4ed95fed1732ec478513365172789af9aed08"
+        "sha256": "0184d8e5e56ada635f98d8d8d450d62aaf7981fa1722eb8dff856e14c0cd2939"
       },
       {
         "path": "app/server/src/routes/portal/departments.ts",
@@ -18487,7 +18542,7 @@
       },
       {
         "path": "app/server/src/routes/portal/gitlab.ts",
-        "sha256": "fd2208c6c5f0bdeb3d39d0970563cce15dc60b0e4a9aa5fde00b84034086ce6b"
+        "sha256": "7a7bf8567d8a16ae3987c21663f6278d2d1281a2edb2a85d8428cdaf17465157"
       },
       {
         "path": "app/server/src/routes/portal/index.ts",
@@ -18523,7 +18578,7 @@
       },
       {
         "path": "app/web/shared/config/index.ts",
-        "sha256": "abe1ba3bc9b615409a14387ca0084aee9b0a600cfbe642e5e0b931eba159a8ab"
+        "sha256": "c8ab8e5154368266c9f8ac9989f7a175446beb97a6b81c1a3f4ee6f4119e9482"
       },
       {
         "path": "app/web/shared/lib/api.ts",
@@ -18863,7 +18918,7 @@
       },
       {
         "path": "app/web/sites/portal/lib/links.ts",
-        "sha256": "fc94c96bde51cd3b8ea3a06a0a5446647a7d7100fd4a4208d6c9b18772324ab1"
+        "sha256": "4e4a5ef7c7a33b30fc5dc77920f82d0a9978cc2516b26995cc384d7985b86b52"
       },
       {
         "path": "app/web/sites/portal/lib/motion.ts",
@@ -18963,7 +19018,7 @@
       },
       {
         "path": "docs/architecture/API.md",
-        "sha256": "db446faf6edd59716c8bd2101d870d8a4fb8f2a4d189d1d416d61e8f531cc1a8"
+        "sha256": "2541f57cf9e6d6b8b86dcbed549a73ceeff541753cddd5be5c944ca9b78ed24e"
       },
       {
         "path": "docs/architecture/ARCHITECTURE.md",
@@ -18975,7 +19030,7 @@
       },
       {
         "path": "docs/architecture/catalog/ownership.json",
-        "sha256": "da679f4bc3de07cd6b1918b0158efe48c2d931e3958d6b2472285a1c5243fd04"
+        "sha256": "a8dc6bd766b3a5c88a222ce07783ddaeb70a4b670cf30c92bdce5f84050f50da"
       },
       {
         "path": "docs/conventions/ARCHITECTURE-ALIGNMENT.md",
@@ -18995,7 +19050,7 @@
       },
       {
         "path": "docs/ops/DEPLOY.md",
-        "sha256": "00b06adb823e2fa349c0a52884a247e62260b35210042e406d3485248aab289c"
+        "sha256": "01c939ce401c4c18aa8dbcc1f56c7f0c1d9bb82867e72e52482ba08ee6daab0a"
       },
       {
         "path": "docs/ops/USAGE.md",
@@ -19023,7 +19078,7 @@
       },
       {
         "path": "docs/services/server/README.md",
-        "sha256": "a61dab2cba46c0e139b12d3a08453fe207f5a5ab7f2f9311a704bbf70452bce7"
+        "sha256": "a57563a15afc8ffa1ab94301884af212d5e1580f80a4dd8b3e38b5ba14ee3782"
       },
       {
         "path": "docs/services/server/competition-rehearsal.md",
@@ -19035,7 +19090,7 @@
       },
       {
         "path": "docs/services/server/endpoint-contracts.md",
-        "sha256": "ae656a3e5124294417e226d61d07a948a85032ba5e34e5676d51fd9c41ce4fb9"
+        "sha256": "c396db3ddc9e8e14a7970501ab65155c91280c94beba7e7d723288975364dd34"
       },
       {
         "path": "docs/services/server/mail.md",
@@ -19043,15 +19098,15 @@
       },
       {
         "path": "docs/services/server/oidc.md",
-        "sha256": "31b2e9adb6990bfc51ee77fc0f452b1968778675799a0f62dde3fdd04f5549b0"
+        "sha256": "fc1653cf8b4fd4fcd1bf23561835fe4462a77f29d6f7fe7e63989174244149db"
       },
       {
         "path": "docs/services/web/README.md",
-        "sha256": "07e585ac51aec8a10ce93a3cc82beaabc30f98d707b3c2ed4ca0e60d1dddba7f"
+        "sha256": "fe20d4a487185ef9db7170ee67e5c731406b3f5087223899cb9d549959958886"
       },
       {
         "path": "docs/services/web/portal.md",
-        "sha256": "08a7db3195820b7dea7ddc7f2afffd9b1e6c5ebd2db06a5b6a946c5ff78fac3d"
+        "sha256": "e966571d0d53425832d337bf29468b1661634aca5f619c309bbc25cabeb62eb2"
       },
       {
         "path": "pnpm-lock.yaml",
@@ -19283,7 +19338,7 @@
       },
       {
         "path": "tests/server/gitlab-sync.test.ts",
-        "sha256": "4874817f1e339d24e5bd456bd17353adfb13205db65ebe0e4e53cc68974730f0"
+        "sha256": "636f8551ec016272fdd30293e8d2202e9a4ff795a439967e2feffd7607dee5f8"
       },
       {
         "path": "tests/server/grade.test.ts",
@@ -19423,7 +19478,7 @@
       },
       {
         "path": "tests/web/portal-os.test.ts",
-        "sha256": "064c09826a430afebdcef648717763de380bd6643fb84a44e3cb5d1d17332e56"
+        "sha256": "6bc7293e34f9c86eb9c61beb9634f7c1b4b3a0cc8465f08c9487cf1ce77a63dd"
       },
       {
         "path": "tests/web/portal-phone.test.tsx",
@@ -20514,7 +20569,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         }
       ],
@@ -20647,6 +20702,18 @@
       "evidence": [
         {
           "line": 14,
+          "path": "app/server/src/routes/portal/gitlab.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:GET /api/public/gitlab",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 19,
           "path": "app/server/src/routes/portal/gitlab.ts"
         }
       ],
@@ -21606,7 +21673,7 @@
       "basis": "runtime",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         }
       ],
@@ -21739,6 +21806,18 @@
       "evidence": [
         {
           "line": 14,
+          "path": "app/server/src/routes/portal/gitlab.ts"
+        }
+      ],
+      "from": "application:server",
+      "to": "route:HEAD /api/public/gitlab",
+      "type": "provides"
+    },
+    {
+      "basis": "runtime",
+      "evidence": [
+        {
+          "line": 19,
           "path": "app/server/src/routes/portal/gitlab.ts"
         }
       ],
@@ -26512,7 +26591,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 45,
+          "line": 49,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -26616,7 +26695,7 @@
           "path": "app/server/src/routes/portal/events.ts"
         },
         {
-          "line": 45,
+          "line": 49,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -27436,7 +27515,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27452,7 +27531,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27496,7 +27575,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27512,7 +27591,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27556,7 +27635,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27572,7 +27651,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27616,7 +27695,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27632,7 +27711,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27676,7 +27755,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27692,7 +27771,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27736,7 +27815,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27752,7 +27831,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27796,7 +27875,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27812,7 +27891,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27856,7 +27935,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27872,7 +27951,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27916,7 +27995,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27932,7 +28011,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27976,7 +28055,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -27992,7 +28071,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28036,7 +28115,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28052,7 +28131,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28096,7 +28175,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28112,7 +28191,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28156,7 +28235,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28172,7 +28251,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28216,7 +28295,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28232,7 +28311,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28276,7 +28355,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28292,7 +28371,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28336,7 +28415,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28352,7 +28431,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28420,7 +28499,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28436,7 +28515,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28480,7 +28559,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28496,7 +28575,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28540,7 +28619,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28556,7 +28635,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28600,7 +28679,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28616,7 +28695,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28660,7 +28739,7 @@
           "path": "app/server/src/lib/db.ts"
         },
         {
-          "line": 229,
+          "line": 227,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -28676,7 +28755,7 @@
           "path": "app/server/src/services.ts"
         },
         {
-          "line": 657,
+          "line": 655,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -32336,7 +32415,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32364,7 +32443,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32392,7 +32471,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32420,7 +32499,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32448,7 +32527,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32476,7 +32555,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32504,7 +32583,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32532,7 +32611,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32560,7 +32639,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32588,7 +32667,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32616,7 +32695,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32662,7 +32741,7 @@
           "path": "app/server/src/lib/competition-contract.ts"
         },
         {
-          "line": 67,
+          "line": 71,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32706,7 +32785,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32734,7 +32813,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32762,7 +32841,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32790,7 +32869,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32818,7 +32897,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32846,7 +32925,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32874,7 +32953,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32902,7 +32981,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32930,7 +33009,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32958,7 +33037,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -32998,7 +33077,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -33026,7 +33105,7 @@
           "path": "app/server/src/routes/portal/competition-signups.ts"
         },
         {
-          "line": 68,
+          "line": 72,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -70886,7 +70965,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -70926,7 +71005,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -70966,7 +71045,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71006,7 +71085,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71046,7 +71125,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71086,7 +71165,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71126,7 +71205,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71166,7 +71245,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71218,7 +71297,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71258,7 +71337,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71328,7 +71407,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71352,11 +71431,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71376,7 +71455,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71400,11 +71479,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71424,7 +71503,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71448,11 +71527,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71472,7 +71551,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71496,11 +71575,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71520,7 +71599,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71544,11 +71623,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71568,7 +71647,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71592,11 +71671,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71616,7 +71695,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71640,11 +71719,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71664,7 +71743,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71688,11 +71767,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71712,7 +71791,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71736,11 +71815,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71760,7 +71839,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71784,11 +71863,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71832,7 +71911,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71856,11 +71935,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71880,7 +71959,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71904,11 +71983,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71928,7 +72007,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -71952,11 +72031,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -71976,7 +72055,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72000,11 +72079,11 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -72024,7 +72103,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 95,
+          "line": 93,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72048,17 +72127,73 @@
           "path": "app/console/src/lib/types.ts"
         },
         {
-          "line": 419,
+          "line": 417,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 123,
+          "line": 121,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
       "from": "flow:gitlab.accounts.sync",
       "to": "table:sessions",
       "type": "writes"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "domain:gitlab",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "document:docs/architecture/API.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "document:docs/services/server/endpoint-contracts.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "document:docs/services/server/oidc.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "document:docs/services/web/portal.md",
+      "type": "documented-by"
+    },
+    {
+      "basis": "declaration",
+      "from": "flow:gitlab.entry.open",
+      "to": "test:tests/server/gitlab-sync.test.ts",
+      "type": "test-entry"
+    },
+    {
+      "basis": "declaration",
+      "evidence": [
+        {
+          "line": 14,
+          "path": "app/server/src/routes/portal/gitlab.ts"
+        },
+        {
+          "line": 36,
+          "path": "app/server/src/routes/portal/contracts.ts"
+        },
+        {
+          "line": 14,
+          "path": "app/web/sites/portal/lib/links.ts"
+        }
+      ],
+      "from": "flow:gitlab.entry.open",
+      "to": "route:GET /api/public/gitlab",
+      "type": "uses"
     },
     {
       "basis": "declaration",
@@ -72102,7 +72237,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72130,7 +72265,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72158,7 +72293,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72186,7 +72321,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72214,7 +72349,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72242,7 +72377,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72276,7 +72411,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72304,7 +72439,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 721,
+          "line": 719,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72354,11 +72489,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -72394,11 +72529,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -72434,11 +72569,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -72492,11 +72627,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -72532,11 +72667,11 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 24,
+          "line": 29,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 41,
+          "line": 45,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
@@ -72608,15 +72743,15 @@
       "basis": "declaration",
       "evidence": [
         {
-          "line": 14,
+          "line": 19,
           "path": "app/server/src/routes/portal/gitlab.ts"
         },
         {
-          "line": 37,
+          "line": 41,
           "path": "app/server/src/routes/portal/contracts.ts"
         },
         {
-          "line": 83,
+          "line": 81,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72698,7 +72833,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72722,7 +72857,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72746,7 +72881,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72770,7 +72905,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72794,7 +72929,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72818,7 +72953,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72848,7 +72983,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72872,7 +73007,7 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 46,
+          "line": 44,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -72926,11 +73061,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -72950,11 +73085,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -72974,11 +73109,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -72998,11 +73133,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -73022,11 +73157,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -73052,11 +73187,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -73076,11 +73211,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -73100,11 +73235,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 762,
+          "line": 760,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 53,
+          "line": 51,
           "path": "app/server/src/lib/gitlab-sync.ts"
         }
       ],
@@ -73154,11 +73289,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73182,11 +73317,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73210,11 +73345,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73238,11 +73373,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73266,11 +73401,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73294,11 +73429,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73322,11 +73457,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73356,11 +73491,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -73384,11 +73519,11 @@
           "path": "app/server/src/routes/console/contracts.ts"
         },
         {
-          "line": 704,
+          "line": 702,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
-          "line": 698,
+          "line": 696,
           "path": "app/server/src/lib/gitlab-sync.ts"
         },
         {
@@ -74814,7 +74949,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -74878,7 +75013,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -74942,7 +75077,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -75006,7 +75141,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -75070,7 +75205,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -75158,7 +75293,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -75222,7 +75357,7 @@
           "path": "app/web/sites/portal/components/os/ProfileCard.tsx"
         },
         {
-          "line": 14,
+          "line": 13,
           "path": "app/web/sites/portal/lib/links.ts"
         },
         {
@@ -81998,12 +82133,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82046,12 +82177,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82094,12 +82221,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82142,12 +82265,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82190,12 +82309,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82238,12 +82353,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82286,12 +82397,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82334,12 +82441,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82394,12 +82497,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82442,12 +82541,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82490,12 +82585,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -82538,12 +82629,8 @@
           "path": "app/server/src/lib/forum-store.ts"
         },
         {
-          "line": 15,
+          "line": 14,
           "path": "app/web/sites/portal/lib/links.ts"
-        },
-        {
-          "line": 24,
-          "path": "app/web/shared/config/index.ts"
         },
         {
           "line": 65,
@@ -87880,6 +87967,12 @@
     },
     {
       "basis": "declaration",
+      "from": "route:GET /api/public/gitlab",
+      "to": "domain:gitlab",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
       "from": "route:GET /api/public/gitlab/projects",
       "to": "domain:gitlab",
       "type": "belongs-to"
@@ -88422,6 +88515,12 @@
       "basis": "declaration",
       "from": "route:HEAD /api/public/departments",
       "to": "domain:identity",
+      "type": "belongs-to"
+    },
+    {
+      "basis": "declaration",
+      "from": "route:HEAD /api/public/gitlab",
+      "to": "domain:gitlab",
       "type": "belongs-to"
     },
     {
@@ -105612,7 +105711,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 29,
         "path": "app/server/src/routes/portal/gitlab.ts"
       }
     },
@@ -108490,6 +108589,79 @@
         "responseSchema": true
       },
       "domain": "gitlab",
+      "id": "route:GET /api/public/gitlab",
+      "key": "GET /api/public/gitlab",
+      "kind": "business",
+      "method": "GET",
+      "path": "/api/public/gitlab",
+      "registration": "explicit",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "response": {
+          "302": {
+            "description": "跳转到本环境 GitLab 群组",
+            "type": "string"
+          },
+          "503": {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              "message": {
+                "maxLength": 256,
+                "minLength": 0,
+                "type": "string"
+              },
+              "request_id": {
+                "maxLength": 128,
+                "minLength": 0,
+                "type": "string"
+              }
+            },
+            "required": [
+              "error",
+              "message"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "source": {
+        "line": 14,
+        "path": "app/server/src/routes/portal/gitlab.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": true
+      },
+      "domain": "gitlab",
       "id": "route:GET /api/public/gitlab/projects",
       "key": "GET /api/public/gitlab/projects",
       "kind": "business",
@@ -108586,7 +108758,7 @@
         }
       },
       "source": {
-        "line": 14,
+        "line": 19,
         "path": "app/server/src/routes/portal/gitlab.ts"
       }
     },
@@ -114294,7 +114466,7 @@
         }
       },
       "source": {
-        "line": 24,
+        "line": 29,
         "path": "app/server/src/routes/portal/gitlab.ts"
       }
     },
@@ -115004,6 +115176,70 @@
         "responseSchema": false
       },
       "domain": "gitlab",
+      "id": "route:HEAD /api/public/gitlab",
+      "key": "HEAD /api/public/gitlab",
+      "kind": "business",
+      "method": "HEAD",
+      "path": "/api/public/gitlab",
+      "registration": "automatic-head",
+      "schema": {
+        "params": {
+          "additionalProperties": false,
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "querystring": {
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "pattern": "^[1-9][0-9]{0,3}$",
+              "type": "string"
+            },
+            "offset": {
+              "pattern": "^[0-9]{1,8}$",
+              "type": "string"
+            },
+            "page": {
+              "pattern": "^[1-9][0-9]{0,5}$",
+              "type": "string"
+            },
+            "per_page": {
+              "pattern": "^[1-9][0-9]{0,2}$",
+              "type": "string"
+            },
+            "q": {
+              "maxLength": 200,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          "required": [],
+          "type": "object"
+        }
+      },
+      "source": {
+        "line": 14,
+        "path": "app/server/src/routes/portal/gitlab.ts"
+      }
+    },
+    {
+      "application": "server",
+      "authorization": {
+        "assessment": "partial-static-evidence",
+        "capabilityGroups": [],
+        "checks": [],
+        "note": "仅列注册作用域和 handler 中可定位的检查；条件、对象归属及间接调用仍以实现和权限测试为准，不等于完整授权策略。"
+      },
+      "contractCoverage": {
+        "description": "仅报告已挂载 Schema，不代表所有请求语义或响应状态都已描述。",
+        "requestSections": [
+          "params",
+          "querystring"
+        ],
+        "responseSchema": false
+      },
+      "domain": "gitlab",
       "id": "route:HEAD /api/public/gitlab/projects",
       "key": "HEAD /api/public/gitlab/projects",
       "kind": "business",
@@ -115047,7 +115283,7 @@
         }
       },
       "source": {
-        "line": 14,
+        "line": 19,
         "path": "app/server/src/routes/portal/gitlab.ts"
       }
     },

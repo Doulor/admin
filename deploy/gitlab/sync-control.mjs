@@ -60,13 +60,14 @@ export async function verifyAccounts(db, env, sector, options = {}) {
   const config = report.configuration;
   if (!env.GITLAB_URL || !env.GITLAB_API_TOKEN) throw new Error('gitlab_configuration_missing');
   const origin = new URL(env.GITLAB_URL);
-  if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('invalid_gitlab_origin');
+  if (origin.protocol !== 'https:' || origin.username || origin.password || origin.search || origin.hash) throw new Error('invalid_gitlab_origin');
+  const base = `${origin.origin}${origin.pathname.replace(/\/+$/, '')}`;
   const accounts = accountsForVerification(db, sector, now);
   const seen = new Set();
   const failures = baseline ? compareBaseline(report, baseline) : [];
   let verified = 0;
   async function get(path) {
-    const result = await fetcher(`${origin.origin}/api/v4${path}`, { headers: { 'PRIVATE-TOKEN': env.GITLAB_API_TOKEN }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
+    const result = await fetcher(`${base}/api/v4${path}`, { headers: { 'PRIVATE-TOKEN': env.GITLAB_API_TOKEN }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
     if (result.status !== 200) throw new Error(`gitlab_http_${result.status}`);
     return result.json();
   }

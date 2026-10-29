@@ -2,7 +2,7 @@
 
 > 不同源的应用用极客班账号登录：核心服务内嵌一个 OpenID Connect 签发者，第一个下游是自建的 GitLab（`https://git.yangtzeu.work`）。同一模块按极客班账号在 GitLab 上建好用户、放进 `geek` 组，离开的封禁。
 
-状态：`current` · 更新：2026-10-28 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · 历史来源：GitLab geek/admin #270、#271（头像）、#272（邮箱）；当前回归：GitHub Yangtze-University-Geek-Class/admin #271（不同命名空间，旧声明见 `docs/history/changes/gitlab/271.json`） · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
+状态：`current` · 更新：2026-10-29 · 源码：`app/server/src/lib/oidc-store.ts`、`lib/oidc-provider.ts`、`lib/account-directory.ts`、`lib/gitlab-sync.ts`、`routes/oidc/`、`routes/console/gitlab.ts`、`cli/oidc.ts`；同意页 `app/console/src/pages/Authorize.vue` · 上级合同：[server](README.md) · 历史来源：GitLab geek/admin #270、#271（头像）、#272（邮箱）；当前回归：GitHub Yangtze-University-Geek-Class/admin #271（不同命名空间，旧声明见 `docs/history/changes/gitlab/271.json`） · 决策：[ADR-0005](../../decisions/0005-sso-extend-core-server.md) 决策 3、8
 
 ## 签发者与端点
 
@@ -48,7 +48,7 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 … oidc.js client list | client rotate --client-id gitlab | client disable --client-id gitlab | client enable --client-id gitlab
 ```
 
-回调地址只收 `https`（本机 `127.0.0.1`、`localhost` 可以用 `http`），不带锚点和账号口令，同一客户端的回调地址必须同一个主机（它就是 sector）。GitLab 的 client id 必须是 `gitlab`：账号同步按这个客户端的回调主机算 `sub`，和签发者给 GitLab 的是同一个。签发者的 cookie 用 `SESSION_SECRET` 派生的密钥签名（`oidc_session`、`oidc_interaction`、`oidc_resume`），换 `SESSION_SECRET` 会让进行中的登录失效，不影响 `sub`。
+回调地址只收 `https`（本机 `127.0.0.1`、`localhost` 可以用 `http`），不带锚点和账号口令，同一客户端的回调地址必须同一个主机（它就是 sector）。同步客户端由 `GITLAB_OIDC_CLIENT` 选择：正式保留 `gitlab`，独立预发布使用 `gitlab_preview`；标识只收3–64位小写字母、数字和下划线。同步按选定客户端的回调主机算 `sub`，不按 API 基址猜 sector。签发者的 cookie 用 `SESSION_SECRET` 派生的密钥签名（`oidc_session`、`oidc_interaction`、`oidc_resume`），换 `SESSION_SECRET` 会让进行中的登录失效，不影响 `sub`。
 
 ## 数据
 
@@ -64,9 +64,9 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 ## GitLab 账号同步
 
-`GITLAB_SYNC` 是 `off`（默认）、`dry-run`（只算出要做什么，不写表、不改 GitLab）或 `on`。不是 `off` 时要有 `GITLAB_URL`（GitLab 的 origin），`on` 时还要 `GITLAB_API_TOKEN`（GitLab 管理员的 `api` 令牌，密钥，只在目标机的 `.env`；`dry-run` 按本地记录算，不调用 GitLab，不要令牌）；`GITLAB_GROUP` 是成员进的组，默认 `geek`。`on` 时服务启动先对一次账，之后每 10 分钟一次，同一时间只跑一轮；同一个账号同一时间只同步一次，控制台的立即同步碰上定时对账时等它做完再算，是不是成员、什么角色按轮到这个账号时重读，不用这一轮开头的名单；这时已经查不到的账号（被合并进别的账号）什么都不做。服务停下时做完手上这个账号就结束这一轮。
+`GITLAB_SYNC` 是 `off`（默认）、`dry-run`（只算出要做什么，不写表、不改 GitLab）或 `on`。不是 `off` 时要有 `GITLAB_URL`（HTTP(S) 基址，可带部署子路径；去掉尾斜杠，拒绝凭据、查询与锚点），`on` 时还要本实例独立的 `GITLAB_API_TOKEN`（管理员 `api` 令牌；`dry-run` 不调用 GitLab）；`GITLAB_GROUP` 默认 `geek`。API 请求保留完整基址后追加 `/api/v4`，不跟随重定向。`on` 启动即对账，此后每10分钟一次，同账号串行并在轮到时重读资格；停机排空当前账号。
 
-- 每个是成员的极客班账号在 GitLab 上有一个用户，按 OIDC 身份认人：`provider = openid_connect`，`extern_uid` 是这个账号在 GitLab sector 的 `sub`。sector 取 client id 为 `gitlab` 的客户端的回调主机，不取 `GITLAB_URL`（它可以是内网地址）；这个客户端还没登记时 `on` 模式整轮跳过，记一条错误日志 `gitlab sync skipped`，控制台的 `client_registered` 为 `false`，立即同步回 `gitlab_client_missing`。先按身份找，找到就沿用（上次建到一半，或 GitLab 已经因为登录自动建了），找不到才建。
+- 每个有效成员在本环境的 GitLab 上有一个用户，按 `openid_connect` / 原 `sub` 认人；sector 取 `GITLAB_OIDC_CLIENT` 对应回调的主机，不取 API 基址。客户端未登记时整轮跳过并报 `gitlab_client_missing`。先精确找身份、找到沿用、没有才建号；新实例不得沿用另一个实例的数字用户 ID。
 - 用户名在第一次建号时定下，之后不改：有 GitHub 的用 GitHub 登录名，没有的用站内登录名；GitLab 的保留名、和组同名、或已被别人占用时依次加 `_yz`、`_yz2`。邮箱用验证过的 `canonical_email`，没有或在 GitLab 上被占用时用 `<用户名>@noreply.<sector>`（正式是 `@noreply.git.yangtzeu.work`）。建号带 `skip_confirmation` 与随机密码，成员不用密码登录。
 - 资料在建号时补一次：统一账号资料优先（昵称、简介），不是读旧 `forum_users` 作为另一事实源。`gitlab-sync.profileFor()` 在有 GitHub 身份且本地简介为空时匿名读 GitHub 公开资料作既有兜底；所在地/网站不在统一 DTO 内，仍仅来自该次公开资料。网站不是合规 http(s) 网址就不传，读取失败不阻止建号。本次不增加对已建 GitLab 用户昵称/简介的持续回写，也不按新 username 重建用户。
 - 头像（#271）单独一步（还要做的事是 `set_avatar`）：有统一账号上传的头像用它（WebP；旧论坛写口已兼容写入），没有时用 GitHub 头像，向 GitHub 要 256 像素的（`?s=256`，没记下头像地址的按 GitHub 数字 id 取），匿名下载。GitLab 收下（200）后在 `avatar_source` 记下来源（统一账号头像沿用兼容标记 `forum:` 加散列，GitHub 头像是地址）；来源变了（例如在论坛上换了头像）再传，没变不再传。还没记过来源的会传一次：以前版本建好的号这样补上头像；GitLab 在登录时自动建、被同步接管的号也一样，成员在这之前自己在 GitLab 换的头像会被盖掉一次，之后只有论坛或 GitHub 那边的来源变了才会再盖。拿不到能传的图或 GitLab 没收都算失败，写进 `last_error`、下一轮再试，直到传上去或来源变了：GitHub 连不上（`github_avatar_unreachable`）或不是 200（`github_avatar_<状态码>`）、回的不是 PNG、JPEG、GIF、WebP（`github_avatar_not_image`）、超过 GitLab 的 200 KiB 上限（`avatar_too_large`）、论坛里已经没有这张图（`forum_avatar_missing`）、GitLab 不是 200（`gitlab_avatar_<状态码>`）。一直传不上去的，控制台成员页能看到原因，成员在论坛上换个头像就会按新的来源重传。
@@ -87,13 +87,13 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 HTTP 失败、超时、429/5xx、详情不完整、身份失配与缺失 sub 均保留远端状态，记录 `gitlab_lookup_<状态码>`、`gitlab_unreachable`、`gitlab_user_incomplete`、`gitlab_identity_mismatch`、`gitlab_subject_missing`、`gitlab_user_protected`、`gitlab_lookup_incomplete`、`gitlab_identity_ambiguous` 或 `gitlab_pagination_incomplete`，恢复后重新核验。未管理账号不写入；完整证明失去资格的受管账号仍封禁，远端被手工解封后下一轮重新撤权，不能以“全部跳过”替代撤权。
 
-每个远端写请求前重读本地 status/member/site_role；等待 HTTP 期间资格变化则在既有账号锁内最多重算两次，持续变化记 `gitlab_account_changed` 留待下轮。已发出的 block 不能撤回，本轮发现恢复后补偿 unblock；这不是分布式原子事务，进程中断或连续网络故障时仍需下轮收敛。锁只覆盖单实例的定时/手动循环，不协调两个环境；两个环境同时 on 仍须按下节先停旧权威，不能靠锁掩盖配置冲突。
+每个远端写请求前重读本地 status/member/site_role；等待 HTTP 期间资格变化则在既有账号锁内最多重算两次，持续变化记 `gitlab_account_changed` 留待下轮。已发出的 block 不能撤回，本轮发现恢复后补偿 unblock；这不是分布式原子事务。锁只覆盖单实例；每个 GitLab 只能由对应环境写。双环境都 on 的前提是 API 目标、令牌、客户端和绑定已分别隔离，不能让两份名单共写同一实例。
 
 下游贡献归属 `accountForGitlabUser()` 改为异步核验绑定后返回账号；未知 HTTP 向收集器报告错误，不把缓存 id 当成作者/审核人。详见接口行为契约的贡献收集段落。
 
 ## GitLab 一侧的配置
 
-GitLab 只有一台，正式接管必须保全原 GitLab sector 的 sub 和用户 ID。先通过受保护的 `gitlab-cutover` 排空并重启旧预发布，使持久配置和运行 env 均 off；再按稳定 provider+provider_uid 把已有 sub 对到正式账号，只新增、不覆盖，任何 unmatched 或无不可变身份都阻断整批。确认旧成员在正式的资格不丢失后，开启正式唯一写者并逐成员核对唯一 OIDC 绑定、原 GitLab ID 与组权限；最后才切 GitLab issuer/client secret，使新的登录从一开始就受正式同步撤权保护。不能复制预发布业务用户或按邮箱/昵称合号，不能只改 app_state 就把旧进程视作已停。签发者片段读 `/etc/gitlab/yzgc-oidc-issuer`，secret 读独立 0600 文件；具体步骤和回滚见 [GitLab 运维合同](../../ops/GITLAB.md#极客班统一登录oidc契约)。
+现有 `git.yangtzeu.work` 保留为正式实例；独立预发布位于已有预发布域名的 `/gitlab`。正式接管仍须完整保全旧 sector/sub、用户 ID 与成员资格：先排空旧预发布写者，再按稳定 provider+provider_uid 对账迁移，缺身份或冲突整批拒绝；开启正式同步并逐人核验后才切正式 issuer。独立预发布需要自己的客户端、回调、API令牌和新绑定，不能仅替换 URL 后复用旧 `gitlab_accounts`。旧预发布客户端与旧 sector 记录在正式改接完成前保留，不能为启动新实例先破坏现有登录链。初始化与运行验收是两件事，完整运维边界见 [GitLab 运维合同](../../ops/GITLAB.md#极客班统一登录oidc契约)。
 
 ```ruby
 gitlab_rails['omniauth_enabled'] = true

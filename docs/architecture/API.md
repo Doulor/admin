@@ -292,6 +292,8 @@ CONTRACT-276 在上面这套 #57/#156/#274 的基础上加了六件事：话题�
 
 ## 门户代码仓库
 
+`GET /api/public/gitlab` 是门户的跨环境入口：匿名302到本环境GitLab群组，保留基址子路径且不缓存；无基址503，未知查询字段400。目的地只由服务端配置决定，不接受客户端指定跳转地址。
+
 公开 `GET /api/public/gitlab/projects` 始终只给 public 项目；成员 `GET /api/me/gitlab/projects` 要有效会话和同 OIDC 口径的有效直接 member/alumni，不要求控制台管理节点。返回相同的最小项目 DTO，成员接口不开放账号或同步管理信息；游客401、无资格403，网络等待后再次核验资格。上游不可用与真实空列表分开，响应不缓存。完整响应和验证见[成员项目契约](../services/server/endpoint-contracts.md#门户代码仓库列表)。
 
 ## 错误

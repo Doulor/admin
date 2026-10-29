@@ -10665,11 +10665,7 @@
         },
         {
           "path": "app/web/sites/portal/lib/links.ts",
-          "needle": "gitlab: (): string => appConfig.urls.gitlab"
-        },
-        {
-          "path": "app/web/shared/config/index.ts",
-          "needle": "gitlab: string"
+          "needle": "gitlab: (): string => \"/api/public/gitlab\""
         },
         {
           "path": "app/web/sites/portal/components/os/Widgets.tsx",
@@ -11274,6 +11270,26 @@
         "docs/architecture/API.md",
         "docs/services/console/README.md"
       ]
+    },
+    {
+      "id": "gitlab.entry.open",
+      "title": "门户进入本环境的 GitLab 群组",
+      "domain": "gitlab",
+      "relatedDomains": ["platform"],
+      "assessment": "declared-with-source-evidence",
+      "operation": "GET /api/public/gitlab",
+      "capabilities": [], "reads": [], "writes": [], "doesNotEnqueue": [],
+      "invariants": [
+        "只按本环境 GITLAB_URL 与有效群组设置生成 302 Location，保留部署子路径；查询参数不能改变目的地。",
+        "无基址返回 503；不发送管理员令牌、不读私有项目、不缓存重定向。"
+      ],
+      "evidence": [
+        {"path": "app/server/src/routes/portal/gitlab.ts", "needle": "app.get(\"/api/public/gitlab\","},
+        {"path": "app/server/src/routes/portal/contracts.ts", "needle": "\"GET /api/public/gitlab\":"},
+        {"path": "app/web/sites/portal/lib/links.ts", "needle": "gitlab: (): string => \"/api/public/gitlab\""}
+      ],
+      "tests": ["tests/server/gitlab-sync.test.ts"],
+      "docs": ["docs/services/server/oidc.md", "docs/services/server/endpoint-contracts.md", "docs/architecture/API.md", "docs/services/web/portal.md"]
     },
     {
       "id": "gitlab.projects.public.list",

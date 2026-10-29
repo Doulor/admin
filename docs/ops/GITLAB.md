@@ -82,6 +82,27 @@ Compose 固定 `gitlab/gitlab-ce@sha256:bb79dc86267c557fd11e7feb0cd9dd506dd02e99
 
 恢复必须使用备份产生时**同版本、同 CE 版本类型**的镜像；不能把当前 Compose 的摘要、`latest` 或可启动当作兼容证明。镜像升级与 GitLab 运行变更另行审批，不随应用平台迁移顺带执行。
 
+## 独立预发布实例（#308）
+
+所有者于2026-10-29明确接受已有预发布域名 `/gitlab/` 的 Beta 部署风险；现有 `git.yangtzeu.work`、`gitlab` 容器、`/srv/gitlab` 和全部旧账号/仓库保留为正式。官方依据：[Linux package relative URL](https://docs.gitlab.com/omnibus/settings/configuration/#configure-a-relative-url-for-gitlab)。不新增子域名、不改DNS、不升级镜像，不复制正式业务数据。
+
+| 项目 | 正式 | 独立预发布 |
+|---|---|---|
+| 入口 | `https://git.yangtzeu.work` | `https://prev.yangtzeu.work/gitlab` |
+| 容器/数据根 | `gitlab` / `/srv/gitlab`，保持现有 | `gitlab-preview` / `/srv/gitlab-preview` |
+| 隧道绑定/子网 | `10.66.0.2:8929` / `172.31.29.0/24` | `10.66.0.2:8930` / `172.31.30.0/24` |
+| OIDC 客户端/sector | `gitlab` / `git.yangtzeu.work` | `gitlab_preview` / `prev.yangtzeu.work` |
+| 备份角色/桶 | `gitlab-backup` / `geek-backup` | `gitlab-preview-backup` / `geek-preview-private` |
+
+- 编排来源为 `preview-compose.yml`，仅从 canonical preview 模板渲染已校验的非密字段；`preview.py plan|apply|verify --env-file <明确路径>` 不读取正式数据。真正安装还要 `apply --apply`。同镜像摘要、6GiB/3CPU限额、全新目录与网络；未知已有目录、符号链接、实例挂载或配置漂移拒绝。只用本机已存在镜像，不构建、不拉取。启动失败只停止本轮新实例，保留数据；健康后关闭注册，初始化不打开SSO。
+- 受保护 `gitlab-cutover` 增加 `preview-status`、`install-preview`、`verify-preview`；安装成功后经 `install-host.sh --target gitlab-preview` 安装备份/恢复脚本、归档器与独立 systemd 单元。单元只编排Docker，不运行宿主业务进程。备份凭据未配时不启用定时器，不能称备份已完成。
+- 香港入口使用 `edge-gitlab.py` 固定动作接收器，`edge-status`、`edge-apply`、`edge-verify`、`edge-rollback` 均经同一 production 审批。仅改预发布站点块：精确匹配 `/gitlab` 与 `/gitlab/*`，不剥前缀，上传上限2GiB，保留GitLab自身CSP、WebSocket和既有真实IP处理；正式块与相邻路径保持原样。备份、候选validate、全配置validate、原子替换、reload及失败恢复均保留；配置漂移拒绝重放与回滚。
+- 首次通道安装由所有者明确批准的管理员步骤执行 `install-host.sh apply --target edge --source <物料目录> --edge-env-file <canonical preview模板> --edge-public-key-stdin`；只接一把专用公钥，`restrict` 加固定command，旧授权行逐字保全，不静默轮换。私钥只存 `production` 环境的 `GITLAB_EDGE_SSH_KEY`。后续受限密钥不能上传代码、改目标或执行shell。
+- 2026-10-29已实测：专用SSH `plan` 成功，`id` 被拒；临时私钥已删除，Caddy未reload。真实Caddy `adapt --validate` 对候选配置通过且正式块逐字未变；这不等于新GitLab已部署或SSO已验收。
+- `backup.sh --environment preview` 与 `restore-drill.sh --environment preview --run <日期/run>` 只使用预发布目录、容器、锁和 `GITLAB_PREVIEW_BACKUP_S3_*`，凭据文件为 `/etc/gitlab-preview-backup/env`。默认production行为保持；两个桶中的相同 `gitlab/<日期>/<run>/` 前缀互不相见，预发布prune不读取或删除正式备份。恢复仍要求明确run、完整摘要、固定同版本CE和断网演练容器。预发布备份05:30，正式03:30，均为北京时间。
+- **切换前置仍未完成**：旧主体完整认领、旧写者排空、正式issuer改接、新预发布API令牌/客户端/绑定与应用版本交付，必须完成后才能启用新实例SSO。不能把新URL配给旧管理员令牌，也不能把旧 `gitlab_accounts` 数字ID当新实例ID。两个缺失正式身份的补建选择工具超时不构成人工授权；不因此补建账号或授予资格。
+
+
 ## 极客班统一登录（OIDC）契约
 
 身份实现及服务验收以 [Server OIDC 合同](../services/server/oidc.md)、[安全模型](../architecture/SECURITY.md#对外授权与-gitlab-账号同步270) 为准；导入的 [gitlab-oidc.rb](../../deploy/gitlab/gitlab-oidc.rb) 仅保存 GitLab 侧片段：client id `gitlab`、`uid_field: sub`、PKCE、回调 `https://git.yangtzeu.work/users/auth/openid_connect/callback`。签发者和 secret 都不写在片段里（#309）：`File.read('/etc/gitlab/yzgc-oidc-issuer')` 读一行 `<PUBLIC_ORIGIN>/oidc`，`File.read('/etc/gitlab/yzgc-oidc-secret')` 读 secret，两者都在宿主配置挂载内（Arch `/srv/gitlab/config/`）。GitLab 信任哪个环境，就在 `yzgc-oidc-issuer` 里写哪个环境的 `PUBLIC_ORIGIN`（`deploy/env/.env.production|.env.preview`）；仓库里不存在任何环境的签发者域名，`scripts/check-env-isolation.mjs` 在 `pnpm check` 里核对这一点。

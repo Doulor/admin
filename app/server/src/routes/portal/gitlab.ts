@@ -11,6 +11,11 @@ const MEMBER_PROJECTS_CACHE_KEY = "gitlab:member-projects";
  */
 export default async function portalGitlabRoutes(app: FastifyInstance) {
   const { gitlab, cache } = app.services;
+  app.get("/api/public/gitlab", async (_req, reply) => {
+    if (!gitlab.url) return reply.code(503).send({ error: "gitlab_unavailable", message: "代码仓库暂不可用" });
+    return reply.header("Cache-Control", "no-store").redirect(`${gitlab.url}/${encodeURIComponent(gitlab.group)}`);
+  });
+
   app.get("/api/public/gitlab/projects", async () => {
     const { projects, available } = await cache.cached(PUBLIC_PROJECTS_CACHE_KEY, PUBLIC_PROJECTS_CACHE_TTL_MS, () => gitlab.listProjects());
     if (!available) return { projects: [], unavailable: true };

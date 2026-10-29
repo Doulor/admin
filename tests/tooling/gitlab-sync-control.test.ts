@@ -83,6 +83,24 @@ describe('逐成员 GitLab 验收', () => {
     expect(JSON.stringify(result)).not.toMatch(/private-fixture-sub|fixture-token/);
   });
 
+  it('verifies a subpath instance without sending its administrator token to the origin root', async () => {
+    const db = fixture();
+    const gitlab = remote();
+    const paths: string[] = [];
+    const result = await verifyAccounts(db, { ...ENV, GITLAB_URL: `${ENV.GITLAB_URL}/gitlab/` }, SECTOR, {
+      now: NOW,
+      fetcher: async (input, init) => {
+        const url = new URL(input);
+        paths.push(url.pathname);
+        if (!url.pathname.startsWith('/gitlab/api/v4/')) return new Response(null, { status: 404 });
+        return gitlab.fetcher(`${url.origin}${url.pathname.slice('/gitlab'.length)}`, init);
+      },
+    });
+    expect(result.verified_members).toBe(1);
+    expect(result.failures).toEqual([]);
+    expect(paths).toEqual(['/gitlab/api/v4/users/42', '/gitlab/api/v4/groups/geek/members/all/42']);
+  });
+
   it.each([
     { user: { identities: [] }, reason: 'oidc_binding_mismatch' },
     { user: { identities: [{ provider: 'openid_connect', extern_uid: 'other' }, { provider: 'openid_connect', extern_uid: 'private-fixture-sub' }] }, reason: 'oidc_binding_mismatch' },

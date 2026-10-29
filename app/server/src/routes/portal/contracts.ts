@@ -33,6 +33,10 @@ export const portalContracts: RouteContracts = {
       titles: { type: "array", items: object({ id: text(64, 1), name: text(64, 1), weight: { type: "integer" } }, ["id", "name", "weight"]) },
     }, ["id", "name", "tone", "icon", "description", "titles"]) },
   }, ["departments"]) } },
+  "GET /api/public/gitlab": { querystring: object({}), response: {
+    302: { type: "string", description: "跳转到本环境 GitLab 群组" },
+    503: object({ error: text(64, 1), message: text(256), request_id: text(128) }, ["error", "message"]),
+  } },
   // 公开的代码仓库列表（#274）：只给 visibility=public 的项目；GitLab 没配或连不上时 projects 为空、unavailable 为 true
   "GET /api/public/gitlab/projects": {
     querystring: object({}),

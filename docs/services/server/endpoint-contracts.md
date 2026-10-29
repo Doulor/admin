@@ -194,6 +194,7 @@
 
 ## 门户代码仓库列表
 
+- `GET /api/public/gitlab` · `flow:gitlab.entry.open`：匿名入口，302 到本环境 `GITLAB_URL/<群组>`，保留 `/gitlab` 部署子路径，`Cache-Control: no-store`。未配置基址503 `gitlab_unavailable`；不接受目的地参数，未知查询字段400；不读取项目、不发送管理员令牌。
 - `GET /api/public/gitlab/projects` · `flow:gitlab.projects.public.list`：匿名只读 public 项目，即使带成员 cookie 也不混入私有项目。
 - `GET /api/me/gitlab/projects` · `flow:gitlab.projects.member.list`：有效 sid 且 active、当前有效直接 member/alumni；无需控制台 `gitlab.view`。游客/停用或失效会话 401，注册用户、过期资格或等待 GitLab 时被撤销资格 403 `not_member`。缓存命中也重查资格，不能用上次授权复用私有列表。
 - 200 为 `{projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}],unavailable?:true}`，不返回管理员令牌或账号映射。上游项目 HTTP/网络失败为 `{projects:[],unavailable:true}`，与真实空项目分开。沿用 API `Cache-Control: no-store`；只共享服务端短时项目缓存，不在公网缓存。验证入口：`tests/server/gitlab-sync.test.ts`、`tests/web/portal-code-repos.test.tsx`。
@@ -214,7 +215,7 @@ GitHub #271 回归后的成员口径：active 账号的当前有效直接 level.
 | `GET /oidc/interaction/:uid/details` · `flow:identity.oidc.details` | 有效会话，且就是发起这次登录的账号；每分钟 30 次 | 200 `{client:{id,name,host},scopes,account:{login,name,picture},expires_at}`；没会话 401，账号还没有登录邮箱 403 `email_required`（#273），还没填真实姓名或年级 403 `profile_required`（#280），交互过期或客户端已停用 404 `interaction_expired`，不是要同意的交互或换了账号 409 `interaction_mismatch`。只读。 |
 | `POST /oidc/interaction/:uid/confirm` · `flow:identity.oidc.confirm` | 同上；每分钟 20 次 | 200 `{redirect_to}`（浏览器去这里，由签发者 303 回下游带 `code`）；错误同 details，含 403 `email_required`、`profile_required`。保存授权（`oidc_payloads`），记进 `oauth_grants`，写审计 `oidc.consent`。 |
 | `POST /oidc/interaction/:uid/abort` · `flow:identity.oidc.abort` | 同上；每分钟 20 次 | 200 `{redirect_to}`，下游收到 `error=access_denied`；错误同 details，但没有登录邮箱也能拒绝。把拒绝结果存进交互（`oidc_payloads`），写审计 `oidc.deny`。 |
-| `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `gitlab.view` | 200 `{mode,gitlab_url,group,client_registered,accounts:[…]}`（`client_registered`：`gitlab` 客户端登记了没有），每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
+| `GET /api/console/gitlab/accounts` · `flow:gitlab.accounts.list` | `gitlab.view` | 200 `{mode,gitlab_url,group,client_registered,accounts:[…]}`（`client_registered`：本环境 `GITLAB_OIDC_CLIENT` 对应客户端是否登记），每行是一个极客班账号的 GitLab 用户 id、用户名、状态、组权限、最后一次错误和还要做的事（`dry-run` 时就是会做什么）；`off` 时照样列出。只读。 |
 | `POST /api/console/gitlab/accounts/:account_id/resync` · `flow:gitlab.accounts.sync` | `gitlab.sync` 加 step-up；每分钟 30 次 | 200 `{mode,…这个账号同步后的状态}`；同步关着 409 `gitlab_sync_off`，没有这个账号 404 `account_not_found`。`on` 时调用 GitLab 管理接口建号、改组权限、封禁或解封、传头像（下载 GitHub 头像，#271）、同步邮箱（#272），写 `gitlab_accounts` 与审计 `gitlab.sync`，账号还没有 GitLab sector 的 `sub` 时写 `oauth_subjects`；`dry-run` 不写表、不调 GitLab。 |
 
 本地表：签发者读 `oauth_clients`，读写 `oauth_subjects`、`oauth_grants`、`oidc_payloads`，读 `users`、`identities`、`perm_members`、`account_profiles` 拼声明，同意与拒绝写 `activity_events`；同步读 `users`、`identities`、`perm_members`、`account_profiles`、`account_avatars`，读写 `oauth_subjects`、`gitlab_accounts`，写 `activity_events`。各流程的完整读写见[项目目录](../../architecture/catalog/CATALOG.md#业务流程)。

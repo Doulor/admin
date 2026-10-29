@@ -16,8 +16,6 @@ import type { DirectoryAccount } from "./account-directory.js";
  * 只有这个模块读写 gitlab_accounts；`mode` 为 dry-run 时只算出要做什么，不写表、不改 GitLab。
  */
 export const GITLAB_OIDC_PROVIDER = "openid_connect";
-/** GitLab 在签发者那里登记的 client id（oidc.js client add --client-id gitlab）。sector 取它的回调地址的主机，和签发者给 GitLab 的 `sub` 是同一个。 */
-export const GITLAB_OIDC_CLIENT_ID = "gitlab";
 /** GitLab 组成员的权限级别：Developer 30，Owner 50。 */
 export const GITLAB_ACCESS = { developer: 30, owner: 50 } as const;
 /** on 模式下每 10 分钟对一次账（启动时先对一次）。 */
@@ -40,7 +38,7 @@ const RESERVED_USERNAMES = new Set([
   "explore", "groups", "users", "dashboard", "projects", "snippets", "search", "import", "oauth", "public", "profile", "assets", "uploads",
 ]);
 
-export type GitlabSyncConfig = { mode: "off" | "dry-run" | "on"; url: string | null; token: string | null; group: string };
+export type GitlabSyncConfig = { mode: "off" | "dry-run" | "on"; url: string | null; token: string | null; group: string; clientId: string };
 export type GitlabSyncSettings = { mode: GitlabSyncConfig["mode"]; group: string; interval_minutes: number };
 
 export function readGitlabSyncSettings(db: Database.Database): Partial<GitlabSyncSettings> | null {
@@ -112,7 +110,7 @@ export function createGitlabSync(db: Database.Database, deps: {
   const fetchGitlab = deps.fetch ?? fetch;
   const fetchGithub = deps.githubFetch ?? fetch;
   // sector 不取 GITLAB_URL 的主机，免得它和签发者给 GitLab 的 sub 对不上；客户端还没登记时为 null，这时 on 模式整轮跳过
-  const sector = () => deps.clients.sectorOf(GITLAB_OIDC_CLIENT_ID);
+  const sector = () => deps.clients.sectorOf(config.clientId);
   const selectRow = db.prepare("SELECT * FROM gitlab_accounts WHERE account_id = ?");
   const usernameTaken = db.prepare("SELECT 1 FROM gitlab_accounts WHERE username = ? COLLATE NOCASE AND account_id <> ?");
 
@@ -676,7 +674,7 @@ export function createGitlabSync(db: Database.Database, deps: {
     stopping = false;
     const run = () => {
       reconcile().then(summary => {
-        if (summary.skipped) logger.error({ reason: summary.skipped, client_id: GITLAB_OIDC_CLIENT_ID }, "gitlab sync skipped");
+        if (summary.skipped) logger.error({ reason: summary.skipped, client_id: config.clientId }, "gitlab sync skipped");
         else if (summary.changed || summary.failed) logger.info({ changed: summary.changed, failed: summary.failed }, "gitlab sync finished");
       }).catch(error => logger.error({ error: (error as Error)?.name ?? "error" }, "gitlab sync failed"));
     };
