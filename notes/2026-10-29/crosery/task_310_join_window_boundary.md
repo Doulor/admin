@@ -19,3 +19,9 @@
 - 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
 - 做了什么：文档核对：docs/ops/DEPLOY.md 不用改——只登记热修复窗口 #310（deploy/hotfix/windows.json），部署流程、回滚与烟测步骤未变；头部更新日期跟到 2026-10-29 文档核对：docs/ops/ENVIRONMENTS.md 不用改——没有新增、删除或修改 env 键与值；头部更新日期跟到 2026-10-29 文档核对：docs/ops/CICD.md 不用改——.github/workflows 未改，窗口登记不改变工作流；头部日期已是 2026-10-29
 - 结果：只改文档头部日期与执行记录，无内容改动；deploy-hotfix 计划在 c9a12bf 上因 deploy/ 文档未跟上失败（run 40826173116）
+
+## 14:01:11 +08:00 · 返工 · #310 · hotfix-core 环境隔离门禁：窗口原话含正式域名
+
+- 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
+- 做了什么：deploy-hotfix run 40826458165 的 hotfix-core 失败：check-env-isolation 把 deploy/hotfix/windows.json 的所有者原话（含正式站域名）判为写死；原话不改写，在 deploy/env/origin-exceptions.json 登记 max 1 并写理由
+- 结果：node scripts/check-env-isolation.mjs 通过（见上行输出）；待 MR 合入 main 后复跑 deploy-hotfix
