@@ -176,6 +176,17 @@ export default async function oidcRoutes(app: FastifyInstance) {
         },
       },
       handler(req, reply) {
+        /**
+         * PENTEST-20261029 finding 25：oidc-provider 的 per-client Origin 校验排在客户端认证之前，
+         * 已知 client_id 回 400「origin ... not allowed for client」、未知的回 401 invalid_client，
+         * 未认证的人拿它当 client_id 枚举 oracle。带 Origin 的浏览器请求统一挡回同一句 401；
+         * 下游服务器换令牌/读 userinfo 不带 Origin，不受影响。
+         */
+        // 这里不看 Origin 是不是本站：换令牌是下游服务器的事，带 Origin 的一定是浏览器，浏览器本来就用不了这两个端点。
+        if (typeof req.headers.origin === "string" && SERVER_ENDPOINT.test(req.url)) {
+          return reply.code(401).header("Cache-Control", "no-store")
+            .send({ error: "invalid_client", error_description: "client authentication failed" });
+        }
         loadSession(req);
         const raw = prepared(req) as IncomingMessage & { originalUrl?: string };
         raw.originalUrl = req.url;

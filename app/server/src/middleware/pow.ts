@@ -1,7 +1,17 @@
 import { createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-export function createPublicSubmission(REQUIRED_PREFIX_ZEROS: number) {
+/**
+ * `consumeNonce`（PENTEST-20261029 finding 8）：同一份 PoW 只认一次。原来只校验前导零、不消费 nonce，
+ * 一段 4096 次哈希算出来的证明能被无限重放（改 category/contact 也照样通过），防刷退化成只剩 IP 限速。
+ * 由 services.ts 接到 limits 的 `pow.nonce` 桶上，窗口和时钟偏差上限一样长。
+ */
+export type PublicSubmissionDeps = { consumeNonce?: (digest: string) => boolean };
+
+/** PoW 证明的有效窗口：时间戳允许的正负时钟偏差，也是 nonce 的去重窗口。 */
+export const POW_WINDOW_MS = 5 * 60 * 1000;
+
+export function createPublicSubmission(REQUIRED_PREFIX_ZEROS: number, deps: PublicSubmissionDeps = {}) {
 // Proof-of-Work: client must find a nonce such that
 //   sha256(`${timestamp}:${bodyHash}:${nonce}`) starts with N hex zeros.
 // Default N=3 → 16^3 = 4096 expected hashes. With @noble/hashes/sha256 sync
@@ -11,12 +21,12 @@ export function createPublicSubmission(REQUIRED_PREFIX_ZEROS: number) {
 // what actually stop bots). 历史: 5 → 卡几十秒, 4 → 部分低端机仍慢, 3 → 顺滑.
 
 
-const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = POW_WINDOW_MS;
 
 function checkPow(
   bodyForHash: string,
   pow: { timestamp: number; nonce: string } | undefined
-): { ok: true } | { ok: false; reason: string } {
+): { ok: true; digest: string } | { ok: false; reason: string } {
   if (!pow) return { ok: false, reason: "missing pow proof" };
   const { timestamp, nonce } = pow;
   if (!Number.isFinite(timestamp)) return { ok: false, reason: "bad pow timestamp" };
@@ -29,7 +39,7 @@ function checkPow(
   if (!h.startsWith("0".repeat(REQUIRED_PREFIX_ZEROS))) {
     return { ok: false, reason: "pow proof invalid" };
   }
-  return { ok: true };
+  return { ok: true, digest: h };
 }
 
 function powDifficulty(): number {
@@ -55,6 +65,10 @@ async function preflightPublicSubmission(
   const pow = body?.pow as { timestamp: number; nonce: string } | undefined;
   const r = checkPow(bodyForHash, pow);
   if (!r.ok) {
+    return reply.code(400).send({ error: "防滥用校验失败，请刷新页面重试" }), false;
+  }
+  // 摘要进一次性桶：同一份证明第二次提交（原样或改分类/联系方式）一律当作校验失败
+  if (deps.consumeNonce && !deps.consumeNonce(r.digest)) {
     return reply.code(400).send({ error: "防滥用校验失败，请刷新页面重试" }), false;
   }
   return true;
