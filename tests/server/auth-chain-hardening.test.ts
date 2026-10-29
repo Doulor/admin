@@ -47,6 +47,15 @@ describe('站内用户名不能冒用官方账号（finding 9/11）', () => {
     expect([taken.statusCode, taken.json().error]).toEqual([409, 'display_name_taken']);
   });
 
+  it('登录名和官方用户名只差连字符/下划线时也不能用（nameKey 归一后撞名）', async () => {
+    const { app } = await setup();
+    seedOfficial(app, 'site_official', '站点官方');
+    // GitHub 登录名允许 -，nameKey 会把它去掉，和官方用户名 site_official 撞成同一个
+    const cookie = `sid=${signIn(app, 'site-official', 304)}`;
+    const res = await app.inject({ method: 'PATCH', url: '/api/identity/profile', headers: { cookie }, payload: { display_name: 'site_official' } });
+    expect([res.statusCode, res.json().error]).toEqual([409, 'display_name_taken']);
+  });
+
   it('改回自己原来的名字不算占用', async () => {
     const { app } = await setup();
     const cookie = `sid=${signIn(app, 'selfkeep', 303)}`;

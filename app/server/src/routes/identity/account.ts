@@ -133,7 +133,10 @@ export default async function accountRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: "invalid_credentials", message: "当前密码不对" });
       }
     }
-    identity.setPassword(session.account_id, await hashPassword(req.body.password), { login: session.login, ip: req.ip });
+    // 先算哈希（几百毫秒），算完再确认这次会话还在：期间被登出/被吊销的请求不该继续写密码（CodeRabbit 复审）
+    const nextHash = await hashPassword(req.body.password);
+    if (!app.services.auth.getSession(session.id)) return reply.code(401).send({ error: "not_signed_in", message: "请先登录" });
+    identity.setPassword(session.account_id, nextHash, { login: session.login, ip: req.ip });
     // 改密码后其它会话作废，只留当前这次（PENTEST-20261029 finding 14）；不这么做，盗号者手里的 sid 还能继续用
     app.services.auth.revokeAccountSessions(session.account_id, session.id);
     app.services.activity.recordActivity(req, { action: hadPassword ? "auth.password_change" : "auth.password_set", surface: "portal", outcome: "ok" });

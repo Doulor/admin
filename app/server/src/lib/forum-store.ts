@@ -691,8 +691,10 @@ export function createForumStore(db: Database.Database, content: ForumContent, o
      * 允许自己的登录名：新成员默认用户名就是它。
      */
     identityNameTaken(name: string, self: { accountId: string; login: string }): boolean {
+      // 不能像 displayNameTaken 那样先按登录名直接放行（CodeRabbit 复审）：登录名 `geek-class` 与官方用户名
+      // `geekclass` 在 nameKey 下相同，先返回就等于给了一种绕过。这里只豁免「属于自己的记录」，
+      // 自己的登录名仍然在 orgLogins 里按账号跳过，不会挡住新成员默认昵称。
       const ownLogin = self.login.toLowerCase();
-      if (name.toLowerCase() === ownLogin) return false;
       const key = nameKey(name);
       for (const candidate of userCandidates()) {
         if (candidate.row.account_id === self.accountId || candidate.row.kind === "guest") continue;

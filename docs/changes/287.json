@@ -72,7 +72,7 @@
     },
     "verification": {
       "status": "changed",
-      "reason": "新增 5 条回归用例覆盖冒名、昵称撞官方名、改回原名、重复 state；signin-methods 增 1 条覆盖重置密码后旧会话失效、新会话可用。未验证真实浏览器双设备流程。",
+      "reason": "新增 6 条回归：冒名、昵称撞官方名、登录名与官方名只差 -/_ 的归一撞名、改回原名、重复 state 400，另加 signin-methods 的「重置密码后旧会话失效」。未验证真实浏览器双设备流程。",
       "evidence": [
         "tests/server/auth-chain-hardening.test.ts",
         "tests/server/signin-methods.test.ts"
