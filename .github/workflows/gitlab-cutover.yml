@@ -15,6 +15,10 @@ on:
         type: choice
         options:
           - status
+          - sync-status
+          - stop-preview-sync
+          - enable-production-sync
+          - verify-accounts
           - register-client
           - migrate-subjects
           - switch-issuer
@@ -117,9 +121,12 @@ jobs:
           cfg="$RUNNER_TEMP/ssh/config"
           production_origin="$(sed -n 's/^PUBLIC_ORIGIN=//p' deploy/env/.env.production)"
           preview_origin="$(sed -n 's/^PUBLIC_ORIGIN=//p' deploy/env/.env.preview)"
-          work_dir=/opt/yzgc/cutover-incoming
-          ssh -F "$cfg" yzgc-target "rm -rf $work_dir && install -d -m 700 $work_dir"
-          tar -C deploy/gitlab -cf - cutover.sh migrate-oidc-subjects.mjs | ssh -F "$cfg" yzgc-target "tar -C $work_dir -xf -"
+          production_root="$(sed -n 's/^STACK_ROOT=//p' deploy/env/.env.production)"
+          preview_root="$(sed -n 's/^STACK_ROOT=//p' deploy/env/.env.preview)"
+          work_dir="/opt/yzgc/cutover-incoming-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          # 这里只分发无密钥源码；server 镜像以 UID 1000 只读挂载 /ops，必须可遍历此目录。
+          ssh -F "$cfg" yzgc-target "rm -rf $work_dir && install -d -m 755 $work_dir"
+          tar -cf - deploy/gitlab/cutover.sh deploy/gitlab/migrate-oidc-subjects.mjs deploy/gitlab/sync-control.mjs app/server/src/lib/gitlab-sync.ts | ssh -F "$cfg" yzgc-target "tar -C $work_dir -xf -"
           flag=""
           if [ "$APPLY" = "true" ]; then flag="--apply"; fi
           {
@@ -128,7 +135,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           status=0
-          ssh -F "$cfg" yzgc-target "bash $work_dir/cutover.sh $STEP --production-origin $production_origin --preview-origin $preview_origin $flag" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          ssh -F "$cfg" yzgc-target "bash $work_dir/deploy/gitlab/cutover.sh $STEP --production-origin $production_origin --preview-origin $preview_origin --production-stack-root $production_root --preview-stack-root $preview_root $flag" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           ssh -F "$cfg" yzgc-target "rm -rf $work_dir"
           exit "$status"

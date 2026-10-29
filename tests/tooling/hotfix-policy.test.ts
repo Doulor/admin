@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { planHotfix, verifyLive } from "../../scripts/hotfix-policy.mjs";
+import { planHotfix, publishVerifiedCheck, verifyLive } from "../../scripts/hotfix-policy.mjs";
 
 const root = process.cwd();
 const dirs: string[] = [];
@@ -88,23 +88,71 @@ describe("真实生产证据的失败关闭", () => {
   });
 });
 
-describe("hotfix 工作流保持生产保护", () => {
-  const workflow = readFileSync(resolve(root, ".github/workflows/deploy-hotfix.yml"), "utf8");
-  it("只有 main 手工触发，核心/论坛全验，不制造 rc", () => {
-    expect(workflow).toContain('test "$GITHUB_REF" = refs/heads/main');
-    expect(workflow).toContain("needs: [plan, core, forum]");
-    expect(workflow).toContain("run: pnpm check"); expect(workflow).toContain("run: pnpm test");
-    expect(workflow).toContain("run: node scripts/forum.mjs check");
-    expect(workflow).not.toMatch(/^  (push|pull_request):/m);
-    expect(workflow).not.toMatch(/git tag|continue-on-error|\|\| true/);
+describe("部署状态只承认本次真实成功检查", () => {
+  function evidence() {
+    const repo = "fixture/repo";
+    const commit = "a".repeat(40);
+    const evidenceUrl = `https://github.com/${repo}/actions/runs/7/job/11`;
+    const run = { id: 7, run_attempt: 2, head_sha: commit, event: "workflow_dispatch", head_branch: "main", status: "in_progress", path: ".github/workflows/deploy-hotfix.yml", repository: { full_name: repo }, check_suite_id: 13 };
+    const job = { id: 11, run_id: 7, run_attempt: 1, head_sha: commit, name: "hotfix-verify", status: "completed", conclusion: "success", check_run_url: `https://api.github.com/repos/${repo}/check-runs/11` };
+    const check = { id: 11, name: "hotfix-verify", head_sha: commit, status: "completed", conclusion: "success", app: { id: 15368, slug: "github-actions" }, check_suite: { id: 13 }, details_url: evidenceUrl };
+    const page = { total_count: 1, jobs: [job] };
+    const writes: { url: string; body: Record<string, unknown> }[] = [];
+    const options = { repo, token: "fixture-token", runId: "7", runAttempt: "2", fetcher: (async (input, init) => {
+      const url = String(input);
+      if (init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        writes.push({ url, body });
+        return new Response(JSON.stringify({ id: 17, ...body }), { status: 201 });
+      }
+      const body = url.endsWith("/actions/runs/7") ? run : url.includes("/jobs?") ? page : check;
+      return new Response(JSON.stringify(body));
+    }) as typeof fetch };
+    return { commit, evidenceUrl, run, job, check, page, writes, options };
+  }
+
+  it("失败阶段重试可复用同一运行的成功检查，并把证据绑定到唯一修复提交", async () => {
+    const f = evidence();
+    expect(await publishVerifiedCheck({ commit: f.commit }, f.options)).toMatchObject({ checkRunId: 11, statusId: 17, evidenceUrl: f.evidenceUrl });
+    expect(f.writes).toEqual([{ url: `https://api.github.com/repos/fixture/repo/statuses/${f.commit}`, body: { state: "success", context: "hotfix-verify", target_url: f.evidenceUrl, description: expect.stringContaining("projection") } }]);
   });
-  it("CDN、镜像构建和内容校验与常规生产流程逐字一致", () => {
-    const normal = readFileSync(resolve(root, ".github/workflows/deploy-production.yml"), "utf8");
-    const shared = (text: string) => text.slice(text.indexOf("  cdn-plan:\n"), text.indexOf("  deploy:\n"));
-    expect(shared(workflow)).toBe(shared(normal));
+
+  it.each([
+    { target: "run", patch: { head_sha: "b".repeat(40) } },
+    { target: "run", patch: { head_branch: "stage" } },
+    { target: "run", patch: { event: "push" } },
+    { target: "run", patch: { path: ".github/workflows/ci.yml" } },
+    { target: "run", patch: { run_attempt: 1 } },
+    { target: "run", patch: { repository: { full_name: "another/repo" } } },
+    { target: "job", patch: { run_id: 8 } },
+    { target: "job", patch: { head_sha: "b".repeat(40) } },
+    { target: "job", patch: { status: "in_progress" } },
+    { target: "job", patch: { conclusion: "failure" } },
+    { target: "job", patch: { check_run_url: "https://example.test/check-runs/11" } },
+    { target: "check", patch: { app: { id: 99, slug: "github-actions" } } },
+    { target: "check", patch: { check_suite: { id: 99 } } },
+    { target: "check", patch: { conclusion: "failure" } },
+    { target: "check", patch: { details_url: "https://example.test/evidence" } },
+    { target: "page", patch: { total_count: 101 } },
+  ] as const)("来源不完整、跨运行或失败时绝不发布成功状态 %#", async ({ target, patch }) => {
+    const f = evidence();
+    Object.assign(f[target], patch);
+    await expect(publishVerifiedCheck({ commit: f.commit }, f.options)).rejects.toThrow();
+    expect(f.writes).toEqual([]);
   });
-  it("复用生产锁、审批、凭据隔离、备份、镜像校验和回滚", () => {
-    for (const literal of ["group: deploy-production", "cancel-in-progress: false", "required_reviewers", "name: production", "name: static-cdn", "hotfix-verify", "yzgc-backup@production.service", "rollback-stack.sh", "sha256sum -c", "payload[mode]=hotfix", "payload[base_tag_commit]", "GOOGLE_CLIENT_SECRET", "deployment-environment.mjs ssh-config", "hotfix-policy.mjs verify-live"]) expect(workflow).toContain(literal);
-    expect(workflow.indexOf("生产一致性备份与隔离恢复门禁")).toBeLessThan(workflow.indexOf("分发镜像、env 文件与 compose 物料"));
+
+  it("同一次运行出现重名检查时不能任挑一个成功结果", async () => {
+    const f = evidence();
+    f.page.jobs.push({ ...f.job, id: 12 });
+    f.page.total_count = 2;
+    await expect(publishVerifiedCheck({ commit: f.commit }, f.options)).rejects.toThrow(/不唯一/);
+    expect(f.writes).toEqual([]);
+  });
+
+  it("读取检查的上游 HTTP 失败不能投影为成功", async () => {
+    const f = evidence();
+    const fetcher: typeof fetch = async (url, init) => String(url).includes("/check-runs/") ? new Response("unavailable", { status: 503 }) : f.options.fetcher(url, init);
+    await expect(publishVerifiedCheck({ commit: f.commit }, { ...f.options, fetcher })).rejects.toThrow(/HTTP 503/);
+    expect(f.writes).toEqual([]);
   });
 });

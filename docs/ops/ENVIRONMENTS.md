@@ -2,7 +2,7 @@
 
 > 三份仓库环境模板（正式、预发布、本机）、Arch/HK 发布目标与副本外发门禁；已接管的权威源保持原行为，模板、运行配置和数据库有效设置分别核对。
 
-状态：`current` · 更新：2026-10-28 · 适用：两套隔离栈；机器身份：[deploy/environments.json](../../deploy/environments.json)，运行现状及授权见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。
+状态：`current` · 更新：2026-10-29 · 适用：两套隔离栈；机器身份：[deploy/environments.json](../../deploy/environments.json)，运行现状及授权见 [DEPLOY](DEPLOY.md#迁移现状与授权边界)。
 
 ## 可见性规则
 
@@ -81,7 +81,7 @@
 - `verify-arch-replica.mjs` 可只读核对指定 env/独立一致快照；持久 on/dry-run、缺原加密密钥、WAL/SHM/journal 状态均拒绝。成功只表示配置满足当前预部署合同，不证明密钥与原快照匹配或真实循环无外发；分发和命令见 [DEPLOY](DEPLOY.md#arch-副本启动前的独立门禁)。
 - 核心真实入口会启动 GitLab 同步和贡献收集循环；`competition-candidates.ts` 按有效 GitLab mode 判定，`dry-run` 不等同 off。启动前须在出站隔离中证明恢复库 **effective mode=off**、贡献收集不外发/不计分、邮件空白名单及队列无外发；Compose bridge 网络名 `internal` 不会自动断网。
 - 对恢复副本的设置调整属于数据写入，必须取得该环境和目标的明确批准；只操作获批复制库，保留原快照和旧源，不给出任意 UPDATE 线上库的捷径。保留原 `ENCRYPTION_KEY`、client、sector/sub 与 GitLab 关联；不为“安全副本”重建账号或随机换加密密钥。
-- 最终接管身份源按单写者顺序：先停旧源的**有效**同步/贡献收集并证明停止 → 对账/保全关联与 sub → 获批切换 issuer/client → 只开启新权威源。邮件恢复外发也须单独批准；真实 SSO 故障未因配置迁移解决。
+- 最终接管身份源按单写者顺序：先停旧源的**有效**同步/贡献收集并证明停止 → 对账/保全关联与 sub → 只开启新权威源并逐成员核验 → 获批切换 issuer/client。`gitlab-cutover` 已提供排空、持久写口、canonical env 原子更新和原镜像重启路径，不要求另发 rc。只读状态不证明旧进程已换模式；模板默认值也不等于运行状态。邮件恢复外发另行授权。
 
 ## SSH 与跳板绑定
 

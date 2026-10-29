@@ -351,7 +351,7 @@ it("「论坛最新」窗口：写明的「3D 版块」进 /forum-3d 场景页�
   expect(followed.calls).toEqual([]);
 });
 
-it("桌面上的入口都留在本页或当前标签页，不补「新标签页打开」；代码仓库窗口里去 GitLab 的链接在新标签页打开，给读屏补这一句（审查 S4）", () => {
+it("桌面入口在当前页打开；游客从仓库窗口进入同页 SSO 并保留回跳窗口", async () => {
   renderDesktop();
   dock().getByRole("button", { name: "代码仓库" });
   dock().getByRole("button", { name: "论坛" });
@@ -367,10 +367,10 @@ it("桌面上的入口都留在本页或当前标签页，不补「新标签页�
 
   fireEvent.click(dock().getByRole("button", { name: "代码仓库" }));
   const win = screen.getByRole("dialog", { name: "代码仓库" });
-  const gitlab = within(win).getByRole("link", { name: /打开代码仓库/ });
-  expect(gitlab.getAttribute("href")).toBe(links.gitlab());
-  expect(gitlab.getAttribute("target")).toBe("_blank");
-  expect(gitlab.getAttribute("rel")).toBe("noopener noreferrer");
-  expect(gitlab.querySelector(".pt-sr")?.textContent).toBe("（新标签页打开）");
+  await waitFor(() => {
+    const signIn = within(win).getByRole("link");
+    expect(signIn.getAttribute("href")).toBe("/signin?return_to=%2F%3Fopen%3Dgitlab");
+    expect(signIn.getAttribute("target")).toBeNull();
+  });
   expect(followed.calls).toEqual([]);
 });

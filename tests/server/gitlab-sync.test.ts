@@ -1215,10 +1215,69 @@ describe('GitLab console overview, projects and settings (#274)', () => {
     expect(res.json()).toEqual({ projects: [{ name: 'site', path_with_namespace: 'geek/site', description: '开源站点', web_url: `${GITLAB}/geek/site`, http_url_to_repo: `${GITLAB}/geek/site.git`, last_activity_at: '2026-10-18T00:00:00.000Z' }] });
   });
 
+  it('lets ordinary active members read private group projects without granting console access', async () => {
+    const { app, member } = await consoleSetup();
+    const result = await app.inject({ url: '/api/me/gitlab/projects', headers: member });
+    expect(result.statusCode).toBe(200);
+    expect(result.headers['cache-control']).toMatch(/(?:^|,)\s*no-store\s*(?:,|$)/);
+    expect(result.json().projects.map((project: { path_with_namespace: string }) => project.path_with_namespace)).toEqual(['geek/admin', 'geek/site']);
+    expect((await app.inject({ url: '/api/console/gitlab/projects', headers: member })).statusCode).toBe(403);
+    // 即使带成员 cookie，公开端点也不能混入私有项目。
+    const publicResult = await app.inject({ url: '/api/public/gitlab/projects', headers: member });
+    expect(publicResult.json().projects.map((project: { path_with_namespace: string }) => project.path_with_namespace)).toEqual(['geek/site']);
+  });
+
+  it('rejects guests, registered accounts, expired members and disabled sessions before querying private projects', async () => {
+    const { app, gitlab, accountOf } = await setup();
+    expect((await app.inject('/api/me/gitlab/projects')).statusCode).toBe(401);
+    const registered = rawSignIn(app, 'registered', 707);
+    expect((await app.inject({ url: '/api/me/gitlab/projects', headers: { cookie: `sid=${registered}` } })).statusCode).toBe(403);
+    const expired = signIn(app, 'expired', 708);
+    app.services.storage.db.prepare("UPDATE perm_members SET expires_at = ? WHERE account_id = ? AND group_id = 'level.member'").run(Date.now() - 1, accountOf(708));
+    app.services.permissions.bump();
+    expect((await app.inject({ url: '/api/me/gitlab/projects', headers: { cookie: `sid=${expired}` } })).statusCode).toBe(403);
+    const disabled = signIn(app, 'disabled', 709);
+    app.services.storage.db.prepare("UPDATE users SET status = 'disabled' WHERE id = ?").run(accountOf(709));
+    expect((await app.inject({ url: '/api/me/gitlab/projects', headers: { cookie: `sid=${disabled}` } })).statusCode).toBe(401);
+    expect(gitlab.calls).toEqual([]);
+  });
+
+  it('allows active alumni and rechecks eligibility even when the private list is cached', async () => {
+    const { app, member, accountOf } = await consoleSetup();
+    const accountId = accountOf(101);
+    app.services.storage.db.prepare("UPDATE perm_members SET group_id = 'level.alumni' WHERE account_id = ? AND group_id = 'level.member'").run(accountId);
+    app.services.permissions.bump();
+    expect((await app.inject({ url: '/api/me/gitlab/projects', headers: member })).json().projects[0].path_with_namespace).toBe('geek/admin');
+    app.services.identity.setSiteRole({ accountId, role: 'none', actor: 'system' });
+    const denied = await app.inject({ url: '/api/me/gitlab/projects', headers: member });
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json()).not.toHaveProperty('projects');
+  });
+
+  it('does not send a late private list after membership is revoked during the GitLab request', async () => {
+    const { app, member, gitlab, accountOf } = await consoleSetup();
+    const held = gitlab.hold('GET /groups/geek');
+    const request = Promise.resolve(app.inject({ url: '/api/me/gitlab/projects', headers: member }));
+    await held.hit;
+    app.services.identity.setSiteRole({ accountId: accountOf(101), role: 'none', actor: 'system' });
+    held.release();
+    const result = await request;
+    expect(result.statusCode).toBe(403);
+    expect(result.json()).not.toHaveProperty('projects');
+  });
+
   it('tells the public endpoint apart from "really has zero public projects" when GitLab cannot be reached', async () => {
     const { app, gitlab } = await consoleSetup();
     gitlab.setUnreachable(true);
     expect((await app.inject('/api/public/gitlab/projects')).json()).toEqual({ projects: [], unavailable: true });
+  });
+
+  it('does not turn a GitLab projects HTTP failure into a genuine empty member list', async () => {
+    const { app, gitlab, member } = await consoleSetup();
+    gitlab.fail('GET /groups/geek/projects', 503);
+    const result = await app.inject({ url: '/api/me/gitlab/projects', headers: member });
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual({ projects: [], unavailable: true });
   });
 
   it('reports unavailable without calling out when GitLab sync is not configured at all', async () => {

@@ -79,6 +79,8 @@ docker compose … exec server node app/server/dist/cli/oidc.js client add --nam
 
 控制台接口：`GET /api/console/gitlab/accounts`（`gitlab.view`）列出每个账号的 GitLab 用户名、状态、组权限、最后一次错误和还要做的事，`client_registered` 说明 `gitlab` 客户端登记了没有；`POST /api/console/gitlab/accounts/:account_id/resync`（`gitlab.sync` 加 step-up，每分钟 30 次）立即同步一个账号，同步关着时 409 `gitlab_sync_off`，客户端没登记时 200 带 `error: gitlab_client_missing`。
 
+门户项目读取与管理接口分开（GitLab #308）：`GET /api/me/gitlab/projects` 使用相同有效直接成员口径，在外部等待后重查资格；不需要 `gitlab.view`，不下发账号映射或管理字段。游客仍读公开接口；上游不可用不冒充空项目，返回最小项目 DTO 并 `no-store`。
+
 ### 防误封与失败闭合（GitHub #271）
 
 本地 active 与有效直接 member/alumni 是资格权威，远端数字 id 只是缓存。`on` 每轮（包括本地记录已 blocked、计划为空时）读取 `/users/:id`，用既有 sector 的 **existing sub** 精确核对唯一的 `openid_connect` 绑定；同 provider 有多条绑定时拒绝，不因其中一条匹配而接管。不为已有映射补造 sub，不凭邮箱或用户名接管。详情必须含有效 id、用户名、active/blocked 状态、明确 is_admin 与 identities；管理员、bot、非 human 服务账号、保留用户名及绑定冲突对象拒绝一切写入。找身份时完整连续分页后才判断唯一或不存在，最多 10 页，跳页、循环、损坏或截断均不是“不存在”。
@@ -91,7 +93,7 @@ HTTP 失败、超时、429/5xx、详情不完整、身份失配与缺失 sub 均
 
 ## GitLab 一侧的配置
 
-GitLab 只有一台。正式站上线前它接预发布的签发者 `https://prev.yangtzeu.work/oidc`（所有者 2026-10-23 选定）：预发布 `GITLAB_SYNC=on`，成员和角色以预发布为准；预发布的数据库因此不能清空重建，否则 `oauth_subjects` 里的 `sub` 没了，GitLab 上的身份对不上。正式站上线后改接正式签发者，按这个顺序：先把预发布的 `GITLAB_SYNC` 改成 `off`；再把预发布 `oauth_subjects` 里 GitLab sector 的行按稳定的 provider/subject 身份证据及逐人核对记录对到正式库的账号上写过去（邮箱相同不构成身份合并证据），`sub` 不变，大家的 GitLab 账号也不变，然后改 GitLab 的 `issuer`；最后才把正式的 `GITLAB_SYNC` 改成 `on`。两个环境同时 `on` 时，两份名单对不上的人会被一边封禁、另一边解封，来回反复。顺序是先在接 GitLab 的那个环境登记 `gitlab` 客户端、把 `GITLAB_SYNC` 改成 `on` 并看到第一轮对账成功，再改 GitLab：同步没开时成员离开不会被封禁。`/etc/gitlab/gitlab.rb` 里加（secret 放在 root 0600 的文件里由 `File.read` 读入，不写进仓库）： 签发者现在不写在 `deploy/gitlab/gitlab-oidc.rb` 里（#309）：片段读宿主 `/etc/gitlab/yzgc-oidc-issuer`，改接哪个环境只改这个文件再 `gitlab-ctl reconfigure`，步骤和同构清单编号见 [GitLab 运维合同](../../ops/GITLAB.md)。
+GitLab 只有一台，正式接管必须保全原 GitLab sector 的 sub 和用户 ID。先通过受保护的 `gitlab-cutover` 排空并重启旧预发布，使持久配置和运行 env 均 off；再按稳定 provider+provider_uid 把已有 sub 对到正式账号，只新增、不覆盖，任何 unmatched 或无不可变身份都阻断整批。确认旧成员在正式的资格不丢失后，开启正式唯一写者并逐成员核对唯一 OIDC 绑定、原 GitLab ID 与组权限；最后才切 GitLab issuer/client secret，使新的登录从一开始就受正式同步撤权保护。不能复制预发布业务用户或按邮箱/昵称合号，不能只改 app_state 就把旧进程视作已停。签发者片段读 `/etc/gitlab/yzgc-oidc-issuer`，secret 读独立 0600 文件；具体步骤和回滚见 [GitLab 运维合同](../../ops/GITLAB.md#极客班统一登录oidc契约)。
 
 ```ruby
 gitlab_rails['omniauth_enabled'] = true

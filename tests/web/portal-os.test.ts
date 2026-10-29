@@ -153,7 +153,6 @@ describe("YUGC OS 应用与启动器", () => {
     const listed = shell.run("repos").lines.map((line) => line.text).join("\n");
     expect(listed).toContain("https://git.example.invalid/geek/geek-cli");
     expect(listed).toContain("geek/notes");
-    expect(terminal(visibleApps(false)).run("repos").lines.at(-1)?.text).toContain("代码仓库里还没有公开项目");
     expect(shell.run("clear")).toMatchObject({ lines: [], clear: true });
     expect(shell.run("rm -rf /").lines.at(-1)?.kind).toBe("err");
   });

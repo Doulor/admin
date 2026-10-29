@@ -2,7 +2,7 @@
 
 > 按真实 handler、授权执行点与存储实现核对现有接口；关联目录中的业务用例，区分存量人工说明与已挂载的机器响应契约。
 
-状态：`current` · 更新：2026-10-28
+状态：`current` · 更新：2026-10-29
 
 ## 口径与共同边界
 
@@ -191,6 +191,12 @@
 没有登录邮箱的账号（#273，所有者 2026-10-23 19:22：「之前只绑定了github账号没有绑定邮箱的再次进来或者登录的时候必须绑定邮箱」）：判定在 [lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)，只在这个环境能发信时要求。GitHub、Google 登录回调跳绑定邮箱页，对外授权的交互入口与同意页、设备授权的允许在服务端拦，`/auth/me`、`/api/identity/me`、`/api/console/me` 的 `email_required` 交给官网、论坛、控制台自己跳。
 
 源码：[routes/identity/email.ts](../../../app/server/src/routes/identity/email.ts)、[routes/identity/google.ts](../../../app/server/src/routes/identity/google.ts)、[routes/identity/account.ts](../../../app/server/src/routes/identity/account.ts)、[routes/identity/profile.ts](../../../app/server/src/routes/identity/profile.ts)、[routes/console/invites.ts](../../../app/server/src/routes/console/invites.ts)、[lib/email-gate.ts](../../../app/server/src/lib/email-gate.ts)、[lib/email-login.ts](../../../app/server/src/lib/email-login.ts)、[lib/google.ts](../../../app/server/src/lib/google.ts)、[lib/invite-codes.ts](../../../app/server/src/lib/invite-codes.ts)、[lib/identity-store.ts](../../../app/server/src/lib/identity-store.ts)、[lib/account-profiles.ts](../../../app/server/src/lib/account-profiles.ts)、[lib/account-avatar.ts](../../../app/server/src/lib/account-avatar.ts)。验证入口：[tests/server/signin-methods.test.ts](../../../tests/server/signin-methods.test.ts)、[tests/console/signin.test.ts](../../../tests/console/signin.test.ts)、[tests/console/account.test.ts](../../../tests/console/account.test.ts)、[tests/server/profile.test.ts](../../../tests/server/profile.test.ts)。
+
+## 门户代码仓库列表
+
+- `GET /api/public/gitlab/projects` · `flow:gitlab.projects.public.list`：匿名只读 public 项目，即使带成员 cookie 也不混入私有项目。
+- `GET /api/me/gitlab/projects` · `flow:gitlab.projects.member.list`：有效 sid 且 active、当前有效直接 member/alumni；无需控制台 `gitlab.view`。游客/停用或失效会话 401，注册用户、过期资格或等待 GitLab 时被撤销资格 403 `not_member`。缓存命中也重查资格，不能用上次授权复用私有列表。
+- 200 为 `{projects:[{name,path_with_namespace,description,web_url,http_url_to_repo,last_activity_at}],unavailable?:true}`，不返回管理员令牌或账号映射。上游项目 HTTP/网络失败为 `{projects:[],unavailable:true}`，与真实空项目分开。沿用 API `Cache-Control: no-store`；只共享服务端短时项目缓存，不在公网缓存。验证入口：`tests/server/gitlab-sync.test.ts`、`tests/web/portal-code-repos.test.tsx`。
 
 ## 对外授权（OIDC）与 GitLab 账号同步（GitLab 历史 #270）
 

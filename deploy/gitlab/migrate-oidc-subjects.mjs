@@ -7,22 +7,28 @@
 //   docker exec -i <目标环境 server 容器> node /tmp/migrate-oidc-subjects.mjs import --sector <GitLab 主机名> [--apply] < 上一步的 JSON
 //                                                                                    缺省只演算，--apply 才写
 //
-// import 只新增（INSERT）：目标库里该账号在该 sector 已有不同的 sub、或这个 sub 已属于别人，都记为冲突并拒绝整批写入，
-// 不覆盖任何已有行。输出只含计数和 provider_uid，不含邮箱、昵称或 sub 的值。
+// 不覆盖任何已有行；冲突、目标身份缺失或源账号无可对账身份时，整批拒绝写入。
+// 输出只含计数和 provider_uid，不含邮箱、昵称或 sub 的值。
 import { createRequire } from 'node:module';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const SECTOR_RE = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
 const PROVIDERS = new Set(['github', 'google']);
 
 export function loadDatabase() {
-  const require = createRequire(import.meta.url);
-  try { return require('better-sqlite3'); } catch { /* 容器里依赖在 pnpm 目录下 */ }
-  const store = '/app/node_modules/.pnpm';
-  const dir = readdirSync(store).find(name => name.startsWith('better-sqlite3@'));
-  if (!dir) throw new Error('找不到 better-sqlite3');
-  return createRequire(`${store}/${dir}/node_modules/`)('better-sqlite3');
+  // 工作区与容器都从 server 包解析；运维脚本可能挂在 /ops 或复制到 /tmp。
+  for (const anchor of [new URL('../../app/server/package.json', import.meta.url), new URL('file:///app/app/server/package.json')]) {
+    const require = createRequire(anchor);
+    let resolved;
+    try { resolved = require.resolve('better-sqlite3'); }
+    catch (error) {
+      if (error.code === 'MODULE_NOT_FOUND') continue;
+      throw error;
+    }
+    return require(resolved);
+  }
+  throw new Error('找不到 server 的 better-sqlite3 依赖');
 }
 
 export function assertSector(sector) {
@@ -55,6 +61,8 @@ export function importSubjects(db, payload, { sector, apply = false, now = Date.
   const plan = [];
   const conflicts = [];
   const unmatched = [];
+  const withoutIdentity = payload.withoutIdentity ?? 0;
+  if (!Number.isSafeInteger(withoutIdentity) || withoutIdentity < 0) throw new Error('输入的无身份计数无效');
   const claimed = new Map();
   for (const entry of payload.entries) {
     const users = new Set();
@@ -77,11 +85,11 @@ export function importSubjects(db, payload, { sector, apply = false, now = Date.
     plan.push({ userId, sub: entry.sub, label });
   }
   let applied = 0;
-  if (apply && conflicts.length === 0 && plan.length > 0) {
+  if (apply && conflicts.length === 0 && unmatched.length === 0 && withoutIdentity === 0 && plan.length > 0) {
     const insert = db.prepare('INSERT INTO oauth_subjects(sector_id, user_id, sub, created_at) VALUES(?, ?, ?, ?)');
     db.transaction(() => { for (const item of plan) { insert.run(sector, item.userId, item.sub, now); applied += 1; } })();
   }
-  return { plan, conflicts, unmatched, applied };
+  return { plan, conflicts, unmatched, withoutIdentity, applied };
 }
 
 function option(argv, name) {
@@ -101,17 +109,17 @@ function main(argv) {
   }
   if (mode === 'import') {
     const apply = argv.includes('--apply');
-    const db = new Database(dbPath, { fileMustExist: true });
+    const db = new Database(dbPath, { readonly: !apply, fileMustExist: true });
     db.pragma('busy_timeout = 5000');
     const result = importSubjects(db, JSON.parse(readFileSync(0, 'utf8')), { sector, apply });
     const lines = [
-      `${apply ? '写入' : '演算'} sector=${sector}：可迁 ${result.plan.length}，冲突 ${result.conflicts.length}，目标库对不上 ${result.unmatched.length}${apply ? `，已写入 ${result.applied}` : ''}`,
+      `${apply ? '写入' : '演算'} sector=${sector}：可迁 ${result.plan.length}，冲突 ${result.conflicts.length}，目标库对不上 ${result.unmatched.length}，源账号无可对账身份 ${result.withoutIdentity}${apply ? `，已写入 ${result.applied}` : ''}`,
       ...result.conflicts.map(item => `冲突 ${item}`),
       ...result.unmatched.map(item => `对不上 ${item}`),
       ...(apply && result.applied > 0 ? [`回滚：DELETE FROM oauth_subjects WHERE sector_id='${sector}' AND user_id IN (${result.plan.map(item => `'${item.userId}'`).join(',')})`] : []),
     ];
     process.stdout.write(`${lines.join('\n')}\n`);
-    return result.conflicts.length > 0 ? 1 : 0;
+    return result.conflicts.length > 0 || result.unmatched.length > 0 || result.withoutIdentity > 0 ? 1 : 0;
   }
   process.stderr.write('用法：migrate-oidc-subjects.mjs export|import --sector <主机名> [--apply]\n');
   return 2;
