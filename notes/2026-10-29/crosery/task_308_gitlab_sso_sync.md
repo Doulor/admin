@@ -79,3 +79,21 @@
 - 执行者：agent-omp-recovery-20261029
 - 做了什么：准备提交feat(deploy): 支持独立GitLab预发布与受限入口部署。后端保留子路径并选择独立OIDC客户端，门户去掉正式GitLab静态地址；新增独立编排、失败保护、备份角色与受限入口流水线。只按新契约更新环境差异并新增共用目标拒绝，不放宽密钥、审批或身份对账。删除退役的文本/静态链接断言，保留行为回归。
 - 结果：最终pnpm verify退出0：核心3025 passed/27 skipped，论坛701 passed，核心构建与论坛61路由生成通过；宏观对齐76文件/29节点。真实TCP 302/400/200/401/health200、1440与390浏览器、Caddy真实validate、受限SSH允许plan拒绝id均已验证；actionlint通过。已安装接收器与仓库SHA256均2fadf48a9ffaac2fa637cf78b58bfee5f42a877805057405813277eb82d58020，现行Caddy配置摘要不变。新GitLab未启动、SSO/Git/Issue/MR/真实备份恢复未验收，两个身份补建尚无明确授权。
+
+## 12:49:51 +08:00 · 推送 · #308 · 独立GitLab改造已推送双仓任务分支
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：提交c9aa24c2b60397a6d2f3a400d686d43a8fc73b18已正常推送GitLab与GitHub的task/308/gitlab_sso_sync；钩子未绕过，没有改main/stage或tag。
+- 结果：MR53仍为Draft/open；GitHub缺少GitLab同号issue导致本地生命周期查询警告，未伪造GitHub308。
+
+## 12:49:51 +08:00 · PR · #308 · 更新MR53双实例方案和真实验证边界
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：MR53正文十段已更新为双实例方案，保留原GitHub托管截图；记录最新完整verify、真实TCP/浏览器/Caddy及受限SSH证据，明确初始化与运行验收不同。
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/53；新实例尚未启动，真实SSO/Git/Issue/MR和预发布备份恢复未验收；P-0013只核销受限入口通道。
+
+## 12:49:52 +08:00 · 审查 · #308 · 主控审查完成并保留真实身份阻塞
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：对c9aa24c2逐项核对分支、密钥/env、实例与备份隔离、权限/接口、宿主固定动作、文档、回归和交付；结论已写MR53评论1745，未冒称独立审查或人工验收。
+- 结果：结论阻塞。补建选择框超时不构成人工批准；再次只读查询确认GitHub uid340692242、317592648在正式仍无identity对应账号，未补建、未赋权、未迁移sub或清空旧映射。最终pnpm verify核心3025通过/27跳过、论坛701通过、61路由生成。
