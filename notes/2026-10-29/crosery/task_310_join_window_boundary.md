@@ -25,3 +25,9 @@
 - 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
 - 做了什么：deploy-hotfix run 40826458165 的 hotfix-core 失败：check-env-isolation 把 deploy/hotfix/windows.json 的所有者原话（含正式站域名）判为写死；原话不改写，在 deploy/env/origin-exceptions.json 登记 max 1 并写理由
 - 结果：node scripts/check-env-isolation.mjs 通过（见上行输出）；待 MR 合入 main 后复跑 deploy-hotfix
+
+## 14:03:31 +08:00 · 返工 · #310 · plan 文档同步：deploy/ 每次改动后文档须更新
+
+- 执行者：agent-claude-p0-join-310（Claude Code，claude-haiku-5-5）
+- 做了什么：run 40826781668 的 plan 失败：MR 56 又改了 deploy/env/origin-exceptions.json，文档时间早于模块（check-doc-sync 按第一父链时间比较）。在 docs/ops/DEPLOY.md 的热修复段写明登记例外与时间规则（真实内容，不只改日期）
+- 结果：node scripts/check-doc-sync.mjs 待提交后于 main 上复跑；见下一条提交
