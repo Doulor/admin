@@ -31,3 +31,15 @@
 - 执行者：agent-omp-recovery-20261029
 - 做了什么：修复继承的GitLab成员仓库/SSO引导、原生运维依赖解析、UID1000挂载可读性、切换失败恢复、完整主体门禁和真实Actions检查投影；补对应行为回归与文档，重建工程目录。准备提交fix(auth): 修复成员仓库访问与安全同步切换，Refs #308 #309。
 - 结果：最终pnpm verify退出0；核心与论坛类型检查、单测、构建和61路由生成全部完成。定向234 passed；actionlint两份工作流通过；真实HTTP及原生CLI烟测已通过，桌面/390px样板可见。两个未匹配身份仍为线上前置，未切issuer、未操作业务用户，未改DNS或tag。
+
+## 10:29:11 +08:00 · PR · #308 · 提交GitLab MR53并保留身份处置阻塞
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：修复提交312217ad2b2f301baef337c802049fb8a0417e2f已正常推送GitLab和GitHub的task/308/gitlab_sso_sync；创建GitLab MR53目标main，按既有P0例外交付，暂为Draft；十段正文、GitHub托管改前改后截图、验证与未验证范围均已填写。
+- 结果：https://git.yangtzeu.work/geek/admin/-/merge_requests/53；最终pnpm verify核心3006通过/27跳过、论坛701通过、61路由生成。两个身份前置未处理，不合并、不发布、不关闭工单。
+
+## 10:29:11 +08:00 · 审查 · #308 · 主控完成代码审查，真实身份处置阻塞上线
+
+- 执行者：agent-omp-recovery-20261029
+- 做了什么：审查提交312217ad2b2f301baef337c802049fb8a0417e2f的业务、运维、工作流、测试和文档；逐项结论已写MR53。独立代理启动限流未出结果，未冒称独立审查通过。
+- 结果：结论阻塞：本地代码与完整验证已通过，但konglingggg和IofStage在正式没有可关联的GitHub身份；需本人登录/关联与资格核对或所有者明确批准最小补建。两仓main/stage仍同9438af8b，未改DNS/tag/线上账号。
